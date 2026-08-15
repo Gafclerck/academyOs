@@ -37,6 +37,23 @@ academy-os-api/
 - Modèle utilisateur personnalisé : `AUTH_USER_MODEL = 'users.User'`. Les clés étrangères vers un utilisateur doivent référencer `settings.AUTH_USER_MODEL`, jamais le modèle `User` par défaut.
 - Routes exposées : `/api/auth/` pour l'authentification, ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
 
+### Endpoints d'authentification (`/api/auth/`)
+
+| Méthode | Route | Accès | Corps | Description |
+|---|---|---|---|---|
+| POST | `register/` | Admin | `email, role` (`admin`/`organizer`/`trainer`/`learner`), `first_name`, `last_name`, `phone_number` | Créer un compte (rôle au choix) ; email avec code envoyé pour définir le premier mot de passe |
+| POST | `login/` | Public | `email, password` | Connexion JWT (`access`, `refresh`) |
+| POST | `token/refresh/` | Public | `refresh` | Rotation du refresh token |
+| POST | `logout/` | Authentifié | `refresh` | Révocation du refresh token (blacklist) |
+| GET | `me/` | Authentifié | — | Profil de l'utilisateur connecté |
+| PATCH | `me/` | Authentifié | `first_name, last_name, phone_number` | Compléter/modifier le profil |
+| POST | `change-password/` | Authentifié | `old_password, new_password` | Changer son mot de passe |
+| POST | `invite/` | Organizer / Admin | `email, role` (`trainer`/`learner`) | Inviter un utilisateur par email (code envoyé par email) |
+| POST | `forgot-password/` | Public | `email` | Envoyer un code de réinitialisation (réponse identique si l'email existe ou non) |
+| POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (usage unique) |
+
+L'invitation crée un compte **sans mot de passe utilisable** (`set_unusable_password()`) ; le code reçu par email lui permet de définir son premier mot de passe via `reset-password/`. Les codes sont hashés (HMAC-SHA256) et expirants (`PasswordResetToken`).
+
 ## Configuration
 
 ### Sélection du module de settings
@@ -57,7 +74,7 @@ Le module de settings est choisi **uniquement** via la variable d'environnement 
 - Authentification par JWT (Bearer) via simplejwt, avec rotation des refresh tokens et blacklist des tokens révoqués.
 - Permission par défaut : `IsAuthenticated`. Les endpoints publics doivent explicitement déclarer `permission_classes = [AllowAny]` et choisir un scope de throttling.
 - Rendus et parsers JSON uniquement.
-- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `register` 10/h.
+- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `invite` 10/h, `forgot` 5/h, `reset` 5/h.
 - CORS : ouvert en développement (`CORS_ALLOW_ALL_ORIGINS`), restreint en production à `CORS_ALLOWED_ORIGINS` (à configurer dans `.env` avec l'origine du front).
 
 ## Lancer le projet

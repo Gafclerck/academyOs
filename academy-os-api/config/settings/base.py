@@ -117,7 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = 'Europe/Paris'
+TIME_ZONE = "Africa/Dakar"
 USE_I18N = True
 USE_TZ = True
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -150,9 +150,15 @@ REST_FRAMEWORK = {
         'anon': '100/day',
         'user': '1000/day',
         'login': '5/minute',
-        'register': '10/hour',
+        'invite': '10/hour',
+        'forgot': '5/hour',
+        'reset': '5/hour',
     },
 }
+
+# Réinitialisation de mot de passe / invitations
+PASSWORD_RESET_TOKEN_TTL_MINUTES = 30
+PASSWORD_RESET_INVITE_TTL_DAYS = 7
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
@@ -170,6 +176,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=int(env('REFRESH_TOKEN_LIFETIME', default=7))),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -179,7 +186,7 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Cohort Management API',
-    'DESCRIPTION': 'API avec RBAC',
+    'DESCRIPTION': 'API de gestion de cohortes avec authentification JWT et RBAC',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
