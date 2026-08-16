@@ -52,7 +52,8 @@ LOCAL_APPS = [
     'apps.core',
     'apps.users',
     'apps.programs',
-    'apps.session_cohort'
+    'apps.session_cohort',
+    'apps.certificates',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
