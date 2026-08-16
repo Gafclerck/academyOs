@@ -82,9 +82,10 @@ export function ProjetStatusBadge({ statut, className = '' }: ProjetStatusBadgeP
 // ─── Badge Rôle Membre ────────────────────────────────────────────────────────
 
 interface RoleBadgeProps {
-  role: 'etudiant' | 'mentor' | 'admin';
+  role: string;
   className?: string;
 }
+
 
 const ROLE_CONFIG: Record<string, { label: string; className: string }> = {
   etudiant: {

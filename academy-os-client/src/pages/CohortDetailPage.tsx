@@ -260,8 +260,9 @@ function ProjetsTab({
                 </div>
               </td>
               <td className="py-4 px-3 pr-6">
-                <ProgressBar value={p.progression} />
+                <ProgressBar value={p.progression ?? p.etat_avancement ?? 0} />
               </td>
+
             </tr>
           ))}
         </tbody>
@@ -306,11 +307,13 @@ export default function CohortDetailPage() {
 
   // ─── Progression globale ──────────────────────────────────────────────────
 
-  const termines   = projets.filter((p) => p.progression === 100).length;
+  const getProgression = (p: typeof projets[0]) => p.progression ?? p.etat_avancement ?? 0;
+  const termines   = projets.filter((p) => getProgression(p) === 100).length;
   const globalPct  = projets.length > 0 ? Math.round((termines / projets.length) * 100) : 0;
   const avgPct     = projets.length > 0
-    ? Math.round(projets.reduce((s, p) => s + p.progression, 0) / projets.length)
+    ? Math.round(projets.reduce((s, p) => s + getProgression(p), 0) / projets.length)
     : 0;
+
 
   // ─── État: chargement ─────────────────────────────────────────────────────
 
@@ -502,9 +505,10 @@ export default function CohortDetailPage() {
           <div className="grid grid-cols-3 gap-3 pt-2">
             {[
               { label: 'Terminés',     count: termines,                               color: 'text-emerald-600 dark:text-emerald-400' },
-              { label: 'En cours',     count: projets.filter(p => p.progression < 100 && p.progression > 0).length, color: 'text-[#FF6B0B]' },
-              { label: 'Non démarrés', count: projets.filter(p => p.progression === 0).length, color: 'text-slate-400' },
+              { label: 'En cours',     count: projets.filter(p => getProgression(p) < 100 && getProgression(p) > 0).length, color: 'text-[#FF6B0B]' },
+              { label: 'Non démarrés', count: projets.filter(p => getProgression(p) === 0).length, color: 'text-slate-400' },
             ].map(({ label, count, color }) => (
+
               <div key={label} className="text-center p-4 bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-2xl">
                 <p className={`text-2xl font-extrabold ${color}`}>{count}</p>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">{label}</p>
