@@ -256,3 +256,10 @@ export async function getProjetsByCohorte(cohortId: string): Promise<ProjetCohor
     throw new Error(extractMessage(err, 'Impossible de charger les projets.'));
   }
 }
+
+// ─── Aliases ──────────────────────────────────────────────────────────────────
+export const getCohortById = getCohorteById;
+export const createCohort = createCohorte;
+export const getCohortMembers = getMembresByCohorte;
+export const getCohortProjects = getProjetsByCohorte;
+

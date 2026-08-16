@@ -14,7 +14,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
-  Loader2,
   AlertCircle,
   Users,
   FolderOpen,
@@ -25,6 +24,7 @@ import {
   ChevronDown,
   GraduationCap,
 } from 'lucide-react';
+
 import type { Cohorte, Session, CohorteFilters } from '@/types/cohorte';
 import { getCohortes, getSessions } from '@/services/cohorteService';
 import { CohorteStatusBadge } from '@/components/cohortes/Badge';
@@ -161,9 +161,10 @@ export default function CohortListPage() {
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleFilterChange = (key: keyof CohorteFilters, value: string) => {
+  const handleFilterChange = (key: keyof CohorteFilters, value: string | undefined) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
+
 
   const handleView = (id: string) => navigate(`/cohortes/${id}`);
   const handleEdit = (id: string) => {

@@ -48,8 +48,11 @@ export interface CreateCohortePayload {
 export interface MembreCohorte {
   id: string;
   nom: string;
+  prenom?: string;
   email: string;
   role: string;
+  avatar?: string;
+  date_rejoint?: string;
 }
 
 // ─── Projets d'une cohorte ────────────────────────────────────────────────────
@@ -57,9 +60,17 @@ export interface MembreCohorte {
 export interface ProjetCohorte {
   id: string;
   nom: string;
+  description?: string;
   /** Pourcentage d'avancement : 0-100 */
-  progression: number;
+  progression?: number;
+  etat_avancement?: number;
+  statut?: ProjetStatut;
+  nb_membres?: number;
+  date_debut?: string;
+  date_fin_prevue?: string;
 }
+
+
 
 // ─── Filtres de liste ─────────────────────────────────────────────────────────
 
@@ -68,3 +79,11 @@ export interface CohorteFilters {
   session_id?: string;
   search?: string;
 }
+
+// ─── Aliases pour rétrocompatibilité ──────────────────────────────────────────
+
+export type ProjetStatut = 'en_cours' | 'termine' | 'en_attente' | 'abandonne';
+export type Membre = MembreCohorte;
+export type Projet = ProjetCohorte;
+
+
