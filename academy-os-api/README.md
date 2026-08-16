@@ -101,8 +101,7 @@ L'API est alors disponible sur `http://127.0.0.1:8000/`, la documentation sur `/
 ## Tests
 
 ```powershell
-.\.venv\Scripts\python.exe manage.py test
-.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe manage.py test apps.users
 ```
 
-Le module de settings des tests est défini dans `pytest.ini`.
+Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
