@@ -9,33 +9,58 @@ API REST Django du projet **Academy OS**
 - djangorestframework-simplejwt (authentification par JWT)
 - drf-spectacular (documentation OpenAPI / Swagger)
 - django-environ (configuration par variables d'environnement, 12-factor)
-- pytest + pytest-django (tests)
+- Tests : runner natif Django (`django.test.TestCase` / `rest_framework.test.APITestCase`)
 
 ## Architecture du projet
 
 ```
 academy-os-api/
 ├── manage.py                # outils de développement ; module de settings par défaut
-├── pytest.ini               # configuration des tests
 ├── config/
 │   ├── settings/
 │   │   ├── base.py          # configuration commune (apps, DRF, JWT, CORS, base de données)
 │   │   ├── development.py   # environnement de développement (DEBUG, CORS ouvert, email console)
 │   │   └── production.py    # environnement de production (DEBUG off, HSTS, cookies sécurisés)
-│   ├── urls.py              # routage : /admin/, /api/auth/, /api/schema|docs|redoc/
+│   ├── urls.py              # routage : /admin/, /api/auth/, /api/programs/, /api/cohorts/, /api/schema|docs|redoc/
 │   ├── wsgi.py              # point d'entrée WSGI ; module de settings par défaut : production
 │   └── asgi.py              # point d'entrée ASGI ; module de settings par défaut : production
 └── apps/
-    ├── users/               # modèle utilisateur personnalisé (apps.users)
-    └── core/                # Socle technique du projet fournissant des briques réutilisables : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, gestion d'exceptions personnalisée, utilitaires et mixins DRF.
+    ├── core/                # socle partagé : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, infra de test partagée (`base.py`/`factories.py`)
+    ├── users/               # modèle utilisateur personnalisé, auth, RBAC
+    ├── programs/            # catalogue de formation (Programme + Projet à venir)
+    ├── cohorts/             # TrainingPeriod + Cohort (périodes globales et cohortes)
+    ├── certificates/        # certificats (model-only pour l'instant)
+    ├── pedagogy/            # COQUILLE : CourseSession + Absence (cours)
+    ├── evaluations/         # COQUILLE : ProjectAssignment + Deliverable (soumission/correction)
+    └── attachments/         # COQUILLE : Attachment (pièces jointes)
 
 ```
 
-### Organisation des applications
+### Organisation des applications — quoi mettre où
 
-- Les applications vivent sous `apps/` avec des chemins d'import dotted (ex. `apps.users`). Toute nouvelle application doit être déclarée dans `LOCAL_APPS` dans `config/settings/base.py`.
+- **Code en anglais** : apps, classes, champs, fichiers, routes, enums. Commentaires et descriptions d'API en français.
+- Les applications vivent sous `apps/` avec des chemins d'import dotted (ex. `apps.cohorts`). Toute nouvelle application doit être déclarée dans `LOCAL_APPS` dans `config/settings/base.py`.
 - Modèle utilisateur personnalisé : `AUTH_USER_MODEL = 'users.User'`. Les clés étrangères vers un utilisateur doivent référencer `settings.AUTH_USER_MODEL`, jamais le modèle `User` par défaut.
-- Routes exposées : `/api/auth/` pour l'authentification, ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- **Mapping entité → app** (les entités à venir ne sont pas encore implémentées : créer le modèle dans l'app indiquée) :
+
+| Entité | App | Notes |
+|---|---|---|
+| `Project` | `apps.programs` | FK → Program |
+| `TrainingPeriod` ✅ | `apps.cohorts` | période globale (ex. « Été 2026 ») |
+| `Cohort` ✅ | `apps.cohorts` | ex-`Cohorte` ; à enrichir : FK `program` + `organizer` |
+| `TrainerAssignment` | `apps.cohorts` | formateur affecté à une cohorte |
+| `Enrollment` | `apps.cohorts` | apprenant inscrit, `mentor` → TrainerAssignment |
+| `CourseSession` | `apps.pedagogy` | un cours ; FK → Cohort + Project + formateur |
+| `Absence` | `apps.pedagogy` | FK → CourseSession + Enrollment |
+| `ProjectAssignment` | `apps.evaluations` | projet confié à une inscription |
+| `Deliverable` | `apps.evaluations` | soumission/correction d'un projet |
+| `Attachment` | `apps.attachments` | fichier joint (éviter `File`, collision `django.core.files.File`) |
+| `Certificate` ✅ | `apps.certificates` | à compléter : FK → Enrollment |
+
+- **Distinction clé** : `TrainingPeriod` = période globale organisée par l'institution ; `CourseSession` = cours dispensé par un formateur à une cohorte. Ne pas confondre.
+- **Règles métier à valider en code** (pas seulement par FK) : les dates d'une `Cohort` doivent être comprises dans l'intervalle de son `TrainingPeriod` ; le `mentor` d'une `Enrollment` doit pointer vers un `TrainerAssignment` de la même cohorte.
+- **Apps coquilles** (`pedagogy`, `evaluations`, `attachments`) : ne pas ajouter de code métier tant qu'une feature ne le nécessite pas — elles servent de guide d'architecture.
+- Routes exposées : `/api/auth/`, `/api/programs/`, `/api/cohorts/`, ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
 
 ### Endpoints d'authentification (`/api/auth/`)
 
@@ -67,7 +92,7 @@ Le module de settings est choisi **uniquement** via la variable d'environnement 
 
 ### Base de données
 
-- `base.py` lit la variable `DATABASE_URL` via `env.db()`. Par défaut, le projet utilise la base SQLite locale (`db.sqlite3`) ( A fixer avec le docker-compose pour la base PostgreSQL en dev ).
+- `base.py` lit la variable `DATABASE_URL` via `env.db()`. Par défaut, le projet utilise PostgreSQL (via Docker avec `docker-compose.yml` à la racine, ou le service Windows `localhost:5432` selon le `.env`). Sans `DATABASE_URL`, il retombe sur SQLite local (`db.sqlite3`). psycopg2 est épinglé, donc la prod nécessite un `DATABASE_URL` PostgreSQL.
 
 ### API et authentification
 
@@ -101,7 +126,10 @@ L'API est alors disponible sur `http://127.0.0.1:8000/`, la documentation sur `/
 ## Tests
 
 ```powershell
-.\.venv\Scripts\python.exe manage.py test apps.users
+.\.venv\Scripts\python.exe manage.py test            # suite complète
+.\.venv\Scripts\python.exe manage.py test apps.users # une app ciblée
 ```
 
-Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
+Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`, `apps/cohorts/tests/`), avec les factories par app (ex. `ProgramFactory`, `TrainingPeriodFactory`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
+
+⚠️ Gotcha DRF : `SimpleRateThrottle.THROTTLE_RATES` est lié au dict d'origine à l'import — `@override_settings` ne marche pas, il faut patcher l'attribut de classe (voir `apps/core/tests/base.py`).

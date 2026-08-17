@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
-from .models import Session, Cohorte
+from .models import TrainingPeriod, Cohort
 
 
-class SessionSerializer(serializers.ModelSerializer):
+class TrainingPeriodSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Session
+        model = TrainingPeriod
         fields = [
             "id",
             "start_date",
@@ -32,24 +32,24 @@ class SessionSerializer(serializers.ModelSerializer):
 
         if start_date and end_date and end_date <= start_date:
             raise serializers.ValidationError(
-                {"end_date": "La date de fin doit être postérieure à la date de début."}
+                {"end_date": "The end date must be after the start date."}
             )
 
         return attrs
 
 
-class CohorteSerializer(serializers.ModelSerializer):
+class CohortSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Cohorte
+        model = Cohort
         fields = [
             "id",
-            "nom",
-            "session",
-            "date_debut",
-            "date_fin",
-            "nb_membres",
-            "nb_projets",
-            "statut",
+            "name",
+            "training_period",
+            "start_date",
+            "end_date",
+            "member_count",
+            "project_count",
+            "status",
             "created_at",
             "updated_at",
         ]
@@ -60,21 +60,20 @@ class CohorteSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        date_debut = attrs.get(
-            "date_debut",
-            self.instance.date_debut if self.instance else None,
+        start_date = attrs.get(
+            "start_date",
+            self.instance.start_date if self.instance else None,
         )
-        date_fin = attrs.get(
-            "date_fin",
-            self.instance.date_fin if self.instance else None,
+        end_date = attrs.get(
+            "end_date",
+            self.instance.end_date if self.instance else None,
         )
 
-        if date_debut and date_fin and date_fin <= date_debut:
+        if start_date and end_date and end_date <= start_date:
             raise serializers.ValidationError(
                 {
-                    "date_fin": (
-                        "La date de fin doit être postérieure "
-                        "à la date de début."
+                    "end_date": (
+                        "The end date must be after the start date."
                     )
                 }
             )
