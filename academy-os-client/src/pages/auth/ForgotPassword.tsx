@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
+
 import {
   Mail,
   ArrowRight,
@@ -19,6 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import ThemeToggle from '@/components/theme-toggle'
+
+import logoXarala from '@/assets/logo-xarala.png'
 
 import {
   forgotPasswordSchema,
@@ -137,6 +140,7 @@ const ForgotPassword = () => {
       ═══════════════════════════════════════════ */}
 
       <div className="absolute inset-0">
+
         {/* Orange glow */}
 
         <motion.div
@@ -277,6 +281,7 @@ const ForgotPassword = () => {
           animate="visible"
           className="w-full max-w-[440px]"
         >
+
           {/* ═════════════════════════════════════════
               LOGO XARALA
           ═════════════════════════════════════════ */}
@@ -286,12 +291,8 @@ const ForgotPassword = () => {
             className="mb-8 text-center"
           >
             <motion.div
-              whileHover={{
-                scale: 1.05,
-              }}
-              transition={{
-                duration: 0.2,
-              }}
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
               className="
                 mx-auto mb-5
                 flex
@@ -300,8 +301,8 @@ const ForgotPassword = () => {
               "
             >
               <img
-                src="/logo-xarala.png"
-                alt="Xarala"
+                src={logoXarala}
+                alt="Logo Xarala"
                 className="
                   h-auto
                   w-[180px]
@@ -342,6 +343,7 @@ const ForgotPassword = () => {
               sm:p-8
             "
           >
+
             {/* Card decorations */}
 
             <div
@@ -421,6 +423,7 @@ const ForgotPassword = () => {
                   noValidate
                   className="relative space-y-5"
                 >
+
                   {/* EMAIL */}
 
                   <motion.div variants={itemVariants}>
@@ -523,6 +526,7 @@ const ForgotPassword = () => {
                         disabled:opacity-60
                       "
                     >
+
                       {!loading && (
                         <motion.span
                           className="
@@ -592,6 +596,7 @@ const ForgotPassword = () => {
                 </motion.div>
               </>
             ) : (
+
               /* ═══════════════════════════════════════
                  SUCCESS STATE
               ═══════════════════════════════════════ */
@@ -610,6 +615,7 @@ const ForgotPassword = () => {
                 }}
                 className="relative py-4 text-center"
               >
+
                 <motion.div
                   initial={{
                     scale: 0,
@@ -707,6 +713,7 @@ const ForgotPassword = () => {
                   <ArrowLeft className="size-4" />
                   Retour à la connexion
                 </Link>
+
               </motion.div>
             )}
           </motion.div>
@@ -753,6 +760,7 @@ const ForgotPassword = () => {
               La technologie dans votre langue.
             </p>
           </motion.div>
+
         </motion.div>
       </div>
     </main>
