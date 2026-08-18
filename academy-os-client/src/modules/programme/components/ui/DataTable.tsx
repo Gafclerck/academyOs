@@ -31,7 +31,7 @@ interface DataTableProps<T> {
   isLoading?: boolean;
 }
 
-export function DataTable<T extends Record<string, any>>({
+export function DataTable<T extends object>({
   columns,
   data,
   searchPlaceholder = 'Rechercher...',
@@ -51,7 +51,7 @@ export function DataTable<T extends Record<string, any>>({
     if (!globalFilter.trim()) return data;
     const query = globalFilter.toLowerCase();
     return data.filter((item) => {
-      return Object.values(item).some((val) => {
+      return Object.values(item as Record<string, unknown>).some((val) => {
         if (val === null || val === undefined) return false;
         return String(val).toLowerCase().includes(query);
       });
@@ -176,7 +176,7 @@ export function DataTable<T extends Record<string, any>>({
               ) : paginatedData.length > 0 ? (
                 paginatedData.map((item, rowIdx) => (
                   <tr
-                    key={item.id || rowIdx}
+                    key={((item as { id?: React.Key }).id) ?? rowIdx}
                     className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors"
                   >
                     {columns.map((col, colIdx) => (

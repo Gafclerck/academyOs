@@ -1,3 +1,4 @@
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +30,7 @@ export const RentreeCreatePage: React.FC = () => {
 
   const { data: programmes = [] } = useProgrammes();
   const createRentreeMutation = useCreateRentree();
+  const { data: programme, isLoading: progLoading } = useProgramme(programmeId);
 
   const form = useForm<CreateRentreeFormValues>({
     resolver: zodResolver(createRentreeSchema),
@@ -137,8 +139,6 @@ export const RentreeCreatePage: React.FC = () => {
       </div>
     );
   }
-
-  const { data: programme, isLoading: progLoading } = useProgramme(programmeId);
 
   if (progLoading) {
     return (
