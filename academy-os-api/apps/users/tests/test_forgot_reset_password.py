@@ -1,12 +1,12 @@
 from django.core import mail
 from django.utils import timezone
 
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import RESET_CODE, UserFactory, PasswordResetTokenFactory
 
-FORGOT_URL = "/api/auth/forgot-password/"
-RESET_URL = "/api/auth/reset-password/"
-LOGIN_URL = "/api/auth/login/"
+FORGOT_URL = f"{API_PREFIX}/auth/forgot-password/"
+RESET_URL = f"{API_PREFIX}/auth/reset-password/"
+LOGIN_URL = f"{API_PREFIX}/auth/login/"
 NEW_PASSWORD = "NouveauPass123!"
 
 
@@ -98,7 +98,7 @@ class PasswordResetTests(AuthAPITestCase):
 
     def test_full_journey_invite_reset_login(self):
         self.auth(self.organizer).post(
-            "/api/auth/invite/", {"email": "etudiant@test.fr", "role": "learner"}, format="json"
+            f"{API_PREFIX}/auth/invite/", {"email": "etudiant@test.fr", "role": "learner"}, format="json"
         )
         code = self.get_code_from_last_email()
         reset = self.post_json(

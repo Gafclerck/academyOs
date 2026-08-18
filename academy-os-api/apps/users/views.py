@@ -27,7 +27,7 @@ from .services import (
 
 
 class RegisterView(generics.CreateAPIView):
-    """POST /api/auth/register/ - création d'un compte par l'admin, rôle au choix.
+    """POST /api/v1/auth/register/ - création d'un compte par l'admin, rôle au choix.
 
     Le mot de passe n'est pas fourni : un code est envoyé par email pour que
     l'utilisateur définisse son premier mot de passe (reset-password).
@@ -46,7 +46,7 @@ class RegisterView(generics.CreateAPIView):
 
 
 class MeView(generics.RetrieveUpdateAPIView):
-    """GET /api/auth/me/ et PATCH /api/auth/me/"""
+    """GET /api/v1/auth/me/ et PATCH /api/v1/auth/me/"""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -64,7 +64,7 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 
 class ChangePasswordView(APIView):
-    """POST /api/auth/change-password/"""
+    """POST /api/v1/auth/change-password/"""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -77,7 +77,7 @@ class ChangePasswordView(APIView):
 
 
 class LogoutView(APIView):
-    """POST /api/auth/logout/ - blackliste le refresh token."""
+    """POST /api/v1/auth/logout/ - blackliste le refresh token."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -98,7 +98,7 @@ class LogoutView(APIView):
 
 
 class InviteView(APIView):
-    """POST /api/auth/invite/ - invite un formateur ou un apprenant par email."""
+    """POST /api/v1/auth/invite/ - invite un formateur ou un apprenant par email."""
 
     permission_classes = [IsAdminOrOrganizer]
     throttle_classes = [ScopedRateThrottle]
@@ -119,7 +119,7 @@ class InviteView(APIView):
 
 
 class ForgotPasswordView(APIView):
-    """POST /api/auth/forgot-password/ - envoie un code de réinitialisation.
+    """POST /api/v1/auth/forgot-password/ - envoie un code de réinitialisation.
 
     Réponse identique que l'email existe ou non (anti-énumération).
     """
@@ -144,7 +144,7 @@ class ForgotPasswordView(APIView):
 
 
 class ResetPasswordView(APIView):
-    """POST /api/auth/reset-password/ - définit un nouveau mot de passe via le code."""
+    """POST /api/v1/auth/reset-password/ - définit un nouveau mot de passe via le code."""
 
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]

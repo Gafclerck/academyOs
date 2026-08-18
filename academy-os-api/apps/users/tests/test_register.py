@@ -1,9 +1,9 @@
 from django.core import mail
 
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
 
-REGISTER_URL = "/api/auth/register/"
+REGISTER_URL = f"{API_PREFIX}/auth/register/"
 
 
 def _payload(email="user@test.fr", role="trainer", **extra):
@@ -82,6 +82,6 @@ class RegisterTests(AuthAPITestCase):
             REGISTER_URL, _payload(email="new@test.fr", role="trainer"), format="json"
         )
         response = self.post_json(
-            "/api/auth/login/", {"email": "new@test.fr", "password": "whatever"}
+            f"{API_PREFIX}/auth/login/", {"email": "new@test.fr", "password": "whatever"}
         )
         assert response.status_code == 401

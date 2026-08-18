@@ -1,7 +1,7 @@
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
 
-ME_URL = "/api/auth/me/"
+ME_URL = f"{API_PREFIX}/auth/me/"
 
 
 class MeTests(AuthAPITestCase):

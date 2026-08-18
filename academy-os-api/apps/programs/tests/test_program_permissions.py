@@ -1,7 +1,7 @@
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
 
-PROGRAMS_URL = "/api/programs/"
+PROGRAMS_URL = f"{API_PREFIX}/programs/"
 
 
 class ProgramPermissionTests(AuthAPITestCase):
