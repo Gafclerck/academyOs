@@ -17,3 +17,9 @@ SECURE_HSTS_PRELOAD = True
 # le backend 'local' servirait les octets sans authentification.
 if env("STORAGE_BACKEND", default="local") != "s3":
     raise ImproperlyConfigured("STORAGE_BACKEND doit être 's3' en production.")
+
+# En production, les emails doivent partir en SMTP : un backend console ou
+# locmem expédierait les invitations/codes dans le vide, silencieusement.
+if env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend") == \
+        "django.core.mail.backends.console.EmailBackend":
+    raise ImproperlyConfigured("EMAIL_BACKEND doit être le backend SMTP en production.")

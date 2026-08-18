@@ -1,4 +1,5 @@
 from django.contrib.auth import password_validation
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import User
@@ -11,8 +12,41 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "full_name", "role", "phone_number", "created_at"]
+        fields = ["id", "email", "first_name", "last_name", "full_name", "role", "status", "phone_number", "created_at"]
         read_only_fields = fields
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Serializer d'administration : CRUD complet des utilisateurs (Admin only)."""
+
+    full_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "role",
+            "status",
+            "phone_number",
+            "is_active",
+            "is_staff",
+            "last_login",
+            "password_reset_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "is_active",
+            "last_login",
+            "password_reset_at",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -45,7 +79,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     def save(self, **kwargs):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
-        user.save(update_fields=["password"])
+        user.password_reset_at = timezone.now()
+        user.save(update_fields=["password", "password_reset_at"])
         return user
 
 
@@ -59,13 +94,31 @@ class UpdateMeSerializer(serializers.ModelSerializer):
 
 
 class InviteSerializer(serializers.Serializer):
-    """Invitation d'un formateur ou d'un apprenant par email."""
+    """Invitation d'un formateur ou d'un apprenant par email.
 
-    email = serializers.EmailField()
+    Deux modes :
+    - `email` (unique) : comportement historique, réponse {detail, email}.
+    - `emails` (liste) : invitation en lot, réponse {results: [...]}.
+    Au moins l'un des deux est requis.
+    """
+
+    email = serializers.EmailField(required=False)
+    emails = serializers.ListField(
+        child=serializers.EmailField(),
+        required=False,
+        allow_empty=False,
+    )
     role = serializers.ChoiceField(
         choices=[User.Role.TRAINER, User.Role.LEARNER],
         default=User.Role.LEARNER,
     )
+
+    def validate(self, attrs):
+        if not attrs.get("email") and not attrs.get("emails"):
+            raise serializers.ValidationError(
+                {"emails": "Fournissez 'email' ou 'emails' pour l'invitation."}
+            )
+        return attrs
 
 
 class ForgotPasswordSerializer(serializers.Serializer):

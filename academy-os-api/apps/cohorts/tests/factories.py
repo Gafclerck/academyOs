@@ -4,7 +4,8 @@ from datetime import date, timedelta
 
 import factory
 
-from apps.cohorts.models import Cohort, Intake
+from apps.cohorts.models import Cohort, Enrollment, Intake, TrainerAssignment
+from apps.core.tests.factories import UserFactory
 from apps.programs.tests.factories import ProgramFactory
 
 
@@ -28,3 +29,21 @@ class CohortFactory(factory.django.DjangoModelFactory):
     start_date = factory.LazyAttribute(lambda o: o.intake.start_date)
     end_date = factory.LazyAttribute(lambda o: o.start_date + timedelta(days=30))
     status = Cohort.StatusEnum.UPCOMING
+
+
+class EnrollmentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Enrollment
+
+    user = factory.SubFactory(UserFactory)
+    cohort = factory.SubFactory(CohortFactory)
+    status = Enrollment.StatusEnum.ACTIVE
+
+
+class TrainerAssignmentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = TrainerAssignment
+
+    user = factory.SubFactory(UserFactory, trainer=True)
+    cohort = factory.SubFactory(CohortFactory)
+    status = TrainerAssignment.StatusEnum.ACTIVE
