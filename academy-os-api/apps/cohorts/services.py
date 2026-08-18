@@ -27,52 +27,48 @@ def add_users_to_cohort(emails, cohort, expected_role):
     role_incompatible. Idempotent : un membre déjà présent → already_*.
     """
     created_status, already_status, model = ROLE_TO_RELATION[expected_role]
-    connection = mail.get_connection()
     results = []
-    try:
-        for raw_email in emails:
-            email = BaseUserManager.normalize_email(raw_email).strip().lower()
-            user = User.objects.filter(email__iexact=email).first()
-            if not user:
-                results.append(
-                    {"email": email, "status": "not_found", "detail": "Aucun compte pour cet email."}
-                )
-                continue
-            if user.status in (User.Status.SUSPENDED, User.Status.ARCHIVED):
-                results.append(
-                    {
-                        "email": email,
-                        "status": "user_inactive",
-                        "detail": "Ce compte est désactivé (suspendu ou archivé).",
-                    }
-                )
-                continue
-            if user.role != expected_role:
-                results.append(
-                    {
-                        "email": email,
-                        "status": "role_incompatible",
-                        "detail": "Le rôle de ce compte ne correspond pas à ce type de membre.",
-                    }
-                )
-                continue
-            if model.objects.filter(cohort=cohort, user=user).exists():
-                results.append(
-                    {"email": email, "status": already_status, "detail": "Déjà membre de la cohorte."}
-                )
-                continue
-            model.objects.create(cohort=cohort, user=user)
-            try:
-                send_added_to_cohort_email(
-                    email, cohort.name, connection=connection, role=expected_role
-                )
-            except Exception:
-                pass  # L'échec d'envoi n'empêche pas l'ajout ni les envois suivants
+    for raw_email in emails:
+        email = BaseUserManager.normalize_email(raw_email).strip().lower()
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
             results.append(
-                {"email": email, "status": created_status, "detail": "Membre ajouté."}
+                {"email": email, "status": "not_found", "detail": "Aucun compte pour cet email."}
             )
-    finally:
-        connection.close()
+            continue
+        if user.status in (User.Status.SUSPENDED, User.Status.ARCHIVED):
+            results.append(
+                {
+                    "email": email,
+                    "status": "user_inactive",
+                    "detail": "Ce compte est désactivé (suspendu ou archivé).",
+                }
+            )
+            continue
+        if user.role != expected_role:
+            results.append(
+                {
+                    "email": email,
+                    "status": "role_incompatible",
+                    "detail": "Le rôle de ce compte ne correspond pas à ce type de membre.",
+                }
+            )
+            continue
+        if model.objects.filter(cohort=cohort, user=user).exists():
+            results.append(
+                {"email": email, "status": already_status, "detail": "Déjà membre de la cohorte."}
+            )
+            continue
+        model.objects.create(cohort=cohort, user=user)
+        try:
+            send_added_to_cohort_email(
+                email, cohort.name, role=expected_role
+            )
+        except Exception:
+            pass  # L'échec de dispatch n'empêche pas l'ajout ni les autres opérations
+        results.append(
+            {"email": email, "status": created_status, "detail": "Membre ajouté."}
+        )
     return results
 
 
