@@ -30,6 +30,10 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
+# Version de l'API : préfixe d'URL construit depuis une constante (contrat du code)
+API_VERSION = 'v1'
+API_PREFIX = f'/api/{API_VERSION}'
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',

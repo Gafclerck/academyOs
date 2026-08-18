@@ -1,9 +1,9 @@
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import TEST_PASSWORD, UserFactory
 
-LOGIN_URL = "/api/auth/login/"
-REFRESH_URL = "/api/auth/token/refresh/"
-LOGOUT_URL = "/api/auth/logout/"
+LOGIN_URL = f"{API_PREFIX}/auth/login/"
+REFRESH_URL = f"{API_PREFIX}/auth/token/refresh/"
+LOGOUT_URL = f"{API_PREFIX}/auth/logout/"
 
 
 class TokenTests(AuthAPITestCase):

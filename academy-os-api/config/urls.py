@@ -1,12 +1,15 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
+API_PREFIX = settings.API_PREFIX.lstrip("/")
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('apps.users.urls')),
-    path('api/programs/', include('apps.programs.urls')),
-    path('api/cohorts/', include('apps.cohorts.urls')),
+    path(f'{API_PREFIX}/auth/', include('apps.users.urls')),
+    path(f'{API_PREFIX}/programs/', include('apps.programs.urls')),
+    path(f'{API_PREFIX}/', include('apps.cohorts.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),

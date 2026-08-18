@@ -1,10 +1,10 @@
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
 from apps.programs.models import Program
 
 from .factories import ProgramFactory
 
-PROGRAMS_URL = "/api/programs/"
+PROGRAMS_URL = f"{API_PREFIX}/programs/"
 
 
 class ProgramAdminCrudTests(AuthAPITestCase):
@@ -16,8 +16,8 @@ class ProgramAdminCrudTests(AuthAPITestCase):
         program = ProgramFactory()
         response = self.auth(self.admin).get(PROGRAMS_URL)
         assert response.status_code == 200
-        assert len(response.data) == 1
-        assert response.data[0]["title"] == program.title
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["title"] == program.title
 
     def test_admin_can_create_program(self):
         data = {
