@@ -1,13 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Users,
-  FolderOpen,
-  ArrowLeft,
-  Calendar,
-  Mail,
-  BookOpen,
   FolderGit2,
+  ArrowLeft,
+  CalendarDays,
+  Mail,
+  Pencil,
 } from 'lucide-react';
 import {
   useCohorte,
@@ -25,8 +24,6 @@ export const CohorteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'membres' | 'projets'>('membres');
-
   const { data: cohorte, isLoading: cohLoading } = useCohorte(id);
   const { data: kpis } = useCohorteDetailKPIs(id);
   const { data: membres = [], isLoading: membLoading } = useMembresByCohorte(id);
@@ -36,21 +33,11 @@ export const CohorteDetailPage: React.FC = () => {
     () => [
       {
         accessorKey: 'nom',
-        header: 'Apprenant / Membre',
+        header: 'Nom',
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-full bg-gradient-to-br from-[#FF6B0B] to-[#FF8C38] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-              {row.original.avatar || `${row.original.prenom[0]}${row.original.nom[0]}`}
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {row.original.prenom} {row.original.nom}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                Inscrit le {row.original.date_rejoint || '2026-01-15'}
-              </p>
-            </div>
-          </div>
+          <span className="text-sm font-semibold text-slate-900 dark:text-white">
+            {row.original.prenom} {row.original.nom}
+          </span>
         ),
       },
       {
@@ -68,7 +55,7 @@ export const CohorteDetailPage: React.FC = () => {
       },
       {
         accessorKey: 'role',
-        header: 'Rôle',
+        header: 'Statut',
         cell: ({ row }) => {
           const role = row.original.role;
           const roleConfig: Record<string, { label: string; cls: string }> = {
@@ -94,53 +81,10 @@ export const CohorteDetailPage: React.FC = () => {
     () => [
       {
         accessorKey: 'nom',
-        header: 'Nom du Projet',
+        header: 'Nom',
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center shrink-0">
-              <FolderGit2 className="size-4 text-[#FF6B0B]" />
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {row.original.nom}
-              </p>
-              <p className="text-xs text-slate-400 line-clamp-1 max-w-sm">
-                {row.original.description}
-              </p>
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'progression',
-        header: 'Avancement',
-        cell: ({ row }) => {
-          const val = row.original.progression;
-          return (
-            <div className="w-36 space-y-1">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-500">Progression</span>
-                <span className="text-slate-900 dark:text-white">{val}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    val === 100 ? 'bg-emerald-500' : 'bg-[#FF6B0B]'
-                  }`}
-                  style={{ width: `${val}%` }}
-                />
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: 'nb_membres',
-        header: 'Équipe',
-        cell: ({ row }) => (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            <Users className="size-3.5 text-[#FF6B0B]" />
-            {row.original.nb_membres} membres
+          <span className="text-sm font-semibold text-slate-900 dark:text-white">
+            {row.original.nom}
           </span>
         ),
       },
@@ -148,6 +92,17 @@ export const CohorteDetailPage: React.FC = () => {
         accessorKey: 'statut',
         header: 'Statut',
         cell: ({ row }) => <StatusBadge status={row.original.statut} />,
+      },
+      {
+        accessorKey: 'date_fin_prevue',
+        header: 'Date rendu',
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-600 dark:text-slate-300">
+            {row.original.date_fin_prevue
+              ? new Date(row.original.date_fin_prevue).toLocaleDateString('fr-FR')
+              : '-'}
+          </span>
+        ),
       },
     ],
     []
@@ -169,12 +124,10 @@ export const CohorteDetailPage: React.FC = () => {
   if (!cohorte) {
     return (
       <div className="text-center py-16 space-y-4">
-        <p className="text-lg font-bold text-slate-900 dark:text-white">
-          Cohorte introuvable
-        </p>
-        <Button onClick={() => navigate('/programmes')} variant="outline">
+        <p className="text-lg font-bold text-slate-900 dark:text-white">Cohorte introuvable</p>
+        <Button onClick={() => navigate('/rentrees')} variant="outline">
           <ArrowLeft className="size-4 mr-2" />
-          Retour aux programmes
+          Retour aux rentrées
         </Button>
       </div>
     );
@@ -182,6 +135,33 @@ export const CohorteDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <button
+          onClick={() => navigate('/programmes')}
+          className="hover:text-[#FF6B0B] transition-colors"
+        >
+          Accueil
+        </button>
+        <span>/</span>
+        <button
+          onClick={() => navigate('/rentrees')}
+          className="hover:text-[#FF6B0B] transition-colors"
+        >
+          Rentrees
+        </button>
+        <span>/</span>
+        <button
+          onClick={() => navigate(`/rentrees/${cohorte.rentree_id}`)}
+          className="hover:text-[#FF6B0B] transition-colors"
+        >
+          {cohorte.rentree_nom || 'Rentrée'}
+        </button>
+        <span>/</span>
+        <span className="text-slate-900 dark:text-white">{cohorte.nom}</span>
+      </div>
+
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 p-6 rounded-2xl shadow-sm">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -189,8 +169,8 @@ export const CohorteDetailPage: React.FC = () => {
               variant="outline"
               size="icon"
               onClick={() =>
-                cohorte.session_id
-                  ? navigate(`/sessions/${cohorte.session_id}`)
+                cohorte.rentree_id
+                  ? navigate(`/rentrees/${cohorte.rentree_id}`)
                   : navigate('/programmes')
               }
               className="size-8 rounded-lg border-slate-200 dark:border-white/10"
@@ -202,79 +182,87 @@ export const CohorteDetailPage: React.FC = () => {
             </h1>
             <StatusBadge status={cohorte.statut} />
           </div>
-
           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {cohorte.session_nom && (
-              <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <BookOpen className="size-3.5 text-[#FF6B0B]" />
-                Session parente : <strong>{cohorte.session_nom}</strong>
-              </span>
-            )}
-            <span className="flex items-center gap-1.5">
-              <Calendar className="size-3.5 text-[#FF6B0B]" />
+            <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+              <CalendarDays className="size-3.5 text-[#FF6B0B]" />
               Du {cohorte.date_debut} au {cohorte.date_fin}
             </span>
           </div>
         </div>
+
+        <Button
+          variant="outline"
+          className="h-10 px-5 rounded-xl border-slate-200 dark:border-white/10 font-semibold"
+        >
+          <Pencil className="size-4 mr-2" />
+          Modifier
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Session Parente"
-          value={kpis?.session_nom || cohorte.session_nom || 'Session'}
-          subtitle="Promotion d'appartenance"
-          icon={BookOpen}
-        />
-        <StatCard
-          title="Membres Inscrits"
-          value={membres.length > 0 ? membres.length : cohorte.nb_membres}
-          subtitle="Apprenants de la cohorte"
+          title="Nb Étudiants"
+          value={kpis?.nb_membres ?? cohorte.nb_membres}
+          subtitle="Inscrits"
           icon={Users}
         />
         <StatCard
-          title="Projets Actifs"
-          value={projets.length > 0 ? projets.length : cohorte.nb_projets}
+          title="Nb Projets"
+          value={kpis?.nb_projets ?? cohorte.nb_projets}
           subtitle="Livrables assignés"
-          icon={FolderOpen}
+          icon={FolderGit2}
+        />
+        <StatCard
+          title="Programme Parent"
+          value={cohorte.programme_nom || 'Programme'}
+          subtitle="Cursus d'appartenance"
+          icon={CalendarDays}
+        />
+        <StatCard
+          title="Rentrée Parente"
+          value={cohorte.rentree_nom || 'Rentrée'}
+          subtitle="Promotion d'appartenance"
+          icon={CalendarDays}
         />
       </div>
 
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-1">
-        <button
-          onClick={() => setActiveTab('membres')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${
-            activeTab === 'membres'
-              ? 'bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/20'
-              : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Users className="size-4" />
-          Membres ({membres.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('projets')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${
-            activeTab === 'projets'
-              ? 'bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/20'
-              : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <FolderOpen className="size-4" />
-          Projets ({projets.length})
-        </button>
+      {/* Section Infos */}
+      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] p-6 shadow-sm space-y-4">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Informations</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-300">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Description</p>
+            <p>{cohorte.description || 'Aucune description.'}</p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Dates</p>
+            <p>Du {cohorte.date_debut} au {cohorte.date_fin}</p>
+          </div>
+        </div>
       </div>
 
-      {activeTab === 'membres' && (
+      {/* Tableau Étudiants */}
+      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-200 dark:border-white/10">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Étudiants</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Liste des étudiants de la cohorte</p>
+        </div>
         <DataTable
           columns={membresColumns}
           data={membres}
           isLoading={membLoading}
-          searchPlaceholder="Rechercher un membre par nom ou email..."
-          emptyMessage="Aucun membre assigné à cette cohorte pour le moment."
+          searchPlaceholder="Rechercher un étudiant par nom ou email..."
+          emptyMessage="Aucun étudiant assigné à cette cohorte pour le moment."
         />
-      )}
+      </div>
 
-      {activeTab === 'projets' && (
+      {/* Tableau Projets */}
+      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-200 dark:border-white/10">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Projets</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Liste des projets de la cohorte</p>
+        </div>
         <DataTable
           columns={projetsColumns}
           data={projets}
@@ -282,7 +270,7 @@ export const CohorteDetailPage: React.FC = () => {
           searchPlaceholder="Rechercher un projet..."
           emptyMessage="Aucun projet assigné à cette cohorte pour le moment."
         />
-      )}
+      </div>
     </div>
   );
 };

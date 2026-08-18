@@ -23,15 +23,19 @@ export const createProgrammeSchema = z.object({
 
 export type CreateProgrammeFormValues = z.infer<typeof createProgrammeSchema>;
 
-// ─── 2. Schéma Création Session ───────────────────────────────────────────────
+// ─── 2. Schéma Création Rentrée ───────────────────────────────────────────────
 
-export const createSessionSchema = z
+export const createRentreeSchema = z
   .object({
     programme_id: z.string().min(1, 'Le programme parent est obligatoire'),
     nom: z
       .string()
-      .min(3, 'Le nom de la session doit contenir au moins 3 caractères')
+      .min(3, 'Le nom de la rentrée doit contenir au moins 3 caractères')
       .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+    description: z
+      .string()
+      .max(500, 'La description ne peut pas dépasser 500 caractères')
+      .optional(),
     date_debut: z
       .string()
       .min(1, 'La date de début est requise')
@@ -44,25 +48,34 @@ export const createSessionSchema = z
   .refine(
     (data) => {
       if (!data.date_debut || !data.date_fin) return true;
-      return new Date(data.date_debut) <= new Date(data.date_fin);
+      return new Date(data.date_debut) < new Date(data.date_fin);
     },
     {
-      message: 'La date de fin doit être postérieure ou égale à la date de début',
+      message: 'La date de fin doit être postérieure à la date de début',
       path: ['date_fin'],
     }
   );
 
-export type CreateSessionFormValues = z.infer<typeof createSessionSchema>;
+export type CreateRentreeFormValues = z.infer<typeof createRentreeSchema>;
+
+/** @deprecated Utiliser createRentreeSchema */
+export const createSessionSchema = createRentreeSchema;
+/** @deprecated Utiliser CreateRentreeFormValues */
+export type CreateSessionFormValues = CreateRentreeFormValues;
 
 // ─── 3. Schéma Création Cohorte ───────────────────────────────────────────────
 
 export const createCohorteSchema = z
   .object({
-    session_id: z.string().min(1, 'La session parente est obligatoire'),
+    rentree_id: z.string().min(1, 'La rentrée parente est obligatoire'),
     nom: z
       .string()
       .min(3, 'Le nom de la cohorte doit contenir au moins 3 caractères')
       .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+    description: z
+      .string()
+      .max(500, 'La description ne peut pas dépasser 500 caractères')
+      .optional(),
     date_debut: z
       .string()
       .min(1, 'La date de début est requise')
@@ -75,10 +88,10 @@ export const createCohorteSchema = z
   .refine(
     (data) => {
       if (!data.date_debut || !data.date_fin) return true;
-      return new Date(data.date_debut) <= new Date(data.date_fin);
+      return new Date(data.date_debut) < new Date(data.date_fin);
     },
     {
-      message: 'La date de fin doit être postérieure ou égale à la date de début',
+      message: 'La date de fin doit être postérieure à la date de début',
       path: ['date_fin'],
     }
   );

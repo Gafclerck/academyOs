@@ -73,7 +73,7 @@ function MobileCard({
           </div>
           <div>
             <p className="font-bold text-slate-900 dark:text-white text-base">{cohorte.nom}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cohorte.session_nom ?? '—'}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cohorte.rentree_nom ?? '—'}</p>
           </div>
         </div>
         <StatusBadge statut={cohorte.statut} />
@@ -265,7 +265,7 @@ export default function CohortListPage() {
           bg-slate-50/80 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/10
           text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
           <span>Nom de la cohorte</span>
-          <span>Session parente</span>
+          <span>Rentree parente</span>
           <span>Période</span>
           <span className="text-center">Membres</span>
           <span className="text-center">Projets</span>
@@ -312,7 +312,7 @@ export default function CohortListPage() {
                 </div>
 
                 {/* Session */}
-                <span className="text-sm text-slate-600 dark:text-slate-300 truncate">{c.session_nom ?? '—'}</span>
+                <span className="text-sm text-slate-600 dark:text-slate-300 truncate">{c.rentree_nom ?? '—'}</span>
 
                 {/* Période */}
                 <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">

@@ -59,12 +59,12 @@ export const ProgrammeListPage: React.FC = () => {
         ),
       },
       {
-        accessorKey: 'nb_sessions',
+        accessorKey: 'nb_rentrees',
         header: 'Sessions',
         cell: ({ row }) => (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 font-semibold text-xs text-slate-700 dark:text-slate-300">
             <Calendar className="size-3.5 text-[#FF6B0B]" />
-            {row.original.nb_sessions ?? 0} session(s)
+            {row.original.nb_rentrees ?? 0} rentree(s)
           </span>
         ),
       },
@@ -129,8 +129,8 @@ export const ProgrammeListPage: React.FC = () => {
           trend="Actifs"
         />
         <StatCard
-          title="Total Sessions"
-          value={kpis?.total_sessions ?? 0}
+          title="Total Rentrées"
+          value={kpis?.total_rentrees ?? 0}
           subtitle="Promotions organisées"
           icon={Calendar}
         />

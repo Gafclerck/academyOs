@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Calendar,
+  CalendarDays,
   GraduationCap,
   Users,
   Plus,
@@ -15,10 +15,10 @@ import {
 } from 'lucide-react';
 import {
   useProgramme,
-  useSessionsByProgramme,
+  useRentreesByProgramme,
   useProgrammeDetailKPIs,
 } from '../hooks/useProgrammes';
-import type { SessionProgramme } from '../types/programme';
+import type { RentreeProgramme } from '../types/programme';
 import { StatCard } from '../components/ui/StatCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
@@ -28,21 +28,21 @@ export const ProgrammeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'sessions' | 'stats'>('sessions');
+  const [activeTab, setActiveTab] = useState<'rentrees' | 'stats'>('rentrees');
 
   const { data: programme, isLoading: progLoading } = useProgramme(id);
-  const { data: sessions = [], isLoading: sessLoading } = useSessionsByProgramme(id);
+  const { data: rentrees = [], isLoading: rentLoading } = useRentreesByProgramme(id);
   const { data: kpis } = useProgrammeDetailKPIs(id);
 
-  const columns = useMemo<ColumnDef<SessionProgramme>[]>(
+  const columns = useMemo<ColumnDef<RentreeProgramme>[]>(
     () => [
       {
         accessorKey: 'nom',
-        header: 'Nom de la Session',
+        header: 'Nom de la Rentrée',
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
-              <Calendar className="size-4 text-[#FF6B0B]" />
+              <CalendarDays className="size-4 text-[#FF6B0B]" />
             </div>
             <div>
               <p className="font-bold text-slate-900 dark:text-white text-sm">
@@ -86,7 +86,7 @@ export const ProgrammeDetailPage: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/sessions/${row.original.id}`)}
+              onClick={() => navigate(`/rentrees/${row.original.id}`)}
               className="h-8 px-3 rounded-xl border-[#FF6B0B]/30 hover:border-[#FF6B0B] hover:bg-[#FF6B0B] hover:text-white text-[#FF6B0B] font-semibold text-xs transition-colors"
             >
               <Eye className="size-3.5 mr-1.5" />
@@ -156,20 +156,20 @@ export const ProgrammeDetailPage: React.FC = () => {
         </div>
 
         <Button
-          onClick={() => navigate(`/programmes/${programme.id}/sessions/new`)}
+          onClick={() => navigate(`/programmes/${programme.id}/rentrees/new`)}
           className="h-11 px-5 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 hover:shadow-[#FF6B0B]/40 transition-all shrink-0 cursor-pointer"
         >
           <Plus className="size-4 mr-2" />
-          Nouvelle Session
+          Nouvelle Rentrée
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Nb Sessions"
-          value={kpis?.nb_sessions ?? sessions.length}
+          title="Nb Rentrées"
+          value={kpis?.nb_rentrees ?? rentrees.length}
           subtitle="Promotions organisées"
-          icon={Calendar}
+          icon={CalendarDays}
         />
         <StatCard
           title="Nb Cohortes Totales"
@@ -187,15 +187,15 @@ export const ProgrammeDetailPage: React.FC = () => {
 
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-1">
         <button
-          onClick={() => setActiveTab('sessions')}
+          onClick={() => setActiveTab('rentrees')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${
-            activeTab === 'sessions'
+            activeTab === 'rentrees'
               ? 'bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/20'
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Layers className="size-4" />
-          Sessions ({sessions.length})
+          Rentrées ({rentrees.length})
         </button>
         <button
           onClick={() => setActiveTab('stats')}
@@ -210,21 +210,21 @@ export const ProgrammeDetailPage: React.FC = () => {
         </button>
       </div>
 
-      {activeTab === 'sessions' ? (
+      {activeTab === 'rentrees' ? (
         <DataTable
           columns={columns}
-          data={sessions}
-          isLoading={sessLoading}
-          searchPlaceholder="Rechercher une session..."
-          emptyMessage="Aucune session n'a encore été créée pour ce programme."
+          data={rentrees}
+          isLoading={rentLoading}
+          searchPlaceholder="Rechercher une rentrée..."
+          emptyMessage="Aucune rentrée n'a encore été créée pour ce programme."
           actionsSlot={
             <Button
               size="sm"
-              onClick={() => navigate(`/programmes/${programme.id}/sessions/new`)}
+              onClick={() => navigate(`/programmes/${programme.id}/rentrees/new`)}
               className="bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold text-xs rounded-xl"
             >
               <Plus className="size-3.5 mr-1" />
-              Ajouter une session
+              Ajouter une rentrée
             </Button>
           }
         />
@@ -260,13 +260,13 @@ export const ProgrammeDetailPage: React.FC = () => {
           <div className="p-6 rounded-2xl bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 space-y-4 shadow-sm">
             <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
               <FolderGit2 className="size-4.5 text-[#FF6B0B]" />
-              Activité des Sessions
+              Activité des Rentrées
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Ce programme compte <strong className="text-slate-900 dark:text-white">{sessions.length}</strong> session(s) active(s) et programmée(s) pour l'année en cours.
+              Ce programme compte <strong className="text-slate-900 dark:text-white">{rentrees.length}</strong> rentrée(s) active(s) et programmée(s) pour l'année en cours.
             </p>
             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/60 dark:border-white/5 text-xs text-slate-600 dark:text-slate-300">
-              💡 Les cohortes démarrent aux dates prévues dans chaque session.
+              💡 Les cohortes démarrent aux dates prévues dans chaque rentrée.
             </div>
           </div>
         </div>

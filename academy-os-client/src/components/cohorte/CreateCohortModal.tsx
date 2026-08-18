@@ -22,20 +22,20 @@ interface Props {
 
 interface FormState {
   nom: string;
-  session_id: string;
+  rentree_id: string;
   date_debut: string;
   date_fin: string;
 }
 
 interface FormErrors {
   nom?: string;
-  session_id?: string;
+  rentree_id?: string;
   date_debut?: string;
   date_fin?: string;
   global?: string;
 }
 
-const EMPTY_FORM: FormState = { nom: '', session_id: '', date_debut: '', date_fin: '' };
+const EMPTY_FORM: FormState = { nom: '', rentree_id: '', date_debut: '', date_fin: '' };
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props)
       const data = await getSessions();
       setSessions(data);
     } catch (err) {
-      setSessError(err instanceof Error ? err.message : 'Erreur lors du chargement des sessions.');
+      setSessError(err instanceof Error ? err.message : 'Erreur lors du chargement des rentrées.');
     } finally {
       setLoadingSess(false);
     }
@@ -99,8 +99,8 @@ export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props)
     else if (form.nom.trim().length < 3)
       e.nom = 'Le nom doit contenir au moins 3 caractères.';
 
-    if (!form.session_id)
-      e.session_id = 'Veuillez sélectionner une session.';
+    if (!form.rentree_id)
+      e.rentree_id = 'Veuillez sélectionner une rentrée.';
 
     if (!form.date_debut)
       e.date_debut = 'La date de début est requise.';
@@ -124,7 +124,7 @@ export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props)
     try {
       const payload: CreateCohortePayload = {
         nom: form.nom.trim(),
-        session_id: form.session_id,
+        rentree_id: form.rentree_id,
         date_debut: form.date_debut,
         date_fin: form.date_fin,
       };
@@ -232,13 +232,13 @@ export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props)
 
             {/* ── Session ──────────────────────────────────────────────── */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="cohort-session" className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                Session parente <span className="text-[#FF6B0B]">*</span>
+              <label htmlFor="cohort-rentree" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                Rentrée parente <span className="text-[#FF6B0B]">*</span>
               </label>
 
               {loadingSess ? (
                 <div className="h-11 flex items-center gap-2 px-4 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-500 dark:text-slate-400">
-                  <Loader2 className="size-4 animate-spin text-[#FF6B0B]" /> Chargement des sessions…
+                  <Loader2 className="size-4 animate-spin text-[#FF6B0B]" /> Chargement des rentrées…
                 </div>
               ) : sessError ? (
                 <div className="flex flex-col gap-1.5">
@@ -252,16 +252,16 @@ export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props)
               ) : (
                 <div className="relative">
                   <select
-                    id="cohort-session"
-                    name="session_id"
-                    value={form.session_id}
+                    id="cohort-rentree"
+                    name="rentree_id"
+                    value={form.rentree_id}
                     onChange={handleChange}
                     disabled={submitting}
                     className={`w-full h-11 pl-4 pr-10 text-sm bg-slate-50 dark:bg-white/5 border rounded-xl outline-none appearance-none text-slate-900 dark:text-white transition-all cursor-pointer
                       focus:border-[#FF6B0B]/60 focus:bg-white dark:focus:bg-white/[0.08] focus:ring-4 focus:ring-[#FF6B0B]/10 disabled:opacity-50
-                      ${errors.session_id ? 'border-red-500/60' : 'border-slate-200 dark:border-white/10'}`}
+                      ${errors.rentree_id ? 'border-red-500/60' : 'border-slate-200 dark:border-white/10'}`}
                   >
-                    <option value="" className="dark:bg-[#19192D]">— Sélectionner une session —</option>
+                    <option value="" className="dark:bg-[#19192D]">— Sélectionner une rentrée —</option>
                     {sessions.map((s) => (
                       <option key={s.id} value={s.id} className="dark:bg-[#19192D]">
                         {s.nom}{s.programme_nom ? ` (${s.programme_nom})` : ''}
@@ -272,9 +272,9 @@ export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props)
                 </div>
               )}
 
-              {errors.session_id && (
+              {errors.rentree_id && (
                 <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1 mt-0.5">
-                  <AlertCircle className="size-3" />{errors.session_id}
+                  <AlertCircle className="size-3" />{errors.rentree_id}
                 </p>
               )}
             </div>

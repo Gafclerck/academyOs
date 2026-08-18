@@ -4,7 +4,7 @@
  *
  * Sections:
  *   1. Header: Nom, Badge Statut, Période, Bouton Retour
- *   2. Cards Infos: Session parente, Membres, Projets
+ *   2. Cards Infos: Rentree parente, Membres, Projets
  *   3. Onglet Membres: tableau étudiants + rôle (GET /cohortes/:id/membres)
  *   4. Onglet Projets: tableau projets + avancement (GET /cohortes/:id/projets)
  *   5. Card État global: barre de progression % projets terminés
@@ -459,8 +459,8 @@ export default function CohortDetailPage() {
       {/* ── 2. CARDS INFOS ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Session parente"
-          value={cohorte.session_nom || '—'}
+          label="Rentree parente"
+          value={cohorte.rentree_nom || '—'}
           icon={<BookOpen className="size-5" />}
           sub="Programme associé"
         />

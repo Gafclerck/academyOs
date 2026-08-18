@@ -2,15 +2,15 @@ import axios from 'axios';
 import type {
   Programme,
   CreateProgrammeDTO,
-  SessionProgramme,
-  CreateSessionDTO,
-  CohorteSession,
+  RentreeProgramme,
+  CreateRentreeDTO,
+  CohorteRentree,
   CreateCohorteDTO,
   ProjetCohorte,
   Membre,
   ProgrammeKPIs,
   ProgrammeDetailKPIs,
-  SessionDetailKPIs,
+  RentreeDetailKPIs,
   CohorteDetailKPIs,
 } from '../types/programme';
 
@@ -31,48 +31,48 @@ api.interceptors.request.use((config) => {
 const INITIAL_PROGRAMMES: Programme[] = [
   {
     id: 'prog-1',
-    nom: 'Développement Web Fullstack',
+    nom: 'Developpement Web Fullstack',
     description: 'Formation intensive React, Node.js, TypeScript, PostgreSQL et DevOps moderne.',
     duree_mois: 6,
     statut: 'actif',
-    nb_sessions: 3,
+    nb_rentrees: 3,
     created_at: '2026-01-10',
   },
   {
     id: 'prog-2',
     nom: 'Data Science & Intelligence Artificielle',
-    description: 'Maîtrisez Python, Machine Learning, Deep Learning et Data Engineering.',
+    description: 'Maitrisez Python, Machine Learning, Deep Learning et Data Engineering.',
     duree_mois: 9,
     statut: 'actif',
-    nb_sessions: 2,
+    nb_rentrees: 2,
     created_at: '2026-02-15',
   },
   {
     id: 'prog-3',
     nom: 'UI/UX Product Design',
-    description: 'Conception d’interfaces modernes, Design Systems, Figma et recherche utilisateur.',
+    description: 'Conception d\'interfaces modernes, Design Systems, Figma et recherche utilisateur.',
     duree_mois: 4,
     statut: 'actif',
-    nb_sessions: 2,
+    nb_rentrees: 2,
     created_at: '2026-03-01',
   },
   {
     id: 'prog-4',
-    nom: 'Cybersécurité & Réseaux',
-    description: 'Audit de sécurité, pentesting, sécurisation cloud et gouvernance informatique.',
+    nom: 'Cybersecurite & Reseaux',
+    description: 'Audit de securite, pentesting, securisation cloud et gouvernance informatique.',
     duree_mois: 6,
     statut: 'inactif',
-    nb_sessions: 1,
+    nb_rentrees: 1,
     created_at: '2025-11-20',
   },
 ];
 
-const INITIAL_SESSIONS: SessionProgramme[] = [
+const INITIAL_RENTREES: RentreeProgramme[] = [
   {
-    id: 'sess-1',
+    id: 'rent-1',
     programme_id: 'prog-1',
-    programme_nom: 'Développement Web Fullstack',
-    nom: 'Session Hiver 2026',
+    programme_nom: 'Developpement Web Fullstack',
+    nom: 'Rentree Hiver 2026',
     date_debut: '2026-01-15',
     date_fin: '2026-07-15',
     statut: 'en_cours',
@@ -82,10 +82,10 @@ const INITIAL_SESSIONS: SessionProgramme[] = [
     created_at: '2026-01-05',
   },
   {
-    id: 'sess-2',
+    id: 'rent-2',
     programme_id: 'prog-1',
-    programme_nom: 'Développement Web Fullstack',
-    nom: 'Session Printemps 2026',
+    programme_nom: 'Developpement Web Fullstack',
+    nom: 'Rentree Printemps 2026',
     date_debut: '2026-04-01',
     date_fin: '2026-10-01',
     statut: 'en_cours',
@@ -95,10 +95,10 @@ const INITIAL_SESSIONS: SessionProgramme[] = [
     created_at: '2026-03-10',
   },
   {
-    id: 'sess-3',
+    id: 'rent-3',
     programme_id: 'prog-1',
-    programme_nom: 'Développement Web Fullstack',
-    nom: 'Session Automne 2026',
+    programme_nom: 'Developpement Web Fullstack',
+    nom: 'Rentree Automne 2026',
     date_debut: '2026-09-15',
     date_fin: '2027-03-15',
     statut: 'a_venir',
@@ -108,10 +108,10 @@ const INITIAL_SESSIONS: SessionProgramme[] = [
     created_at: '2026-06-01',
   },
   {
-    id: 'sess-4',
+    id: 'rent-4',
     programme_id: 'prog-2',
     programme_nom: 'Data Science & Intelligence Artificielle',
-    nom: 'Session Printemps 2026',
+    nom: 'Rentree Printemps 2026',
     date_debut: '2026-03-01',
     date_fin: '2026-12-01',
     statut: 'en_cours',
@@ -121,10 +121,10 @@ const INITIAL_SESSIONS: SessionProgramme[] = [
     created_at: '2026-02-20',
   },
   {
-    id: 'sess-5',
+    id: 'rent-5',
     programme_id: 'prog-3',
     programme_nom: 'UI/UX Product Design',
-    nom: 'Session Été 2026',
+    nom: 'Rentree Ete 2026',
     date_debut: '2026-06-01',
     date_fin: '2026-10-01',
     statut: 'a_venir',
@@ -135,13 +135,13 @@ const INITIAL_SESSIONS: SessionProgramme[] = [
   },
 ];
 
-const INITIAL_COHORTES: CohorteSession[] = [
+const INITIAL_COHORTES: CohorteRentree[] = [
   {
     id: 'coh-1',
-    session_id: 'sess-1',
-    session_nom: 'Session Hiver 2026',
+    rentree_id: 'rent-1',
+    rentree_nom: 'Rentree Hiver 2026',
     programme_id: 'prog-1',
-    programme_nom: 'Développement Web Fullstack',
+    programme_nom: 'Developpement Web Fullstack',
     nom: 'Cohorte Baol Tech 1',
     date_debut: '2026-01-15',
     date_fin: '2026-07-15',
@@ -151,10 +151,10 @@ const INITIAL_COHORTES: CohorteSession[] = [
   },
   {
     id: 'coh-2',
-    session_id: 'sess-1',
-    session_nom: 'Session Hiver 2026',
+    rentree_id: 'rent-1',
+    rentree_nom: 'Rentree Hiver 2026',
     programme_id: 'prog-1',
-    programme_nom: 'Développement Web Fullstack',
+    programme_nom: 'Developpement Web Fullstack',
     nom: 'Cohorte Dakar Alpha',
     date_debut: '2026-01-15',
     date_fin: '2026-07-15',
@@ -164,10 +164,10 @@ const INITIAL_COHORTES: CohorteSession[] = [
   },
   {
     id: 'coh-3',
-    session_id: 'sess-2',
-    session_nom: 'Session Printemps 2026',
+    rentree_id: 'rent-2',
+    rentree_nom: 'Rentree Printemps 2026',
     programme_id: 'prog-1',
-    programme_nom: 'Développement Web Fullstack',
+    programme_nom: 'Developpement Web Fullstack',
     nom: 'Cohorte Saloum Dev',
     date_debut: '2026-04-01',
     date_fin: '2026-10-01',
@@ -177,8 +177,8 @@ const INITIAL_COHORTES: CohorteSession[] = [
   },
   {
     id: 'coh-4',
-    session_id: 'sess-4',
-    session_nom: 'Session Printemps 2026',
+    rentree_id: 'rent-4',
+    rentree_nom: 'Rentree Printemps 2026',
     programme_id: 'prog-2',
     programme_nom: 'Data Science & Intelligence Artificielle',
     nom: 'Cohorte IA Xarala 1',
@@ -196,7 +196,7 @@ const INITIAL_PROJETS: Record<string, ProjetCohorte[]> = {
       id: 'proj-1',
       cohorte_id: 'coh-1',
       nom: 'Plateforme E-learning Xarala',
-      description: 'Développement d’une plateforme SaaS complète de cours en ligne avec vidéo et quiz.',
+      description: 'Developpement d\'une plateforme SaaS complete de cours en ligne avec video et quiz.',
       progression: 85,
       statut: 'en_cours',
       nb_membres: 6,
@@ -206,8 +206,8 @@ const INITIAL_PROJETS: Record<string, ProjetCohorte[]> = {
     {
       id: 'proj-2',
       cohorte_id: 'coh-1',
-      nom: 'Système de Facturation & Paiement Wave / OM',
-      description: 'API et dashboard pour intégrer les paiements mobiles locaux au Sénégal.',
+      nom: 'Systeme de Facturation & Paiement Wave / OM',
+      description: 'API et dashboard pour integrer les paiements mobiles locaux au Senegal.',
       progression: 100,
       statut: 'termine',
       nb_membres: 5,
@@ -218,7 +218,7 @@ const INITIAL_PROJETS: Record<string, ProjetCohorte[]> = {
       id: 'proj-3',
       cohorte_id: 'coh-1',
       nom: 'Application Mobile de Gestion Agricole',
-      description: 'Application React Native pour le suivi des récoltes et des stocks dans la région de Diourbel.',
+      description: 'Application React Native pour le suivi des recoltes et des stocks dans la region de Diourbel.',
       progression: 60,
       statut: 'en_cours',
       nb_membres: 7,
@@ -229,7 +229,7 @@ const INITIAL_PROJETS: Record<string, ProjetCohorte[]> = {
       id: 'proj-4',
       cohorte_id: 'coh-1',
       nom: 'Hub Communautaire & Forum Tech',
-      description: 'Espace d’échange et entraide pour les développeurs de l’académie.',
+      description: 'Espace d\'echange et entraide pour les developpeurs de l\'academie.',
       progression: 40,
       statut: 'en_cours',
       nb_membres: 6,
@@ -278,12 +278,12 @@ export const programmeService = {
   async getProgrammes(): Promise<Programme[]> {
     await delay();
     const stored = getStored<Programme[]>('programmes', INITIAL_PROGRAMMES);
-    const sessions = getStored<SessionProgramme[]>('sessions', INITIAL_SESSIONS);
-    
-    // Enrichir avec le compte réel de sessions
+    const rentrees = getStored<RentreeProgramme[]>('rentrees', INITIAL_RENTREES);
+
+    // Enrichir avec le compte reel de rentrees
     return stored.map((prog) => ({
       ...prog,
-      nb_sessions: sessions.filter((s) => s.programme_id === prog.id).length,
+      nb_rentrees: rentrees.filter((r) => r.programme_id === prog.id).length,
     }));
   },
 
@@ -302,7 +302,7 @@ export const programmeService = {
       description: dto.description,
       duree_mois: dto.duree_mois,
       statut: dto.statut,
-      nb_sessions: 0,
+      nb_rentrees: 0,
       created_at: new Date().toISOString().split('T')[0],
       updated_at: new Date().toISOString().split('T')[0],
     };
@@ -313,7 +313,7 @@ export const programmeService = {
 
   async getProgrammeKPIs(): Promise<ProgrammeKPIs> {
     const programmes = await this.getProgrammes();
-    const sessions = await this.getAllSessions();
+    const rentrees = await this.getAllRentrees();
     const cohortes = await this.getAllCohortes();
 
     const totalStudents = cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0);
@@ -321,62 +321,63 @@ export const programmeService = {
     return {
       total_programmes: programmes.length,
       programmes_actifs: programmes.filter((p) => p.statut === 'actif').length,
-      total_sessions: sessions.length,
+      total_rentrees: rentrees.length,
       total_etudiants: totalStudents,
     };
   },
 
   async getProgrammeDetailKPIs(programmeId: string): Promise<ProgrammeDetailKPIs> {
-    const sessions = await this.getSessionsByProgramme(programmeId);
-    const sessionIds = sessions.map((s) => s.id);
-    const cohortes = (await this.getAllCohortes()).filter((c) => sessionIds.includes(c.session_id));
+    const rentrees = await this.getRentreesByProgramme(programmeId);
+    const rentreeIds = rentrees.map((r) => r.id);
+    const cohortes = (await this.getAllCohortes()).filter((c) => rentreeIds.includes(c.rentree_id));
     const totalStudents = cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0);
 
     return {
-      nb_sessions: sessions.length,
+      nb_rentrees: rentrees.length,
       nb_cohortes_totales: cohortes.length,
       nb_etudiants: totalStudents,
     };
   },
 
-  // ── 2. SESSIONS ──
-  async getAllSessions(): Promise<SessionProgramme[]> {
+  // ── 2. RENTREES ──
+  async getAllRentrees(): Promise<RentreeProgramme[]> {
     await delay();
-    const sessions = getStored<SessionProgramme[]>('sessions', INITIAL_SESSIONS);
-    const cohortes = getStored<CohorteSession[]>('cohortes', INITIAL_COHORTES);
+    const rentrees = getStored<RentreeProgramme[]>('rentrees', INITIAL_RENTREES);
+    const cohortes = getStored<CohorteRentree[]>('cohortes', INITIAL_COHORTES);
 
-    return sessions.map((sess) => {
-      const sessCohortes = cohortes.filter((c) => c.session_id === sess.id);
+    return rentrees.map((rent) => {
+      const rentCohortes = cohortes.filter((c) => c.rentree_id === rent.id);
       return {
-        ...sess,
-        nb_cohortes: sessCohortes.length,
-        nb_membres: sessCohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0),
-        nb_projets: sessCohortes.reduce((acc, c) => acc + (c.nb_projets || 0), 0),
+        ...rent,
+        nb_cohortes: rentCohortes.length,
+        nb_membres: rentCohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0),
+        nb_projets: rentCohortes.reduce((acc, c) => acc + (c.nb_projets || 0), 0),
       };
     });
   },
 
-  async getSessionsByProgramme(programmeId: string): Promise<SessionProgramme[]> {
-    const all = await this.getAllSessions();
-    return all.filter((s) => s.programme_id === programmeId);
+  async getRentreesByProgramme(programmeId: string): Promise<RentreeProgramme[]> {
+    const all = await this.getAllRentrees();
+    return all.filter((r) => r.programme_id === programmeId);
   },
 
-  async getSessionById(id: string): Promise<SessionProgramme | null> {
-    const all = await this.getAllSessions();
-    return all.find((s) => s.id === id) ?? null;
+  async getRentreeById(id: string): Promise<RentreeProgramme | null> {
+    const all = await this.getAllRentrees();
+    return all.find((r) => r.id === id) ?? null;
   },
 
-  async createSession(dto: CreateSessionDTO): Promise<SessionProgramme> {
+  async createRentree(dto: CreateRentreeDTO): Promise<RentreeProgramme> {
     await delay(350);
     const programme = await this.getProgrammeById(dto.programme_id);
     if (!programme) throw new Error('Programme parent introuvable.');
 
-    const sessions = getStored<SessionProgramme[]>('sessions', INITIAL_SESSIONS);
-    const newSession: SessionProgramme = {
-      id: `sess-${Date.now()}`,
+    const rentrees = getStored<RentreeProgramme[]>('rentrees', INITIAL_RENTREES);
+    const newRentree: RentreeProgramme = {
+      id: `rent-${Date.now()}`,
       programme_id: dto.programme_id,
       programme_nom: programme.nom,
       nom: dto.nom,
+      description: dto.description,
       date_debut: dto.date_debut,
       date_fin: dto.date_fin,
       statut: 'en_cours',
@@ -385,13 +386,13 @@ export const programmeService = {
       nb_projets: 0,
       created_at: new Date().toISOString().split('T')[0],
     };
-    sessions.unshift(newSession);
-    setStored('sessions', sessions);
-    return newSession;
+    rentrees.unshift(newRentree);
+    setStored('rentrees', rentrees);
+    return newRentree;
   },
 
-  async getSessionDetailKPIs(sessionId: string): Promise<SessionDetailKPIs> {
-    const cohortes = await this.getCohortesBySession(sessionId);
+  async getRentreeDetailKPIs(rentreeId: string): Promise<RentreeDetailKPIs> {
+    const cohortes = await this.getCohortesByRentree(rentreeId);
     return {
       nb_cohortes: cohortes.length,
       nb_membres: cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0),
@@ -400,34 +401,35 @@ export const programmeService = {
   },
 
   // ── 3. COHORTES ──
-  async getAllCohortes(): Promise<CohorteSession[]> {
+  async getAllCohortes(): Promise<CohorteRentree[]> {
     await delay();
-    return getStored<CohorteSession[]>('cohortes', INITIAL_COHORTES);
+    return getStored<CohorteRentree[]>('cohortes', INITIAL_COHORTES);
   },
 
-  async getCohortesBySession(sessionId: string): Promise<CohorteSession[]> {
+  async getCohortesByRentree(rentreeId: string): Promise<CohorteRentree[]> {
     const all = await this.getAllCohortes();
-    return all.filter((c) => c.session_id === sessionId);
+    return all.filter((c) => c.rentree_id === rentreeId);
   },
 
-  async getCohorteById(id: string): Promise<CohorteSession | null> {
+  async getCohorteById(id: string): Promise<CohorteRentree | null> {
     const all = await this.getAllCohortes();
     return all.find((c) => c.id === id) ?? null;
   },
 
-  async createCohorte(dto: CreateCohorteDTO): Promise<CohorteSession> {
+  async createCohorte(dto: CreateCohorteDTO): Promise<CohorteRentree> {
     await delay(350);
-    const session = await this.getSessionById(dto.session_id);
-    if (!session) throw new Error('Session parente introuvable.');
+    const rentree = await this.getRentreeById(dto.rentree_id);
+    if (!rentree) throw new Error('Rentree parente introuvable.');
 
-    const cohortes = getStored<CohorteSession[]>('cohortes', INITIAL_COHORTES);
-    const newCohorte: CohorteSession = {
+    const cohortes = getStored<CohorteRentree[]>('cohortes', INITIAL_COHORTES);
+    const newCohorte: CohorteRentree = {
       id: `coh-${Date.now()}`,
-      session_id: dto.session_id,
-      session_nom: session.nom,
-      programme_id: session.programme_id,
-      programme_nom: session.programme_nom,
+      rentree_id: dto.rentree_id,
+      rentree_nom: rentree.nom,
+      programme_id: rentree.programme_id,
+      programme_nom: rentree.programme_nom,
       nom: dto.nom,
+      description: dto.description,
       date_debut: dto.date_debut,
       date_fin: dto.date_fin,
       statut: 'active',
@@ -443,7 +445,7 @@ export const programmeService = {
   async getCohorteDetailKPIs(cohorteId: string): Promise<CohorteDetailKPIs> {
     const cohorte = await this.getCohorteById(cohorteId);
     return {
-      session_nom: cohorte?.session_nom || 'Session',
+      rentree_nom: cohorte?.rentree_nom || 'Rentree',
       programme_nom: cohorte?.programme_nom || 'Programme',
       nb_membres: cohorte?.nb_membres || 0,
       nb_projets: cohorte?.nb_projets || 0,

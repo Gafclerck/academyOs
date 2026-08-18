@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   BookOpen,
-  Calendar,
+  CalendarDays,
   GraduationCap,
   FolderGit2,
   ChevronRight,
@@ -25,16 +25,16 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     description: 'Offres de formation & cursus',
   },
   {
-    name: 'Sessions',
-    href: '/sessions',
-    icon: Calendar,
-    description: 'Promotions semestrielles',
+    name: 'Rentrees',
+    href: '/rentrees',
+    icon: CalendarDays,
+    description: 'Rentrees academiques',
   },
   {
     name: 'Cohortes',
     href: '/cohortes',
     icon: GraduationCap,
-    description: 'Groupes d’apprenants actifs',
+    description: 'Groupes d\'apprenants actifs',
   },
   {
     name: 'Projets',
@@ -68,11 +68,11 @@ export const ProgrammeSidebar: React.FC<ProgrammeSidebarProps> = ({ onCloseMobil
         </div>
       </div>
 
-      {/* ── NAVIGATION HIÉRARCHIQUE ────────────────────────────────────────── */}
+      {/* ── NAVIGATION HIERARCHIQUE ────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         <div>
           <p className="px-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-            Hiérarchie Métier
+            Hierarchie Metier
           </p>
           <nav className="space-y-1">
             {SIDEBAR_ITEMS.map((item, index) => {
@@ -133,19 +133,19 @@ export const ProgrammeSidebar: React.FC<ProgrammeSidebarProps> = ({ onCloseMobil
         {/* ── WORKFLOW BANNER ──────────────────────────────────────────────── */}
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 space-y-2">
           <p className="text-xs font-bold text-slate-900 dark:text-white">
-            Architecture P-S-C-P
+            Architecture P-R-C-P
           </p>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
             <span className="text-[#FF6B0B]">Prog</span>
             <span>→</span>
-            <span>Sess</span>
+            <span>Rentree</span>
             <span>→</span>
             <span>Coh</span>
             <span>→</span>
             <span>Proj</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            Créez une session depuis un programme, puis rattachez-y vos cohortes.
+            Creez une rentree depuis un programme, puis rattachez-y vos cohortes.
           </p>
         </div>
       </div>
