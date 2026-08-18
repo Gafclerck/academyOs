@@ -9,6 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 
 from .models import PasswordResetToken, User
+from .tasks import send_email_async
 
 RESET_CODE_TTL_MINUTES = getattr(settings, "PASSWORD_RESET_TOKEN_TTL_MINUTES", 30)
 INVITE_CODE_TTL_DAYS = getattr(settings, "PASSWORD_RESET_INVITE_TTL_DAYS", 7)
@@ -41,7 +42,10 @@ def generate_reset_token(user, expires_in=None):
 
 
 def _send_email(subject, message, email, connection=None):
-    send_mail(subject, message, FROM_EMAIL, [email], connection=connection)
+    if connection is not None:
+        send_mail(subject, message, FROM_EMAIL, [email], connection=connection)
+    else:
+        send_email_async.delay(subject, message, [email], from_email=FROM_EMAIL)
 
 
 def send_reset_password_email(email, code, connection=None):

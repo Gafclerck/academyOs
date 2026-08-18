@@ -17,6 +17,22 @@ services:
       redis:
         condition: service_started
 
+  celery_worker:
+    build:
+      context: ./academy-os-api
+      dockerfile: Dockerfile
+    container_name: celery_worker
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - ./academy-os-api:/app
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   frontend:
     build:
       context: ./academy-os-client
@@ -60,7 +76,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6380:6379"
+      - "6379:6379"
 
 volumes:
   postgres_data:

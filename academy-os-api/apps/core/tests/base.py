@@ -23,6 +23,8 @@ class AuthTestMixin:
     def setUp(self):
         super().setUp()
         settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+        settings.CELERY_TASK_ALWAYS_EAGER = True
+        settings.CELERY_TASK_EAGER_PROPAGATES = True
         settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
         settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
         SimpleRateThrottle.THROTTLE_RATES = {
