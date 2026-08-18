@@ -69,26 +69,42 @@ academy-os-api/
 
 | Méthode | Route | Accès | Corps | Description |
 |---|---|---|---|---|
-| POST | `register/` | Admin | `email, role` (`admin`/`organizer`/`trainer`/`learner`), `first_name`, `last_name`, `phone_number` | Créer un compte (rôle au choix) ; email avec code envoyé pour définir le premier mot de passe |
-| POST | `login/` | Public | `email, password` | Connexion JWT (`access`, `refresh`) |
+| POST | `register/` | Admin | `email, role` (`admin`/`organizer`/`trainer`/`learner`), `first_name`, `last_name`, `phone_number` | Créer un compte (statut `pending`) ; email avec code (7j) pour premier mot de passe |
+| POST | `login/` | Public | `email, password` | Connexion JWT (`access`, `refresh`) — réservée aux comptes `active` (limite 5/min) |
 | POST | `token/refresh/` | Public | `refresh` | Rotation du refresh token |
 | POST | `logout/` | Authentifié | `refresh` | Révocation du refresh token (blacklist) |
 | GET | `me/` | Authentifié | — | Profil de l'utilisateur connecté |
 | PATCH | `me/` | Authentifié | `first_name, last_name, phone_number` | Compléter/modifier le profil |
 | POST | `change-password/` | Authentifié | `old_password, new_password` | Changer son mot de passe |
-| POST | `invite/` | Organizer / Admin | `email, role` ou `emails: [..], role` | Inviter des utilisateurs par email (batch `{emails:[...]}` → `{results:[...]}` par email) ; comptes créés `is_active=False`, activés via `reset-password` |
+| POST | `invite/` | Organizer / Admin | `email, role` ou `emails: [..], role` | Inviter des utilisateurs par email (batch `{emails:[...]}` → `{results:[...]}` par email) ; statut `pending`, code valable 7 jours |
+| POST | `forgot-password/` | Public | `email` | Envoyer un code OTP (réponse 200 anti-énumération) : 30 min si `active`, 7 jours si `pending` |
+| POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (active les comptes `pending` en `active`) |
+
+### Endpoints d'administration des utilisateurs (`/api/v1/users/`)
+
+| Méthode | Route | Permissions | Filtres / Paramètres | Description |
+|---|---|---|---|---|
+| GET | `users/` | Admin | `?role=`, `?status=`, `?is_active=`, `?search=` | Liste paginée de tous les utilisateurs avec filtres combinables |
+| GET | `users/<id>/` | Admin | — | Détails complets d'un utilisateur (rôle, statut, dates, téléphone) |
+| PATCH | `users/<id>/` | Admin | `status`, `role`, `first_name`, `last_name`, `phone_number` | Modifier un utilisateur (ex: suspension `suspended`, réactivation `active`) |
+| DELETE | `users/<id>/` | Admin | — | Supprimer un compte (interdit sur son propre compte administrateur) |
+
+### Cycle de vie des statuts (`status`)
+- **`pending`** : Compte pré-créé / invité, en attente de définition du premier mot de passe (`is_active = False`).
+- **`active`** : Compte actif pouvant s'authentifier (`is_active = True`).
+- **`suspended`** : Compte suspendu par l'administrateur (`is_active = False`).
+- **`archived`** : Compte archivé / désactivé définitivement (`is_active = False`).
+- `User.is_active` est synchronisé automatiquement avec `status == 'active'`.
 
 ### Endpoints membres d'une cohorte (`/api/v1/cohorts/<id>/`)
 
 | Méthode | Endpoint | Permissions | Corps | Description |
 |---|---|---|---|---|
 | GET | `cohorts/<id>/enrollments/` | Admin / Organizer | — | Liste des inscriptions (apprenants) |
-| POST | `cohorts/<id>/enrollments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des apprenants (résultat par email : `enrolled`/`already_enrolled`/`not_found`/`role_incompatible`) |
+| POST | `cohorts/<id>/enrollments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des apprenants (résultat par email : `enrolled`/`already_enrolled`/`not_found`/`role_incompatible`/`user_inactive`) |
 | GET | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | — | Liste des formateurs affectés |
 | POST | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des formateurs (résultat par email : `assigned`/`already_assigned`/…) |
 | PATCH | `cohorts/<id>/enrollments/<id>/` | Admin / Organizer | `{mentor: uuid|null}` | Poser/retirer le mentor (doit être une affectation de la même cohorte, sinon 404) |
-| POST | `forgot-password/` | Public | `email` | Envoyer un code de réinitialisation (réponse identique si l'email existe ou non) |
-| POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (usage unique) |
 
 L'invitation crée un compte **sans mot de passe utilisable** (`set_unusable_password()`) ; le code reçu par email lui permet de définir son premier mot de passe via `reset-password/`. Les codes sont hashés (HMAC-SHA256) et expirants (`PasswordResetToken`).
 

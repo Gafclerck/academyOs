@@ -30,6 +30,7 @@ class InviteTests(AuthAPITestCase):
         assert response.status_code == 201
         user = User.objects.get(email="formateur@test.fr")
         assert user.role == User.Role.TRAINER
+        assert user.status == User.Status.PENDING
         assert user.has_usable_password() is False
         assert user.is_active is False
         assert len(mail.outbox) == 1
@@ -42,6 +43,7 @@ class InviteTests(AuthAPITestCase):
         assert response.status_code == 201
         user = User.objects.get(email="apprenant@test.fr")
         assert user.role == User.Role.LEARNER
+        assert user.status == User.Status.PENDING
         assert user.is_active is False
 
     def test_invite_admin_role_rejected(self):
@@ -66,3 +68,12 @@ class InviteTests(AuthAPITestCase):
             f"{API_PREFIX}/auth/login/", {"email": "invite@test.fr", "password": TEST_PASSWORD}
         )
         assert response.status_code == 401
+
+    def test_invite_suspended_user_rejected(self):
+        suspended = UserFactory(suspended=True)
+        response = self.auth(self.organizer).post(
+            INVITE_URL, {"email": suspended.email, "role": "learner"}, format="json"
+        )
+        assert response.status_code == 400
+        assert "désactivé" in str(response.data)
+        assert len(mail.outbox) == 0

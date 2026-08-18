@@ -35,13 +35,15 @@ class EnrollmentEndpointTests(AuthAPITestCase):
     def test_batch_results_mixed(self):
         learner = UserFactory()
         trainer = UserFactory(trainer=True)
+        suspended = UserFactory(suspended=True)
         response = self.auth(self.organizer).post(
-            self.url, {"emails": [learner.email, trainer.email, "nobody@test.fr"]},
+            self.url, {"emails": [learner.email, trainer.email, suspended.email, "nobody@test.fr"]},
             format="json",
         )
         results = {r["email"]: r["status"] for r in response.data["results"]}
         assert results[learner.email] == "enrolled"
         assert results[trainer.email] == "role_incompatible"
+        assert results[suspended.email] == "user_inactive"
         assert results["nobody@test.fr"] == "not_found"
 
     def test_duplicate_enrollment_is_idempotent(self):

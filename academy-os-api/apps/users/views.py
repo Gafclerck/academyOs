@@ -1,13 +1,18 @@
-from drf_spectacular.utils import extend_schema
-from rest_framework import generics, permissions, status
+from django.db import models
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import generics, permissions, status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import User
 from .serializers import (
+    AdminUserSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
     InviteSerializer,
@@ -23,8 +28,16 @@ from .services import (
     invite_user,
     invite_users,
     reset_password,
+    send_invitation_email,
     send_reset_password_email,
 )
+
+
+class LoginView(TokenObtainPairView):
+    """POST /api/v1/auth/login/ - Authentification JWT avec limitation de débit (5/min)."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
 
 class RegisterView(generics.CreateAPIView):
@@ -130,6 +143,9 @@ class ForgotPasswordView(APIView):
     """POST /api/v1/auth/forgot-password/ - envoie un code de réinitialisation.
 
     Réponse identique que l'email existe ou non (anti-énumération).
+    - Compte 'active' : envoie le code de réinitialisation (30 min).
+    - Compte 'pending' : renvoie le code d'invitation (7 jours).
+    - Compte 'suspended' / 'archived' : n'envoie rien.
     """
 
     permission_classes = [permissions.AllowAny]
@@ -140,11 +156,15 @@ class ForgotPasswordView(APIView):
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
-        user = User.objects.filter(email=email).first()
+        email = serializer.validated_data["email"].strip().lower()
+        user = User.objects.filter(email__iexact=email).first()
         if user:
-            code = generate_reset_token(user)
-            send_reset_password_email(user.email, code)
+            if user.status == User.Status.ACTIVE:
+                code = generate_reset_token(user, expires_in=timezone.timedelta(minutes=30))
+                send_reset_password_email(user.email, code)
+            elif user.status == User.Status.PENDING:
+                code = generate_reset_token(user, expires_in=timezone.timedelta(days=7))
+                send_invitation_email(user.email, code)
         return Response(
             {"detail": "Si un compte existe avec cet email, un code a été envoyé."},
             status=status.HTTP_200_OK,
@@ -168,3 +188,44 @@ class ResetPasswordView(APIView):
             serializer.validated_data["new_password"],
         )
         return Response({"detail": "Mot de passe réinitialisé."}, status=status.HTTP_200_OK)
+
+
+@extend_schema_view(
+    list=extend_schema(summary="List all users", tags=["Users"]),
+    retrieve=extend_schema(summary="Retrieve user details", tags=["Users"]),
+    update=extend_schema(summary="Update a user", tags=["Users"]),
+    partial_update=extend_schema(summary="Partially update a user", tags=["Users"]),
+    destroy=extend_schema(summary="Delete a user", tags=["Users"]),
+)
+class UserViewSet(viewsets.ModelViewSet):
+    """Administration des utilisateurs (réservé aux admins)."""
+
+    queryset = User.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdmin]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        role = self.request.query_params.get("role")
+        if role:
+            queryset = queryset.filter(role=role)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() in ("true", "1"))
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(email__icontains=search)
+                | models.Q(first_name__icontains=search)
+                | models.Q(last_name__icontains=search)
+            )
+        return queryset
+
+    def perform_destroy(self, instance):
+        if instance == self.request.user:
+            raise ValidationError({"detail": "Un administrateur ne peut pas supprimer son propre compte."})
+        super().perform_destroy(instance)

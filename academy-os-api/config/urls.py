@@ -8,7 +8,7 @@ API_PREFIX = settings.API_PREFIX.lstrip("/")
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path(f'{API_PREFIX}/auth/', include('apps.users.urls')),
+    path(f'{API_PREFIX}/', include('apps.users.urls')),
     path(f'{API_PREFIX}/programs/', include('apps.programs.urls')),
     path(f'{API_PREFIX}/', include('apps.cohorts.urls')),
     path(f'{API_PREFIX}/', include('apps.attachments.urls')),

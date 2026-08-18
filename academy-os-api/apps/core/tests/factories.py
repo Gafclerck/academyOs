@@ -19,6 +19,7 @@ class UserFactory(factory.django.DjangoModelFactory):
     email = factory.Sequence(lambda n: f"user{n}@test.fr")
     password = factory.PostGenerationMethodCall("set_password", TEST_PASSWORD)
     role = User.Role.LEARNER
+    status = User.Status.ACTIVE
     first_name = ""
     last_name = ""
     phone_number = None
@@ -27,6 +28,9 @@ class UserFactory(factory.django.DjangoModelFactory):
         admin = factory.Trait(role=User.Role.ADMIN)
         organizer = factory.Trait(role=User.Role.ORGANIZER)
         trainer = factory.Trait(role=User.Role.TRAINER)
+        pending = factory.Trait(status=User.Status.PENDING)
+        suspended = factory.Trait(status=User.Status.SUSPENDED)
+        archived = factory.Trait(status=User.Status.ARCHIVED)
 
 
 class PasswordResetTokenFactory(factory.django.DjangoModelFactory):

@@ -33,19 +33,22 @@ class InviteBatchTests(AuthAPITestCase):
         for email in ("a@test.fr", "b@test.fr"):
             user = User.objects.get(email=email)
             assert user.role == User.Role.LEARNER
+            assert user.status == User.Status.PENDING
             assert user.is_active is False
         assert len(mail.outbox) == 2
 
     def test_batch_mixes_created_and_reused(self):
         existing = UserFactory()
+        suspended = UserFactory(suspended=True)
         response = self.auth(self.organizer).post(
             INVITE_URL,
-            {"emails": [existing.email, "nouveau@test.fr"]},
+            {"emails": [existing.email, suspended.email, "nouveau@test.fr"]},
             format="json",
         )
         assert response.status_code == 201
         by_email = {r["email"]: r["status"] for r in response.data["results"]}
         assert by_email[existing.email] == "reused"
+        assert by_email[suspended.email] == "error"
         assert by_email["nouveau@test.fr"] == "created"
         existing.refresh_from_db()
         assert existing.is_active is True  # un compte existant n'est pas désactivé
@@ -96,6 +99,7 @@ class InviteBatchTests(AuthAPITestCase):
         self.auth(self.organizer).post(
             INVITE_URL, {"emails": ["invite@test.fr"]}, format="json"
         )
+        assert User.objects.get(email="invite@test.fr").status == User.Status.PENDING
         assert User.objects.get(email="invite@test.fr").is_active is False
         code = self.get_code_from_last_email()
         reset = self.post_json(
@@ -103,6 +107,7 @@ class InviteBatchTests(AuthAPITestCase):
             {"email": "invite@test.fr", "code": code, "new_password": NEW_PASSWORD},
         )
         assert reset.status_code == 200
+        assert User.objects.get(email="invite@test.fr").status == User.Status.ACTIVE
         assert User.objects.get(email="invite@test.fr").is_active is True
         login = self.post_json(LOGIN_URL, {"email": "invite@test.fr", "password": NEW_PASSWORD})
         assert login.status_code == 200

@@ -31,11 +31,20 @@ def add_users_to_cohort(emails, cohort, expected_role):
     results = []
     try:
         for raw_email in emails:
-            email = BaseUserManager.normalize_email(raw_email)
-            user = User.objects.filter(email=email).first()
+            email = BaseUserManager.normalize_email(raw_email).strip().lower()
+            user = User.objects.filter(email__iexact=email).first()
             if not user:
                 results.append(
                     {"email": email, "status": "not_found", "detail": "Aucun compte pour cet email."}
+                )
+                continue
+            if user.status in (User.Status.SUSPENDED, User.Status.ARCHIVED):
+                results.append(
+                    {
+                        "email": email,
+                        "status": "user_inactive",
+                        "detail": "Ce compte est désactivé (suspendu ou archivé).",
+                    }
                 )
                 continue
             if user.role != expected_role:

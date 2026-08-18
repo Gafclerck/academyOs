@@ -1,4 +1,5 @@
 from django.contrib.auth import password_validation
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import User
@@ -11,8 +12,41 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "full_name", "role", "phone_number", "created_at"]
+        fields = ["id", "email", "first_name", "last_name", "full_name", "role", "status", "phone_number", "created_at"]
         read_only_fields = fields
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Serializer d'administration : CRUD complet des utilisateurs (Admin only)."""
+
+    full_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "role",
+            "status",
+            "phone_number",
+            "is_active",
+            "is_staff",
+            "last_login",
+            "password_reset_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "is_active",
+            "last_login",
+            "password_reset_at",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -45,7 +79,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     def save(self, **kwargs):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
-        user.save(update_fields=["password"])
+        user.password_reset_at = timezone.now()
+        user.save(update_fields=["password", "password_reset_at"])
         return user
 
 
