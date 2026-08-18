@@ -1,14 +1,40 @@
-import { Spinner } from "@/components/ui/spinner"
-import { useAuth } from "@/context/AuthContext"
-import { Navigate, Outlet } from "react-router-dom"
+import { Spinner } from '@/components/ui/spinner'
+import { useAuth } from '@/context/AuthContext'
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+} from 'react-router-dom'
 
 const PrivateRoutes = () => {
-    const { isAuthenticated, loading } = useAuth()  
+  const {
+    isAuthenticated,
+    loading,
+  } = useAuth()
 
-    if (loading) return <div className="flex items-center justify-center h-screen"><Spinner /></div>
-    
-    return isAuthenticated ? <Outlet /> : <Navigate to="/login" />
+  const location = useLocation()
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from: location.pathname,
+        }}
+      />
+    )
+  }
+
+  return <Outlet />
 }
 
 export default PrivateRoutes
-
