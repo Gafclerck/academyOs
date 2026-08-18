@@ -1,3 +1,4 @@
+
 /**
  * TÂCHE 2 — Vue liste des cohortes actives.
  * Route: /cohortes

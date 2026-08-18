@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import ThemeToggle from '@/components/theme-toggle'
 
+import logoXarala from '@/assets/logo-xarala.png'
+
 import {
   Loader2,
   Mail,
@@ -223,7 +225,7 @@ const Login = () => {
               className="mx-auto mb-5 flex justify-center"
             >
               <img
-                src="/logo-xarala.png"
+                src={logoXarala}
                 alt="Logo Xarala"
                 className="h-auto w-[220px] object-contain"
               />
@@ -250,9 +252,7 @@ const Login = () => {
 
             <div className="pointer-events-none absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-[#FF6B0B]/5 blur-3xl" />
 
-            {/* ═══════════════════════════════════════
-                HEADER
-            ═══════════════════════════════════════ */}
+            {/* HEADER */}
 
             <motion.div
               variants={itemVariants}
@@ -269,9 +269,7 @@ const Login = () => {
 
             </motion.div>
 
-            {/* ═══════════════════════════════════════
-                FORM
-            ═══════════════════════════════════════ */}
+            {/* FORM */}
 
             <motion.form
               variants={containerVariants}
@@ -430,8 +428,6 @@ const Login = () => {
                   className="group relative h-12 w-full overflow-hidden rounded-xl bg-[#FF6B0B] font-semibold text-white shadow-lg shadow-[#FF6B0B]/20 transition-all duration-300 hover:scale-[1.01] hover:bg-[#ff7a24] hover:shadow-[#FF6B0B]/30 disabled:cursor-not-allowed disabled:opacity-60"
                 >
 
-                  {/* Shine animation */}
-
                   {!isLoading && (
                     <motion.span
                       className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent"
@@ -469,9 +465,7 @@ const Login = () => {
 
             </motion.form>
 
-            {/* ═══════════════════════════════════════
-                DIVIDER
-            ═══════════════════════════════════════ */}
+            {/* DIVIDER */}
 
             <motion.div
               variants={itemVariants}
@@ -506,9 +500,7 @@ const Login = () => {
 
           </motion.div>
 
-          {/* ═════════════════════════════════════════
-              FOOTER
-          ═════════════════════════════════════════ */}
+          {/* FOOTER */}
 
           <motion.div
             variants={itemVariants}
