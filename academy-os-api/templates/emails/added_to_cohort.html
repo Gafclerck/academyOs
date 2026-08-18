@@ -1,0 +1,42 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<div class="greeting" style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+  Nouvelle Affectation de Cohorte 🎉
+</div>
+
+<p class="paragraph" style="font-size: 15px; line-height: 1.6; color: #4B5563; margin-bottom: 20px;">
+  {% if role == "trainer" %}
+    Vous avez été affecté(e) en tant que <strong>Formateur</strong> à la cohorte suivante :
+  {% else %}
+    Félicitations ! Vous avez été officiellement inscrit(e) à la cohorte suivante :
+  {% endif %}
+</p>
+
+<!-- Cohort Banner -->
+<div style="background-color: #FFF7ED; border-left: 4px solid #FF7900; border-radius: 8px; padding: 18px 20px; margin: 24px 0;">
+  <div style="font-size: 12px; font-weight: 700; color: #C2410C; text-transform: uppercase; letter-spacing: 1px;">
+    Cohorte
+  </div>
+  <div style="font-size: 22px; font-weight: 800; color: #111827; margin-top: 4px;">
+    {{ cohort_name }}
+  </div>
+</div>
+
+<p class="paragraph" style="font-size: 15px; line-height: 1.6; color: #4B5563; margin-bottom: 24px;">
+  Vous pouvez dès à présent accéder à votre espace pour découvrir le programme pédagogique, les sessions et interagir avec les membres.
+</p>
+
+{% if cohort_url %}
+<div class="btn-container" style="text-align: center; margin: 28px 0;">
+  <a href="{{ cohort_url }}" class="btn-primary" style="display: inline-block; background-color: #FF7900; color: #FFFFFF !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 700; box-shadow: 0 4px 10px rgba(255, 121, 0, 0.3);">
+    Accéder à ma cohorte &rarr;
+  </a>
+</div>
+{% endif %}
+
+<p class="paragraph" style="font-size: 14px; line-height: 1.6; color: #6B7280; margin-top: 24px;">
+  Bonne rentrée et excellent apprentissage !<br>
+  <strong>L'équipe Xarala Academy</strong>
+</p>
+{% endblock %}

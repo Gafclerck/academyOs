@@ -1,0 +1,2 @@
+# Fins de ligne Unix obligatoires pour les scripts shell (Windows CRLF les casserait).
+*.sh text eol=lf
