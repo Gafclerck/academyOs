@@ -6,7 +6,9 @@ from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
 from django.core import mail
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.html import strip_tags
 
 from .models import PasswordResetToken, User
 from .tasks import send_email_async
@@ -41,7 +43,41 @@ def generate_reset_token(user, expires_in=None):
     return code
 
 
+def _render_and_send_email(template_name, context, subject, email, connection=None, plain_text=None):
+    """Rend un template HTML d'email et l'envoie de manière asynchrone (ou synchrone en test)."""
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    full_context = {
+        "subject": subject,
+        "frontend_url": frontend_url,
+        "current_year": timezone.now().year,
+        "logo_url": f"{frontend_url}/logo-xarala.png",
+        **context,
+    }
+    html_content = render_to_string(template_name, full_context)
+    if plain_text is None:
+        plain_text = strip_tags(html_content).strip()
+
+    if connection is not None:
+        send_mail(
+            subject,
+            plain_text,
+            FROM_EMAIL,
+            [email],
+            html_message=html_content,
+            connection=connection,
+        )
+    else:
+        send_email_async.delay(
+            subject,
+            plain_text,
+            [email],
+            from_email=FROM_EMAIL,
+            html_message=html_content,
+        )
+
+
 def _send_email(subject, message, email, connection=None):
+    """Fallback basique texte brut vers la tâche Celery asynchrone."""
     if connection is not None:
         send_mail(subject, message, FROM_EMAIL, [email], connection=connection)
     else:
@@ -49,54 +85,99 @@ def _send_email(subject, message, email, connection=None):
 
 
 def send_reset_password_email(email, code, connection=None):
-    _send_email(
-        "Réinitialisation de votre mot de passe",
-        f"Votre code de réinitialisation est : {code}\n"
-        f"Il expire dans {RESET_CODE_TTL_MINUTES} minutes et n'est utilisable qu'une seule fois.",
-        email,
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    reset_url = f"{frontend_url}/reset-password"
+    plain_text = (
+        f"Bonjour,\n\n"
+        f"Vous avez demandé la réinitialisation de votre mot de passe sur Xarala Academy.\n"
+        f"Votre code de sécurité est : {code}\n"
+        f"Il expire dans {RESET_CODE_TTL_MINUTES} minutes et n'est utilisable qu'une seule fois.\n\n"
+        f"Lien : {reset_url}"
+    )
+    _render_and_send_email(
+        template_name="emails/reset_password.html",
+        context={
+            "code": code,
+            "expires_in_minutes": RESET_CODE_TTL_MINUTES,
+            "reset_url": reset_url,
+        },
+        subject="Réinitialisation de votre mot de passe",
+        email=email,
         connection=connection,
+        plain_text=plain_text,
     )
 
 
-def send_invitation_email(email, code, connection=None):
-    _send_email(
-        "Invitation à rejoindre la plateforme",
-        f"Vous avez été invité(e) à rejoindre la plateforme.\n"
-        f"Utilisez ce code pour définir votre mot de passe : {code}\n"
-        f"Il expire dans {INVITE_CODE_TTL_DAYS} jours.",
-        email,
+def send_invitation_email(email, code, connection=None, role=None):
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    activate_url = f"{frontend_url}/register"
+    role_label = "Formateur" if role == User.Role.TRAINER else "Organisateur" if role == User.Role.ORGANIZER else "Apprenant"
+    plain_text = (
+        f"Bonjour,\n\n"
+        f"Vous avez été invité(e) en tant que {role_label} sur la plateforme Xarala Academy.\n"
+        f"Votre code d'activation est : {code}\n"
+        f"Il expire dans {INVITE_CODE_TTL_DAYS} jours.\n\n"
+        f"Lien : {activate_url}"
+    )
+    _render_and_send_email(
+        template_name="emails/invitation.html",
+        context={
+            "code": code,
+            "role": role,
+            "expires_in_days": INVITE_CODE_TTL_DAYS,
+            "activate_url": activate_url,
+        },
+        subject="Invitation à rejoindre la plateforme Xarala",
+        email=email,
         connection=connection,
+        plain_text=plain_text,
     )
 
 
 def send_account_created_email(email, code, connection=None):
-    _send_email(
-        "Votre compte a été créé",
-        f"Un compte a été créé pour vous sur la plateforme.\n"
-        f"Utilisez ce code pour définir votre mot de passe : {code}\n"
-        f"Il expire dans {INVITE_CODE_TTL_DAYS} jours.",
-        email,
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    activate_url = f"{frontend_url}/reset-password"
+    plain_text = (
+        f"Bonjour,\n\n"
+        f"Un compte a été créé pour vous sur Xarala Academy.\n"
+        f"Votre code d'activation est : {code}\n"
+        f"Il expire dans {INVITE_CODE_TTL_DAYS} jours.\n\n"
+        f"Lien : {activate_url}"
+    )
+    _render_and_send_email(
+        template_name="emails/account_created.html",
+        context={
+            "code": code,
+            "expires_in_days": INVITE_CODE_TTL_DAYS,
+            "activate_url": activate_url,
+        },
+        subject="Votre compte a été créé sur Xarala Academy",
+        email=email,
         connection=connection,
+        plain_text=plain_text,
     )
 
 
 def send_added_to_cohort_email(email, cohort_name, connection=None, role=None):
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    cohort_url = f"{frontend_url}/programmes"
     if role == User.Role.TRAINER:
-        message = (
-            f"Vous avez été affecté(e) en tant que formateur à la cohorte : {cohort_name}.\n"
-            f"Connectez-vous à la plateforme pour en savoir plus."
-        )
+        plain_text = f"Bonjour,\n\nVous avez été affecté(e) en tant que formateur à la cohorte : {cohort_name}.\n\nLien : {cohort_url}"
     else:
-        message = (
-            f"Vous avez été inscrit(e) à la cohorte : {cohort_name}.\n"
-            f"Connectez-vous à la plateforme pour en savoir plus."
-        )
-    _send_email(
-        "Vous avez été ajouté(e) à une cohorte",
-        message,
-        email,
+        plain_text = f"Bonjour,\n\nVous avez été inscrit(e) à la cohorte : {cohort_name}.\n\nLien : {cohort_url}"
+    _render_and_send_email(
+        template_name="emails/added_to_cohort.html",
+        context={
+            "cohort_name": cohort_name,
+            "role": role,
+            "cohort_url": cohort_url,
+        },
+        subject=f"Vous avez été ajouté(e) à la cohorte {cohort_name}",
+        email=email,
         connection=connection,
+        plain_text=plain_text,
     )
+
 
 
 def create_user_by_admin(email, role, first_name="", last_name="", phone_number=None):

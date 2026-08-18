@@ -92,7 +92,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -220,6 +220,10 @@ PASSWORD_RESET_INVITE_TTL_DAYS = 7
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Frontend URL
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173')
 
 
 # Email
