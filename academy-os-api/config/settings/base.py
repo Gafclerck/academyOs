@@ -138,6 +138,35 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Stockage des fichiers (Attachment)
+# 'local' : disque du serveur (dev, zéro config). 's3' : bucket S3-compatible
+# (R2, Backblaze B2, DigitalOcean Spaces, AWS S3) — URLs signées et temporaires.
+STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')
+
+if STORAGE_BACKEND == 's3':
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'access_key': env('S3_ACCESS_KEY_ID'),
+                'secret_key': env('S3_SECRET_ACCESS_KEY'),
+                'bucket_name': env('S3_BUCKET_NAME'),
+                'endpoint_url': env('S3_ENDPOINT_URL', default=None),
+                'region_name': env('S3_REGION_NAME', default='auto'),
+                'default_acl': None,
+                'querystring_auth': True,
+                'querystring_expire': 3600,
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+else:
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -212,4 +241,10 @@ LOGGING = {
     'formatters': {'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'}},
     'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}},
     'root': {'handlers': ['console'], 'level': 'DEBUG' if DEBUG else 'INFO'},
+    'loggers': {
+        # Le SDK AWS est très verbeux : on ne remonte que les erreurs.
+        'boto3': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'botocore': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        's3transfer': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+    },
 }

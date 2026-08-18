@@ -32,7 +32,7 @@ academy-os-api/
     ├── certificates/        # certificats (model-only pour l'instant)
     ├── pedagogy/            # COQUILLE : CourseSession + Absence (cours)
     ├── evaluations/         # COQUILLE : ProjectAssignment + Deliverable (soumission/correction)
-    └── attachments/         # COQUILLE : Attachment (pièces jointes)
+    └── attachments/         # Attachment (upload de fichiers, stockage local/S3)
 
 ```
 
@@ -54,13 +54,14 @@ academy-os-api/
 | `Absence` | `apps.pedagogy` | FK → CourseSession + Enrollment |
 | `ProjectAssignment` | `apps.evaluations` | projet confié à une inscription |
 | `Deliverable` | `apps.evaluations` | soumission/correction d'un projet |
-| `Attachment` | `apps.attachments` | fichier joint (éviter `File`, collision `django.core.files.File`) |
+| `Attachment` ✅ | `apps.attachments` | fichier joint polymorphe (éviter `File`, collision `django.core.files.File`) ; lien GenericForeignKey vers toute entité |
 | `Certificate` ✅ | `apps.certificates` | à compléter : FK → Enrollment |
 
 - **Distinction clé** : `Intake` = période globale organisée par l'institution ; `CourseSession` = cours dispensé par un formateur à une cohorte. Ne pas confondre.
 - **Règles métier à valider en code** (pas seulement par FK) : le `start_date` d'une `Cohort` ne doit pas précéder celui de son `Intake` ; le `mentor` d'une `Enrollment` doit pointer vers un `TrainerAssignment` de la même cohorte.
-- **Apps coquilles** (`pedagogy`, `evaluations`, `attachments`) : ne pas ajouter de code métier tant qu'une feature ne le nécessite pas — elles servent de guide d'architecture.
-- Routes exposées : `/api/v1/auth/`, `/api/v1/programs/`, `/api/v1/intakes/`, `/api/v1/cohorts/` (version d'API pilotée par `settings.API_VERSION`), ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- **Apps coquilles** (`pedagogy`, `evaluations`) : ne pas ajouter de code métier tant qu'une feature ne le nécessite pas — elles servent de guide d'architecture.
+- Routes exposées : `/api/v1/auth/`, `/api/v1/programs/`, `/api/v1/intakes/`, `/api/v1/cohorts/`, `/api/v1/attachments/` (version d'API pilotée par `settings.API_VERSION`), ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- **Stockage des fichiers** : bascule par `STORAGE_BACKEND` (`local` en dev, `s3` en prod). En `s3`, les URLs de téléchargement sont signées et temporaires (`querystring_auth`) ; en `local` (dev), les fichiers sous `/media/` sont servis directement et donc publics — réservé au développement.
 - **Pagination** (globale, `PageNumberPagination`) : tous les list endpoints renvoient `{count, next, previous, results}`. Paramètres : `page` (1-indexé), `page_size` (défaut `20`, max `100`).
 - **Filtres** sur `/api/v1/cohorts/` : `?intake={uuid}` (cohortes d'un intake), `?program={uuid}` (cohortes d'un programme) — combinables entre eux et avec la pagination. Un UUID invalide renvoie `400`.
 
@@ -80,6 +81,18 @@ academy-os-api/
 | POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (usage unique) |
 
 L'invitation crée un compte **sans mot de passe utilisable** (`set_unusable_password()`) ; le code reçu par email lui permet de définir son premier mot de passe via `reset-password/`. Les codes sont hashés (HMAC-SHA256) et expirants (`PasswordResetToken`).
+
+### Endpoints pièces jointes (`/api/v1/attachments/`)
+
+| Méthode | Route | Accès | Corps | Description |
+|---|---|---|---|---|
+| POST | `attachments/` | Authentifié | `file` (multipart/form-data) | Uploader un fichier (extensions autorisées, max 10 Mo) ; stocké sous un nom UUID |
+| GET | `attachments/<id>/` | Auteur ou admin | — | Détail + URL de téléchargement (signée en S3) |
+| DELETE | `attachments/<id>/` | Auteur ou admin | — | Supprimer le fichier |
+
+**Lien polymorphe (GenericForeignKey)** : `Attachment` se rattache à n'importe quelle entité métier (`Projet`, `Livrable`, `Session`, `Certificat`…) via `content_type`/`object_id` nullables. Pour la **création d'un parent avec fichiers**, on n'utilise pas cet endpoint : la vue de création du parent reçoit une requête **multipart unique** (champs + fichiers `file` répétés) et appelle le service `create_attachments(user, files, parent=...)` (`apps/attachments/services.py`) dans la même requête transactionnelle — pas de manipulation d'ids côté front. Chaque parent porte `attachments = GenericRelation(...)` et renvoie ses fichiers imbriqués.
+
+Règle d'accès actuelle (Attachment non lié) : seul l'auteur de l'upload ou un admin consulte/supprime. La matrice RBAC complète (mentor/organizer de la cohorte concernée) sera appliquée quand `Attachment` sera lié à une entité métier.
 
 ## Configuration
 
