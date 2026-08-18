@@ -1,25 +1,22 @@
 import API from '@/api/api'
 import type { User } from '@/types/auth'
-import axios from 'axios'
 
-const CURRENT_USER = async (token: string): Promise<User> => {
-  const response = await API.get<User>('/auth/me', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!response.data) {
-    throw new Error('Réponse invalide du serveur lors de la récupération du profil.')
-  }
+export const getCurrentUserService = async (): Promise<User> => {
+  const response = await API.get<User>('/auth/me/')
 
   return response.data
 }
 
-export default CURRENT_USER
+export const updateMeService = async (
+  data: Partial<Pick<
+    User,
+    'first_name' | 'last_name' | 'phone_number'
+  >>,
+): Promise<User> => {
+  const response = await API.patch<User>(
+    '/auth/me/',
+    data,
+  )
 
-// ─── Helper: Is API error ─────────────────────────────────────────────────────
-
-export function isNetworkError(error: unknown): boolean {
-  return axios.isAxiosError(error) && !error.response
+  return response.data
 }

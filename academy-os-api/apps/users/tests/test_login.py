@@ -1,7 +1,7 @@
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import TEST_PASSWORD, UserFactory
 
-LOGIN_URL = "/api/auth/login/"
+LOGIN_URL = f"{API_PREFIX}/auth/login/"
 
 
 class LoginTests(AuthAPITestCase):

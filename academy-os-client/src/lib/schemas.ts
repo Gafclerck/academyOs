@@ -1,53 +1,141 @@
 import { z } from 'zod'
 
-// ─── Login Schema ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// LOGIN
+// ─────────────────────────────────────────────
 
 export const loginSchema = z.object({
   email: z
     .string()
-    .min(1, 'L\'email est requis')
+    .min(1, "L'email est requis")
     .email('Adresse email invalide'),
+
   password: z
     .string()
-    .min(1, 'Le mot de passe est requis')
-    .min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+    .min(1, 'Le mot de passe est requis'),
 })
 
-export type LoginFormValues = z.infer<typeof loginSchema>
+export type LoginFormValues =
+  z.infer<typeof loginSchema>
 
-// ─── Register Schema ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// REGISTER
+// ─────────────────────────────────────────────
 
-export const registerSchema = z
-  .object({
-    name: z
-      .string()
-      .min(1, 'Le nom est requis')
-      .min(2, 'Le nom doit contenir au moins 2 caractères')
-      .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
-    email: z
-      .string()
-      .min(1, 'L\'email est requis')
-      .email('Adresse email invalide'),
-    password: z
-      .string()
-      .min(1, 'Le mot de passe est requis')
-      .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
-      .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
-      .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre'),
-    passwordConfirmation: z
-      .string()
-      .min(1, 'La confirmation du mot de passe est requise'),
-  })
-  .refine((data) => data.password === data.passwordConfirmation, {
-    message: 'Les mots de passe ne correspondent pas',
-    path: ['passwordConfirmation'],
-  })
+export const registerSchema = z.object({
+  first_name: z
+    .string()
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50, 'Le prénom est trop long'),
 
-export type RegisterFormValues = z.infer<typeof registerSchema>
+  last_name: z
+    .string()
+    .min(2, 'Le nom doit contenir au moins 2 caractères')
+    .max(50, 'Le nom est trop long'),
 
-// ─── Password strength helper ─────────────────────────────────────────────────
+  email: z
+    .string()
+    .min(1, "L'email est requis")
+    .email('Adresse email invalide'),
 
-export function getPasswordStrength(password: string): {
+  phone_number: z
+    .string()
+    .optional()
+    .or(z.literal('')),
+
+  password: z
+    .string()
+    .min(8, 'Minimum 8 caractères')
+    .regex(
+      /[A-Z]/,
+      'Au moins une lettre majuscule',
+    )
+    .regex(
+      /[0-9]/,
+      'Au moins un chiffre',
+    ),
+
+  confirm_password: z
+    .string()
+    .min(1, 'La confirmation est requise'),
+}).refine(
+  (data) =>
+    data.password === data.confirm_password,
+  {
+    message:
+      'Les mots de passe ne correspondent pas',
+    path: ['confirm_password'],
+  },
+)
+
+export type RegisterFormValues =
+  z.infer<typeof registerSchema>
+
+// ─────────────────────────────────────────────
+// FORGOT PASSWORD
+// ─────────────────────────────────────────────
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .min(1, "L'email est requis")
+    .email('Adresse email invalide'),
+})
+
+export type ForgotPasswordFormValues =
+  z.infer<typeof forgotPasswordSchema>
+
+// ─────────────────────────────────────────────
+// RESET PASSWORD
+// ─────────────────────────────────────────────
+
+export const resetPasswordSchema = z.object({
+  email: z
+    .string()
+    .email('Adresse email invalide'),
+
+  code: z
+    .string()
+    .regex(
+      /^\d{6}$/,
+      'Le code doit contenir exactement 6 chiffres',
+    ),
+
+  new_password: z
+    .string()
+    .min(8, 'Minimum 8 caractères')
+    .regex(
+      /[A-Z]/,
+      'Au moins une lettre majuscule',
+    )
+    .regex(
+      /[0-9]/,
+      'Au moins un chiffre',
+    ),
+
+  confirm_password: z
+    .string()
+    .min(1, 'La confirmation est requise'),
+}).refine(
+  (data) =>
+    data.new_password === data.confirm_password,
+  {
+    message:
+      'Les mots de passe ne correspondent pas',
+    path: ['confirm_password'],
+  },
+)
+
+export type ResetPasswordFormValues =
+  z.infer<typeof resetPasswordSchema>
+
+// ─────────────────────────────────────────────
+// PASSWORD STRENGTH
+// ─────────────────────────────────────────────
+
+export function getPasswordStrength(
+  password: string,
+): {
   score: number
   label: string
   color: string
@@ -61,26 +149,35 @@ export function getPasswordStrength(password: string): {
   if (/[^A-Za-z0-9]/.test(password)) score++
 
   const levels = [
-    { label: 'Très faible', color: 'bg-red-500' },
-    { label: 'Faible', color: 'bg-orange-500' },
-    { label: 'Moyen', color: 'bg-yellow-500' },
-    { label: 'Fort', color: 'bg-blue-500' },
-    { label: 'Très fort', color: 'bg-emerald-500' },
+    {
+      label: 'Très faible',
+      color: 'bg-red-500',
+    },
+    {
+      label: 'Faible',
+      color: 'bg-orange-500',
+    },
+    {
+      label: 'Moyen',
+      color: 'bg-yellow-500',
+    },
+    {
+      label: 'Fort',
+      color: 'bg-blue-500',
+    },
+    {
+      label: 'Très fort',
+      color: 'bg-emerald-500',
+    },
   ]
+
+  const index = Math.min(
+    score,
+    levels.length - 1,
+  )
 
   return {
     score,
-    ...levels[Math.min(score, levels.length - 1)],
+    ...levels[index],
   }
 }
-
-// ─── Forgot Password Schema ───────────────────────────────────────────────────
-
-export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .min(1, "L'email est requis")
-    .email('Adresse email invalide'),
-})
-
-export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
