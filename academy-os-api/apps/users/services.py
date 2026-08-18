@@ -3,6 +3,8 @@ import hmac
 import secrets
 
 from django.conf import settings
+from django.contrib.auth.base_user import BaseUserManager
+from django.core import mail
 from django.core.mail import send_mail
 from django.utils import timezone
 
@@ -36,36 +38,39 @@ def generate_reset_token(user, expires_in=None):
     return code
 
 
-def _send_email(subject, message, email):
-    send_mail(subject, message, FROM_EMAIL, [email])
+def _send_email(subject, message, email, connection=None):
+    send_mail(subject, message, FROM_EMAIL, [email], connection=connection)
 
 
-def send_reset_password_email(email, code):
+def send_reset_password_email(email, code, connection=None):
     _send_email(
         "Réinitialisation de votre mot de passe",
         f"Votre code de réinitialisation est : {code}\n"
         f"Il expire dans {RESET_CODE_TTL_MINUTES} minutes et n'est utilisable qu'une seule fois.",
         email,
+        connection=connection,
     )
 
 
-def send_invitation_email(email, code):
+def send_invitation_email(email, code, connection=None):
     _send_email(
         "Invitation à rejoindre la plateforme",
         f"Vous avez été invité(e) à rejoindre la plateforme.\n"
         f"Utilisez ce code pour définir votre mot de passe : {code}\n"
         f"Il expire dans {INVITE_CODE_TTL_DAYS} jours.",
         email,
+        connection=connection,
     )
 
 
-def send_account_created_email(email, code):
+def send_account_created_email(email, code, connection=None):
     _send_email(
         "Votre compte a été créé",
         f"Un compte a été créé pour vous sur la plateforme.\n"
         f"Utilisez ce code pour définir votre mot de passe : {code}\n"
         f"Il expire dans {INVITE_CODE_TTL_DAYS} jours.",
         email,
+        connection=connection,
     )
 
 
@@ -93,12 +98,15 @@ def create_user_by_admin(email, role, first_name="", last_name="", phone_number=
     return user
 
 
-def invite_user(email, role):
+def invite_user(email, role, connection=None):
     """Crée (ou réutilise) un utilisateur par email et lui envoie une invitation.
 
-    Le nouveau compte n'a pas de mot de passe utilisable : le code envoyé sert à
-    définir le premier mot de passe via le flow reset-password. Retourne (user, created).
+    Le nouveau compte n'a pas de mot de passe utilisable et est créé inactif
+    (is_active=False = "invité, pas encore activé") : le code envoyé sert à
+    définir le premier mot de passe via le flow reset-password, qui le réactive.
+    Retourne (user, created).
     """
+    email = BaseUserManager.normalize_email(email)
     user, created = User.objects.get_or_create(
         email=email,
         defaults={
@@ -106,14 +114,51 @@ def invite_user(email, role):
             "first_name": "",
             "last_name": "",
             "phone_number": None,
+            "is_active": False,
         },
     )
     if created:
         user.set_unusable_password()
-        user.save(update_fields=["password"])
+        user.save(update_fields=["password", "is_active"])
     code = generate_reset_token(user, expires_in=timezone.timedelta(days=INVITE_CODE_TTL_DAYS))
-    send_invitation_email(user.email, code)
+    send_invitation_email(user.email, code, connection=connection)
     return user, created
+
+
+def invite_users(emails, role):
+    """Invite un lot d'emails avec un résultat par email.
+
+    - Une seule connexion SMTP est réutilisée pour tout le lot (efficace).
+    - Chaque envoi est isolé : un échec SMTP n'abandonne ni la création des
+      autres comptes ni les envois suivants.
+    - Retourne une liste de dicts {email, status: created|reused, detail}.
+    """
+    connection = mail.get_connection()
+    results = []
+    try:
+        for raw_email in emails:
+            email = BaseUserManager.normalize_email(raw_email)
+            try:
+                user, created = invite_user(email, role, connection=connection)
+                results.append(
+                    {
+                        "email": email,
+                        "status": "created" if created else "reused",
+                        "detail": "Invitation envoyée." if created else "Compte existant, invitation renvoyée.",
+                    }
+                )
+            except Exception:
+                connection.close()
+                results.append(
+                    {
+                        "email": email,
+                        "status": "error",
+                        "detail": "Échec de l'invitation (envoi de l'email).",
+                    }
+                )
+    finally:
+        connection.close()
+    return results
 
 
 def reset_password(email, code, new_password):
@@ -131,7 +176,8 @@ def reset_password(email, code, new_password):
         raise serializers.ValidationError({"code": "Code invalide ou expiré."})
     user.set_password(new_password)
     user.password_reset_at = timezone.now()
-    user.save(update_fields=["password", "password_reset_at"])
+    user.is_active = True  # activation du compte (invité en attente)
+    user.save(update_fields=["password", "password_reset_at", "is_active"])
     token.used = True
     token.save(update_fields=["used"])
     return user

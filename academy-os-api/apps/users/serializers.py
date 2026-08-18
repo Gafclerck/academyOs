@@ -59,13 +59,31 @@ class UpdateMeSerializer(serializers.ModelSerializer):
 
 
 class InviteSerializer(serializers.Serializer):
-    """Invitation d'un formateur ou d'un apprenant par email."""
+    """Invitation d'un formateur ou d'un apprenant par email.
 
-    email = serializers.EmailField()
+    Deux modes :
+    - `email` (unique) : comportement historique, réponse {detail, email}.
+    - `emails` (liste) : invitation en lot, réponse {results: [...]}.
+    Au moins l'un des deux est requis.
+    """
+
+    email = serializers.EmailField(required=False)
+    emails = serializers.ListField(
+        child=serializers.EmailField(),
+        required=False,
+        allow_empty=False,
+    )
     role = serializers.ChoiceField(
         choices=[User.Role.TRAINER, User.Role.LEARNER],
         default=User.Role.LEARNER,
     )
+
+    def validate(self, attrs):
+        if not attrs.get("email") and not attrs.get("emails"):
+            raise serializers.ValidationError(
+                {"emails": "Fournissez 'email' ou 'emails' pour l'invitation."}
+            )
+        return attrs
 
 
 class ForgotPasswordSerializer(serializers.Serializer):

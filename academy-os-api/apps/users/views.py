@@ -21,6 +21,7 @@ from .services import (
     create_user_by_admin,
     generate_reset_token,
     invite_user,
+    invite_users,
     reset_password,
     send_reset_password_email,
 )
@@ -98,7 +99,11 @@ class LogoutView(APIView):
 
 
 class InviteView(APIView):
-    """POST /api/v1/auth/invite/ - invite un formateur ou un apprenant par email."""
+    """POST /api/v1/auth/invite/ - invite des formateurs ou apprenants par email.
+
+    `{"email": ...}` : un seul (réponse {detail, email}).
+    `{"emails": [...]}` : en lot (réponse {results: [{email, status, detail}]}).
+    """
 
     permission_classes = [IsAdminOrOrganizer]
     throttle_classes = [ScopedRateThrottle]
@@ -108,10 +113,13 @@ class InviteView(APIView):
     def post(self, request):
         serializer = InviteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user, created = invite_user(
-            serializer.validated_data["email"],
-            serializer.validated_data["role"],
-        )
+        role = serializer.validated_data["role"]
+
+        if serializer.validated_data.get("emails"):
+            results = invite_users(serializer.validated_data["emails"], role)
+            return Response({"results": results}, status=status.HTTP_201_CREATED)
+
+        user, created = invite_user(serializer.validated_data["email"], role)
         return Response(
             {"detail": "Invitation envoyée.", "email": user.email},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,

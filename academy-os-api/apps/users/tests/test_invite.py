@@ -31,6 +31,7 @@ class InviteTests(AuthAPITestCase):
         user = User.objects.get(email="formateur@test.fr")
         assert user.role == User.Role.TRAINER
         assert user.has_usable_password() is False
+        assert user.is_active is False
         assert len(mail.outbox) == 1
         assert self.get_code_from_last_email()
 
@@ -39,7 +40,9 @@ class InviteTests(AuthAPITestCase):
             INVITE_URL, {"email": "apprenant@test.fr"}, format="json"
         )
         assert response.status_code == 201
-        assert User.objects.get(email="apprenant@test.fr").role == User.Role.LEARNER
+        user = User.objects.get(email="apprenant@test.fr")
+        assert user.role == User.Role.LEARNER
+        assert user.is_active is False
 
     def test_invite_admin_role_rejected(self):
         response = self.auth(self.organizer).post(
