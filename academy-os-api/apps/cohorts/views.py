@@ -1,24 +1,27 @@
+from uuid import UUID
+
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 
 from apps.users.permissions import IsAdmin
-from .models import TrainingPeriod, Cohort
-from .serializers import TrainingPeriodSerializer, CohortSerializer
+from .models import Intake, Cohort
+from .serializers import IntakeSerializer, CohortSerializer
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List all training periods", tags=["Training periods"]),
-    create=extend_schema(summary="Create a training period", tags=["Training periods"]),
-    retrieve=extend_schema(summary="Retrieve a training period", tags=["Training periods"]),
-    update=extend_schema(summary="Update a training period", tags=["Training periods"]),
-    partial_update=extend_schema(summary="Partially update a training period", tags=["Training periods"]),
-    destroy=extend_schema(summary="Delete a training period", tags=["Training periods"]),
+    list=extend_schema(summary="List all intakes", tags=["Intakes"]),
+    create=extend_schema(summary="Create an intake", tags=["Intakes"]),
+    retrieve=extend_schema(summary="Retrieve an intake", tags=["Intakes"]),
+    update=extend_schema(summary="Update an intake", tags=["Intakes"]),
+    partial_update=extend_schema(summary="Partially update an intake", tags=["Intakes"]),
+    destroy=extend_schema(summary="Delete an intake", tags=["Intakes"]),
 )
-class TrainingPeriodViewSet(viewsets.ModelViewSet):
-    """Full CRUD on training periods."""
+class IntakeViewSet(viewsets.ModelViewSet):
+    """Full CRUD on intakes."""
 
-    queryset = TrainingPeriod.objects.all()
-    serializer_class = TrainingPeriodSerializer
+    queryset = Intake.objects.all()
+    serializer_class = IntakeSerializer
     permission_classes = [IsAdmin]
 
 
