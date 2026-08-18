@@ -419,8 +419,8 @@ export default function CohortDetailPage() {
       ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Session parente"
-          value={cohorte.session_nom ?? '—'}
+          label="Rentree parente"
+          value={cohorte.rentree_nom ?? '—'}
           sub="Session associée"
           icon={<BookOpen className="size-6" />}
         />

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,31 +7,33 @@ import {
   Check,
   AlertCircle,
   Lock,
-  CalendarDays,
+  BookOpen,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parse } from 'date-fns';
 import {
-  createCohorteSchema,
-  type CreateCohorteFormValues,
+  createRentreeSchema,
+  type CreateRentreeFormValues,
 } from '../schemas/programmeSchemas';
-import { useRentree, useCreateCohorte } from '../hooks/useProgrammes';
+import { useProgramme, useCreateRentree, useProgrammes } from '../hooks/useProgrammes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
+import { StatusBadge } from '../components/ui/StatusBadge';
 
-export const CohorteCreatePage: React.FC = () => {
-  const { rentreeId } = useParams<{ rentreeId: string }>();
+export const RentreeCreatePage: React.FC = () => {
+  const { programmeId } = useParams<{ programmeId: string }>();
   const navigate = useNavigate();
 
-  const { data: rentree, isLoading: rentLoading } = useRentree(rentreeId);
-  const createCohorteMutation = useCreateCohorte();
+  const { data: programmes = [] } = useProgrammes();
+  const createRentreeMutation = useCreateRentree();
 
-  const form = useForm<CreateCohorteFormValues>({
-    resolver: zodResolver(createCohorteSchema),
+  const form = useForm<CreateRentreeFormValues>({
+    resolver: zodResolver(createRentreeSchema),
     defaultValues: {
-      rentree_id: rentreeId || '',
+      programme_id: programmeId || '',
       nom: '',
       description: '',
       date_debut: '',
@@ -57,26 +58,89 @@ export const CohorteCreatePage: React.FC = () => {
     return isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
-  const onSubmit = async (values: CreateCohorteFormValues) => {
+  const onSubmit = async (values: CreateRentreeFormValues) => {
     try {
-      const created = await createCohorteMutation.mutateAsync({
-        rentree_id: rentreeId!,
+      const created = await createRentreeMutation.mutateAsync({
+        programme_id: values.programme_id,
         nom: values.nom,
         description: values.description,
         date_debut: values.date_debut,
         date_fin: values.date_fin,
       });
-      toast.success('Cohorte créée avec succès !', {
-        description: `La cohorte "${created.nom}" a été rattachée à la rentrée.`,
+      toast.success('Rentrée créée avec succès !', {
+        description: `La rentrée "${created.nom}" a été rattachée au programme.`,
       });
-      navigate(`/rentrees/${rentreeId}`);
+      navigate(`/rentrees/${created.id}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur lors de la création de la cohorte.';
+      const msg = err instanceof Error ? err.message : 'Erreur lors de la création de la rentrée.';
       toast.error('Erreur', { description: msg });
     }
   };
 
-  if (rentLoading) {
+  const handleSelectProgramme = (id: string) => {
+    navigate(`/programmes/${id}/rentrees/new`);
+  };
+
+  const activeProgrammes = programmes.filter((p) => p.statut === 'actif');
+
+  if (!programmeId) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate('/rentrees')}
+            className="size-9 rounded-xl border-slate-200 dark:border-white/10"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
+              Nouvelle Rentrée
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Sélectionnez le programme parent, puis créez la promotion.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {activeProgrammes.map((prog) => (
+            <button
+              key={prog.id}
+              onClick={() => handleSelectProgramme(prog.id)}
+              className="text-left p-5 rounded-2xl bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 shadow-sm hover:shadow-md hover:border-[#FF6B0B]/40 transition-all group"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="size-10 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
+                  <BookOpen className="size-5 text-[#FF6B0B]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{prog.nom}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{prog.duree_mois} mois</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <StatusBadge status={prog.statut} />
+                <ChevronRight className="size-4 text-slate-400 group-hover:text-[#FF6B0B] transition-colors" />
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {activeProgrammes.length === 0 && (
+          <div className="text-center py-12 text-sm text-slate-500 dark:text-slate-400">
+            Aucun programme actif disponible. Créez d'abord un programme.
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const { data: programme, isLoading: progLoading } = useProgramme(programmeId);
+
+  if (progLoading) {
     return (
       <div className="max-w-2xl mx-auto p-8 animate-pulse space-y-4">
         <div className="h-6 bg-slate-200 dark:bg-white/10 rounded w-1/2" />
@@ -85,18 +149,18 @@ export const CohorteCreatePage: React.FC = () => {
     );
   }
 
-  if (!rentree) {
+  if (!programme) {
     return (
       <div className="text-center py-16 space-y-4">
         <p className="text-lg font-bold text-red-500">
-          Rentrée parente introuvable.
+          Programme parent introuvable.
         </p>
         <p className="text-xs text-slate-400">
-          Une cohorte ne peut être créée sans rentrée parente existante.
+          Une rentrée ne peut être créée sans programme parent existant.
         </p>
-        <Button onClick={() => navigate('/rentrees')} variant="outline">
+        <Button onClick={() => navigate('/programmes')} variant="outline">
           <ArrowLeft className="size-4 mr-2" />
-          Retour aux rentrées
+          Retour aux programmes
         </Button>
       </div>
     );
@@ -104,64 +168,37 @@ export const CohorteCreatePage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-        <button
-          onClick={() => navigate('/programmes')}
-          className="hover:text-[#FF6B0B] transition-colors"
-        >
-          Accueil
-        </button>
-        <span>/</span>
-        <button
-          onClick={() => navigate('/rentrees')}
-          className="hover:text-[#FF6B0B] transition-colors"
-        >
-          Rentrees
-        </button>
-        <span>/</span>
-        <button
-          onClick={() => navigate(`/rentrees/${rentree.id}`)}
-          className="hover:text-[#FF6B0B] transition-colors"
-        >
-          {rentree.nom}
-        </button>
-        <span>/</span>
-        <span className="text-slate-900 dark:text-white">Nouvelle Cohorte</span>
-      </div>
-
       <div className="flex items-center gap-3">
         <Button
           variant="outline"
           size="icon"
-          onClick={() => navigate(`/rentrees/${rentree.id}`)}
+          onClick={() => navigate(`/programmes/${programme.id}`)}
           className="size-9 rounded-xl border-slate-200 dark:border-white/10"
         >
           <ArrowLeft className="size-4" />
         </Button>
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-            Nouvelle Cohorte pour : {rentree.nom}
+            Nouvelle Rentrée
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Créez une classe d'apprentissage rattachée à la rentrée active.
+            Créez une promotion planifiée pour le cursus sélectionné.
           </p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] p-6 sm:p-8 shadow-sm space-y-5">
-        {/* Rentrée parente verrouillée */}
         <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
-              <CalendarDays className="size-4.5 text-[#FF6B0B]" />
+              <BookOpen className="size-4.5 text-[#FF6B0B]" />
             </div>
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Rentrée Parente
+                Programme Parent
               </p>
               <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {rentree.nom}
+                {programme.nom}
               </p>
             </div>
           </div>
@@ -172,15 +209,15 @@ export const CohorteCreatePage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <input type="hidden" value={rentree.id} {...register('rentree_id')} />
+          <input type="hidden" value={programme.id} {...register('programme_id')} />
 
           <div className="space-y-1.5">
             <Label htmlFor="nom" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Nom de la Cohorte <span className="text-[#FF6B0B]">*</span>
+              Nom de la Rentrée <span className="text-[#FF6B0B]">*</span>
             </Label>
             <Input
               id="nom"
-              placeholder="Ex : Cohorte Gamma"
+              placeholder="Ex: Rentrée Hiver 2025"
               {...register('nom')}
               className={`h-11 rounded-xl bg-slate-50 dark:bg-white/5 border ${
                 errors.nom ? 'border-red-500 focus-visible:ring-red-500' : 'border-slate-200 dark:border-white/10'
@@ -260,12 +297,12 @@ export const CohorteCreatePage: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="rentree_parente" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Rentrée Parente
+            <Label htmlFor="programme_parent" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Programme Parent
             </Label>
             <Input
-              id="rentree_parente"
-              value={rentree.nom}
+              id="programme_parent"
+              value={programme.nom}
               disabled
               className="h-11 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 cursor-not-allowed"
             />
@@ -275,17 +312,17 @@ export const CohorteCreatePage: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(`/rentrees/${rentree.id}`)}
+              onClick={() => navigate(-1)}
               className="h-11 px-5 rounded-xl border-slate-200 dark:border-white/10 font-semibold"
             >
               Annuler
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || createCohorteMutation.isPending}
+              disabled={isSubmitting || createRentreeMutation.isPending}
               className="h-11 px-6 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 transition-all"
             >
-              {isSubmitting || createCohorteMutation.isPending ? (
+              {isSubmitting || createRentreeMutation.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin mr-2" />
                   Création...
@@ -293,7 +330,7 @@ export const CohorteCreatePage: React.FC = () => {
               ) : (
                 <>
                   <Check className="size-4 mr-2" />
-                  Créer la Cohorte
+                  Créer la Rentrée
                 </>
               )}
             </Button>

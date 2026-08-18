@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { programmeService } from '../services/programmeService';
 import type {
   CreateProgrammeDTO,
-  CreateSessionDTO,
+  CreateRentreeDTO,
   CreateCohorteDTO,
 } from '../types/programme';
 
@@ -14,13 +14,13 @@ export const programmeKeys = {
   programmeKPIs: ['programmeKPIs'] as const,
   programmeDetailKPIs: (id: string) => ['programmeDetailKPIs', id] as const,
 
-  allSessions: ['sessions'] as const,
-  sessionsByProgramme: (progId: string) => ['sessions', 'byProgramme', progId] as const,
-  session: (id: string) => ['session', id] as const,
-  sessionDetailKPIs: (id: string) => ['sessionDetailKPIs', id] as const,
+  allRentrees: ['rentrees'] as const,
+  rentreesByProgramme: (progId: string) => ['rentrees', 'byProgramme', progId] as const,
+  rentree: (id: string) => ['rentree', id] as const,
+  rentreeDetailKPIs: (id: string) => ['rentreeDetailKPIs', id] as const,
 
   allCohortes: ['cohortes'] as const,
-  cohortesBySession: (sessId: string) => ['cohortes', 'bySession', sessId] as const,
+  cohortesByRentree: (rentreeId: string) => ['cohortes', 'byRentree', rentreeId] as const,
   cohorte: (id: string) => ['cohorte', id] as const,
   cohorteDetailKPIs: (id: string) => ['cohorteDetailKPIs', id] as const,
 
@@ -71,39 +71,39 @@ export function useCreateProgramme() {
   });
 }
 
-// ─── SESSIONS HOOKS ──────────────────────────────────────────────────────────
+// ─── RENTRÉES HOOKS ──────────────────────────────────────────────────────────
 
-export function useSessionsByProgramme(programmeId: string | undefined) {
+export function useRentreesByProgramme(programmeId: string | undefined) {
   return useQuery({
-    queryKey: programmeKeys.sessionsByProgramme(programmeId || ''),
-    queryFn: () => (programmeId ? programmeService.getSessionsByProgramme(programmeId) : []),
+    queryKey: programmeKeys.rentreesByProgramme(programmeId || ''),
+    queryFn: () => (programmeId ? programmeService.getRentreesByProgramme(programmeId) : []),
     enabled: !!programmeId,
   });
 }
 
-export function useSession(id: string | undefined) {
+export function useRentree(id: string | undefined) {
   return useQuery({
-    queryKey: programmeKeys.session(id || ''),
-    queryFn: () => (id ? programmeService.getSessionById(id) : null),
+    queryKey: programmeKeys.rentree(id || ''),
+    queryFn: () => (id ? programmeService.getRentreeById(id) : null),
     enabled: !!id,
   });
 }
 
-export function useSessionDetailKPIs(sessionId: string | undefined) {
+export function useRentreeDetailKPIs(rentreeId: string | undefined) {
   return useQuery({
-    queryKey: programmeKeys.sessionDetailKPIs(sessionId || ''),
-    queryFn: () => (sessionId ? programmeService.getSessionDetailKPIs(sessionId) : null),
-    enabled: !!sessionId,
+    queryKey: programmeKeys.rentreeDetailKPIs(rentreeId || ''),
+    queryFn: () => (rentreeId ? programmeService.getRentreeDetailKPIs(rentreeId) : null),
+    enabled: !!rentreeId,
   });
 }
 
-export function useCreateSession() {
+export function useCreateRentree() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dto: CreateSessionDTO) => programmeService.createSession(dto),
+    mutationFn: (dto: CreateRentreeDTO) => programmeService.createRentree(dto),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: programmeKeys.allSessions });
-      queryClient.invalidateQueries({ queryKey: programmeKeys.sessionsByProgramme(data.programme_id) });
+      queryClient.invalidateQueries({ queryKey: programmeKeys.allRentrees });
+      queryClient.invalidateQueries({ queryKey: programmeKeys.rentreesByProgramme(data.programme_id) });
       queryClient.invalidateQueries({ queryKey: programmeKeys.programmeDetailKPIs(data.programme_id) });
       queryClient.invalidateQueries({ queryKey: programmeKeys.allProgrammes });
     },
@@ -112,11 +112,11 @@ export function useCreateSession() {
 
 // ─── COHORTES HOOKS ──────────────────────────────────────────────────────────
 
-export function useCohortesBySession(sessionId: string | undefined) {
+export function useCohortesByRentree(rentreeId: string | undefined) {
   return useQuery({
-    queryKey: programmeKeys.cohortesBySession(sessionId || ''),
-    queryFn: () => (sessionId ? programmeService.getCohortesBySession(sessionId) : []),
-    enabled: !!sessionId,
+    queryKey: programmeKeys.cohortesByRentree(rentreeId || ''),
+    queryFn: () => (rentreeId ? programmeService.getCohortesByRentree(rentreeId) : []),
+    enabled: !!rentreeId,
   });
 }
 
@@ -142,9 +142,9 @@ export function useCreateCohorte() {
     mutationFn: (dto: CreateCohorteDTO) => programmeService.createCohorte(dto),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: programmeKeys.allCohortes });
-      queryClient.invalidateQueries({ queryKey: programmeKeys.cohortesBySession(data.session_id) });
-      queryClient.invalidateQueries({ queryKey: programmeKeys.sessionDetailKPIs(data.session_id) });
-      queryClient.invalidateQueries({ queryKey: programmeKeys.allSessions });
+      queryClient.invalidateQueries({ queryKey: programmeKeys.cohortesByRentree(data.rentree_id) });
+      queryClient.invalidateQueries({ queryKey: programmeKeys.rentreeDetailKPIs(data.rentree_id) });
+      queryClient.invalidateQueries({ queryKey: programmeKeys.allRentrees });
     },
   });
 }
@@ -166,3 +166,15 @@ export function useMembresByCohorte(cohorteId: string | undefined) {
     enabled: !!cohorteId,
   });
 }
+
+// ─── ALIASES DE COMPATIBILITÉ (legacy) ───────────────────────────────────────
+/** @deprecated Utiliser useRentreesByProgramme */
+export const useSessionsByProgramme = useRentreesByProgramme;
+/** @deprecated Utiliser useRentree */
+export const useSession = useRentree;
+/** @deprecated Utiliser useRentreeDetailKPIs */
+export const useSessionDetailKPIs = useRentreeDetailKPIs;
+/** @deprecated Utiliser useCreateRentree */
+export const useCreateSession = useCreateRentree;
+/** @deprecated Utiliser useCohortesByRentree */
+export const useCohortesBySession = useCohortesByRentree;

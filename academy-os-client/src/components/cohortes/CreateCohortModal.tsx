@@ -29,14 +29,14 @@ interface CreateCohortModalProps {
 
 interface FormValues {
   nom: string;
-  session_id: string;
+  rentree_id: string;
   date_debut: string;
   date_fin: string;
 }
 
 interface FormErrors {
   nom?: string;
-  session_id?: string;
+  rentree_id?: string;
   date_debut?: string;
   date_fin?: string;
   global?: string;
@@ -44,7 +44,7 @@ interface FormErrors {
 
 const INITIAL_FORM: FormValues = {
   nom: '',
-  session_id: '',
+  rentree_id: '',
   date_debut: '',
   date_fin: '',
 };
@@ -77,7 +77,7 @@ export default function CreateCohortModal({
       const data = await getSessions();
       setSessions(data);
     } catch {
-      setSessionsError('Impossible de charger les sessions. Veuillez réessayer.');
+       setSessionsError('Impossible de charger les rentrées. Veuillez réessayer.');
     } finally {
       setLoadingSessions(false);
     }
@@ -115,8 +115,8 @@ export default function CreateCohortModal({
       newErrors.nom = 'Le nom doit contenir au moins 3 caractères.';
     }
 
-    if (!form.session_id) {
-      newErrors.session_id = 'Veuillez sélectionner une session.';
+    if (!form.rentree_id) {
+      newErrors.rentree_id = 'Veuillez sélectionner une rentrée.';
     }
 
     if (!form.date_debut) {
@@ -150,7 +150,7 @@ export default function CreateCohortModal({
     try {
       const payload: CreateCohortePayload = {
         nom: form.nom.trim(),
-        session_id: form.session_id,
+        rentree_id: form.rentree_id,
         date_debut: form.date_debut,
         date_fin: form.date_fin,
       };
@@ -264,16 +264,16 @@ export default function CreateCohortModal({
             {/* Session parente */}
             <div className="flex flex-col gap-1.5">
               <label
-                htmlFor="cohort-session"
+                htmlFor="cohort-rentree"
                 className="text-sm font-medium text-foreground"
               >
-                Session parente <span className="text-destructive">*</span>
+                Rentrée parente <span className="text-destructive">*</span>
               </label>
 
               {loadingSessions ? (
                 <div className="h-10 flex items-center gap-2 px-3 bg-muted rounded-lg border border-input text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                  Chargement des sessions…
+                   Chargement des rentrées…
                 </div>
               ) : sessionsError ? (
                 <div className="flex flex-col gap-2">
@@ -292,17 +292,17 @@ export default function CreateCohortModal({
               ) : (
                 <div className="relative">
                   <select
-                    id="cohort-session"
-                    name="session_id"
-                    value={form.session_id}
+                    id="cohort-rentree"
+                    name="rentree_id"
+                    value={form.rentree_id}
                     onChange={handleChange}
                     disabled={submitting}
                     className={`w-full h-10 pl-3 pr-9 text-sm bg-background border rounded-lg outline-none appearance-none transition-all
                       focus:ring-2 focus:ring-primary/30 focus:border-primary
                       disabled:opacity-50 disabled:cursor-not-allowed
-                      ${errors.session_id ? 'border-destructive focus:ring-destructive/30' : 'border-input'}`}
+                       ${errors.rentree_id ? 'border-destructive focus:ring-destructive/30' : 'border-input'}`}
                   >
-                    <option value="">— Sélectionner une session —</option>
+                    <option value="">— Sélectionner une rentrée —</option>
                     {sessions.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nom} {s.programme_nom ? `(${s.programme_nom})` : ''}
@@ -313,9 +313,9 @@ export default function CreateCohortModal({
                 </div>
               )}
 
-              {errors.session_id && (
+              {errors.rentree_id && (
                 <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="size-3" /> {errors.session_id}
+                  <AlertCircle className="size-3" /> {errors.rentree_id}
                 </p>
               )}
             </div>

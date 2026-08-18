@@ -1,10 +1,10 @@
 /**
  * Types TypeScript pour le Module Programme (Xarala Academy OS)
- * Hiérarchie : PROGRAMME > SESSION > COHORTE > PROJET
+ * Hiérarchie : PROGRAMME > RENTRÉE > COHORTE > PROJET
  */
 
 export type StatutProgramme = 'actif' | 'inactif';
-export type StatutSession = 'a_venir' | 'en_cours' | 'terminee';
+export type StatutRentree = 'a_venir' | 'en_cours' | 'terminee';
 export type StatutCohorte = 'active' | 'terminee';
 export type StatutProjet = 'en_cours' | 'termine' | 'en_attente' | 'abandonne';
 
@@ -16,7 +16,7 @@ export interface Programme {
   description: string;
   duree_mois: number;
   statut: StatutProgramme;
-  nb_sessions?: number;
+  nb_rentrees?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -28,38 +28,41 @@ export interface CreateProgrammeDTO {
   statut: StatutProgramme;
 }
 
-// ─── 2. SESSION ──────────────────────────────────────────────────────────────
+// ─── 2. RENTRÉE ──────────────────────────────────────────────────────────────
 
-export interface SessionProgramme {
+export interface RentreeProgramme {
   id: string;
   programme_id: string;
   programme_nom?: string;
   nom: string;
+  description?: string;
   date_debut: string; // ISO YYYY-MM-DD
   date_fin: string;   // ISO YYYY-MM-DD
-  statut: StatutSession;
+  statut: StatutRentree;
   nb_cohortes?: number;
   nb_membres?: number;
   nb_projets?: number;
   created_at?: string;
 }
 
-export interface CreateSessionDTO {
+export interface CreateRentreeDTO {
   programme_id: string;
   nom: string;
+  description?: string;
   date_debut: string;
   date_fin: string;
 }
 
 // ─── 3. COHORTE ──────────────────────────────────────────────────────────────
 
-export interface CohorteSession {
+export interface CohorteRentree {
   id: string;
-  session_id: string;
-  session_nom?: string;
+  rentree_id: string;
+  rentree_nom?: string;
   programme_id?: string;
   programme_nom?: string;
   nom: string;
+  description?: string;
   date_debut: string;
   date_fin: string;
   statut: StatutCohorte;
@@ -69,8 +72,9 @@ export interface CohorteSession {
 }
 
 export interface CreateCohorteDTO {
-  session_id: string;
+  rentree_id: string;
   nom: string;
+  description?: string;
   date_debut: string;
   date_fin: string;
 }
@@ -94,7 +98,7 @@ export interface ProjetCohorte {
 export interface Membre {
   id: string;
   cohorte_id?: string;
-  session_id?: string;
+  rentree_id?: string;
   nom: string;
   prenom: string;
   email: string;
@@ -108,25 +112,37 @@ export interface Membre {
 export interface ProgrammeKPIs {
   total_programmes: number;
   programmes_actifs: number;
-  total_sessions: number;
+  total_rentrees: number;
   total_etudiants: number;
 }
 
 export interface ProgrammeDetailKPIs {
-  nb_sessions: number;
+  nb_rentrees: number;
   nb_cohortes_totales: number;
   nb_etudiants: number;
 }
 
-export interface SessionDetailKPIs {
+export interface RentreeDetailKPIs {
   nb_cohortes: number;
   nb_membres: number;
   nb_projets: number;
 }
 
 export interface CohorteDetailKPIs {
-  session_nom: string;
+  rentree_nom: string;
   programme_nom: string;
   nb_membres: number;
   nb_projets: number;
 }
+
+// ─── 7. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
+// À supprimer progressivement
+
+/** @deprecated Utiliser RentreeProgramme */
+export type SessionProgramme = RentreeProgramme;
+/** @deprecated Utiliser CreateRentreeDTO */
+export type CreateSessionDTO = CreateRentreeDTO;
+/** @deprecated Utiliser CohorteRentree */
+export type CohorteSession = CohorteRentree;
+/** @deprecated Utiliser StatutRentree */
+export type StatutSession = StatutRentree;

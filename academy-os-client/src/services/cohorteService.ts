@@ -1,27 +1,27 @@
 /**
- * Service API – Gestion des Cohortes
+ * Service API - Gestion des Cohortes
  *
  * Base URL : /api (proxied par Vite ou configurable via VITE_API_BASE_URL)
  *
- * Toutes les fonctions gèrent leur propre try/catch et re-throw une Error
- * typée pour que les composants consommateurs puissent afficher le bon message.
+ * Toutes les fonctions gerent leur propre try/catch et re-throw une Error
+ * typee pour que les composants consommateurs puissent afficher le bon message.
  *
  * Pour basculer sur le vrai backend :
  *   1. Supprimer le flag USE_MOCK (ou mettre VITE_USE_MOCK=false dans .env)
- *   2. S'assurer que le proxy Vite ou CORS est configuré sur /api
+ *   2. S'assurer que le proxy Vite ou CORS est configure sur /api
  */
 
 import axios, { AxiosError } from 'axios';
 import type {
   Cohorte,
-  Session,
+  Rentree,
   MembreCohorte,
   ProjetCohorte,
   CreateCohortePayload,
   CohorteFilters,
 } from '@/types/cohorte';
 
-// ─── Client Axios ─────────────────────────────────────────────────────────────
+// --- Client Axios -------------------------------------------------------------
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
@@ -29,7 +29,7 @@ const api = axios.create({
   timeout: 10_000,
 });
 
-// Injecte le token JWT dans chaque requête
+// Injecte le token JWT dans chaque requete
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -45,7 +45,7 @@ api.interceptors.response.use(
   }
 );
 
-// ─── Helper : extraire le message d'erreur ────────────────────────────────────
+// --- Helper : extraire le message d'erreur ------------------------------------
 
 function extractMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
@@ -57,92 +57,65 @@ function extractMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-// ─── Mock data (supprimable quand le backend est prêt) ────────────────────────
+// --- Mock data (supprimable quand le backend est pret) ------------------------
 
-const USE_MOCK = true; // ← Mettre false (ou VITE_USE_MOCK=false) pour le vrai backend
+const USE_MOCK = true; //  Mettre false (ou VITE_USE_MOCK=false) pour le vrai backend
 
 const delay = (ms = 400) => new Promise<void>((r) => setTimeout(r, ms));
 
-const MOCK_SESSIONS: Session[] = [
-  { id: 'sess-1', nom: 'Session Printemps 2024', programme_id: 'prog-1', programme_nom: 'Dev Web Full Stack' },
-  { id: 'sess-2', nom: 'Session Automne 2024',  programme_id: 'prog-1', programme_nom: 'Dev Web Full Stack' },
-  { id: 'sess-3', nom: 'Session Hiver 2025',    programme_id: 'prog-2', programme_nom: 'Data Science & IA' },
+const MOCK_RENTREES: Rentree[] = [
+  { id: 'rent-1', nom: 'Rentree Printemps 2024', programme_id: 'prog-1', programme_nom: 'Dev Web Full Stack' },
+  { id: 'rent-2', nom: 'Rentree Automne 2024',  programme_id: 'prog-1', programme_nom: 'Dev Web Full Stack' },
+  { id: 'rent-3', nom: 'Rentree Hiver 2025',    programme_id: 'prog-2', programme_nom: 'Data Science & IA' },
 ];
+
 
 const MOCK_COHORTES: Cohorte[] = [
-  { id: 'coh-1', nom: 'Cohorte Alpha',   session_id: 'sess-1', session_nom: 'Session Printemps 2024', date_debut: '2024-02-01', date_fin: '2024-05-31', nb_membres: 24, nb_projets: 6, statut: 'terminee' },
-  { id: 'coh-2', nom: 'Cohorte Bêta',   session_id: 'sess-2', session_nom: 'Session Automne 2024',  date_debut: '2024-09-01', date_fin: '2024-12-20', nb_membres: 30, nb_projets: 8, statut: 'terminee' },
-  { id: 'coh-3', nom: 'Cohorte Gamma',  session_id: 'sess-3', session_nom: 'Session Hiver 2025',    date_debut: '2025-01-15', date_fin: '2025-06-30', nb_membres: 28, nb_projets: 7, statut: 'active'   },
-  { id: 'coh-4', nom: 'Cohorte Delta',  session_id: 'sess-3', session_nom: 'Session Hiver 2025',    date_debut: '2025-02-01', date_fin: '2025-07-31', nb_membres: 22, nb_projets: 5, statut: 'active'   },
-  { id: 'coh-5', nom: 'Cohorte Epsilon',session_id: 'sess-3', session_nom: 'Session Hiver 2025',    date_debut: '2025-06-01', date_fin: '2025-11-30', nb_membres: 18, nb_projets: 4, statut: 'active'   },
+  { id: 'coh-1', nom: 'Cohorte Alpha',   rentree_id: 'rent-1', rentree_nom: 'Rentree Printemps 2024', date_debut: '2024-02-01', date_fin: '2024-05-31', nb_membres: 24, nb_projets: 6, statut: 'terminee' },
+  { id: 'coh-2', nom: 'Cohorte Beta',   rentree_id: 'rent-2', rentree_nom: 'Rentree Automne 2024',  date_debut: '2024-09-01', date_fin: '2024-12-20', nb_membres: 30, nb_projets: 8, statut: 'terminee' },
+  { id: 'coh-3', nom: 'Cohorte Gamma',  rentree_id: 'rent-3', rentree_nom: 'Rentree Hiver 2025',    date_debut: '2025-01-15', date_fin: '2025-06-30', nb_membres: 28, nb_projets: 7, statut: 'active'   },
+  { id: 'coh-4', nom: 'Cohorte Delta',  rentree_id: 'rent-3', rentree_nom: 'Rentree Hiver 2025',    date_debut: '2025-02-01', date_fin: '2025-07-31', nb_membres: 22, nb_projets: 5, statut: 'active'   },
+  { id: 'coh-5', nom: 'Cohorte Epsilon',rentree_id: 'rent-3', rentree_nom: 'Rentree Hiver 2025',    date_debut: '2025-06-01', date_fin: '2025-11-30', nb_membres: 18, nb_projets: 4, statut: 'active'   },
 ];
 
-const MOCK_MEMBRES: Record<string, MembreCohorte[]> = {
-  'coh-3': [
-    { id: 'm-1', nom: 'Mamadou Diallo',  email: 'mamadou@xarala.sn',  role: 'Étudiant' },
-    { id: 'm-2', nom: 'Fatou Ndiaye',    email: 'fatou@xarala.sn',    role: 'Étudiant' },
-    { id: 'm-3', nom: 'Mariam Traoré',   email: 'mariam@xarala.sn',   role: 'Mentor'   },
-    { id: 'm-4', nom: 'Omar Mbaye',      email: 'omar@xarala.sn',     role: 'Étudiant' },
-    { id: 'm-5', nom: 'Rokhaya Sarr',    email: 'rokhaya@xarala.sn',  role: 'Étudiant' },
-  ],
-  'coh-4': [
-    { id: 'm-6', nom: 'Seydou Touré',    email: 'seydou@xarala.sn',   role: 'Étudiant' },
-    { id: 'm-7', nom: 'Ndeye Dembélé',   email: 'ndeye@xarala.sn',    role: 'Mentor'   },
-    { id: 'm-8', nom: 'Pape Gueye',      email: 'pape@xarala.sn',     role: 'Étudiant' },
-  ],
-  'coh-5': [
-    { id: 'm-9', nom: 'Saliou Diop',     email: 'saliou@xarala.sn',   role: 'Étudiant' },
-    { id: 'm-10',nom: 'Rosalie Mendy',   email: 'rosalie@xarala.sn',  role: 'Étudiant' },
-    { id: 'm-11',nom: 'Landing Faye',    email: 'landing@xarala.sn',  role: 'Mentor'   },
-  ],
-};
+export const mockEtudiants: MembreCohorte[] = [
+  { id: 'm-1', nom: 'Diallo',  prenom: 'Mamadou', email: 'mamadou.diallo@xarala.sn',  role: 'etudiant', avatar: 'MD' },
+  { id: 'm-2', nom: 'Ndiaye',  prenom: 'Fatou',   email: 'fatou.ndiaye@xarala.sn',    role: 'etudiant', avatar: 'FN' },
+  { id: 'm-3', nom: 'Traore',  prenom: 'Mariam',  email: 'mariam.traore@xarala.sn',   role: 'mentor',   avatar: 'MT' },
+  { id: 'm-4', nom: 'Mbaye',   prenom: 'Omar',    email: 'omar.mbaye@xarala.sn',      role: 'etudiant', avatar: 'OM' },
+  { id: 'm-5', nom: 'Sarr',    prenom: 'Rokhaya', email: 'rokhaya.sarr@xarala.sn',    role: 'etudiant', avatar: 'RS' },
+];
 
-const MOCK_PROJETS: Record<string, ProjetCohorte[]> = {
-  'coh-3': [
-    { id: 'p-1', nom: 'Marketplace Artisans',      progression: 85  },
-    { id: 'p-2', nom: 'App Gestion Scolaire',       progression: 100 },
-    { id: 'p-3', nom: 'Dashboard RH Analytics',    progression: 60  },
-    { id: 'p-4', nom: 'API REST Bibliothèque',     progression: 100 },
-    { id: 'p-5', nom: 'App Mobile Santé',           progression: 40  },
-    { id: 'p-6', nom: 'Chatbot IA Support Client',  progression: 20  },
-    { id: 'p-7', nom: 'Paiement Mobile Wave',       progression: 0   },
-  ],
-  'coh-4': [
-    { id: 'p-8', nom: 'Réseau Social Académique',  progression: 70 },
-    { id: 'p-9', nom: 'Veille Technologique IA',   progression: 50 },
-    { id: 'p-10',nom: 'LMS Léger Vidéos + Quiz',   progression: 30 },
-    { id: 'p-11',nom: 'Budget Personnel',           progression: 100},
-    { id: 'p-12',nom: 'Réservation Restaurant',    progression: 15 },
-  ],
-  'coh-5': [
-    { id: 'p-13',nom: 'Données Agricoles ML',      progression: 25 },
-    { id: 'p-14',nom: 'Prédiction Météo IA',        progression: 10 },
-    { id: 'p-15',nom: 'NLP Wolof',                  progression: 5  },
-    { id: 'p-16',nom: 'Détection Fraude Bancaire', progression: 0  },
-  ],
-};
+export const mockProjets: ProjetCohorte[] = [
+  { id: 'p-1', nom: 'Marketplace Artisans',     description: 'Plateforme de mise en relation avec les artisans locaux.', progression: 85,  statut: 'en_cours', nb_membres: 5, date_debut: '2025-01-10', date_fin_prevue: '2025-06-30' },
+  { id: 'p-2', nom: 'App Gestion Scolaire',      description: 'Suivi des notes et absences pour les écoles coraniques.',   progression: 100, statut: 'termine',   nb_membres: 4, date_debut: '2025-02-01', date_fin_prevue: '2025-05-15' },
+  { id: 'p-3', nom: 'Dashboard RH Analytics',    description: 'Tableau de bord RH pour les PME dakaroises.',             progression: 60,  statut: 'en_cours', nb_membres: 3, date_debut: '2025-03-01', date_fin_prevue: '2025-08-01' },
+];
 
-// ─── API : Sessions ───────────────────────────────────────────────────────────
+// --- API : Rentrees ----------------------------------------------------------------
 
 /**
- * Récupère toutes les sessions (pour le dropdown du formulaire de création).
- * GET /sessions
+ * Recupere toutes les rentrees (pour le dropdown du formulaire de creation).
+ * GET /rentrees
  */
-export async function getSessions(): Promise<Session[]> {
+export async function getRentrees(): Promise<Rentree[]> {
   try {
-    if (USE_MOCK) { await delay(); return MOCK_SESSIONS; }
-    const { data } = await api.get<Session[]>('/sessions');
+    if (USE_MOCK) { await delay(); return MOCK_RENTREES; }
+    const { data } = await api.get<Rentree[]>('/rentrees');
     return data;
   } catch (err) {
-    throw new Error(extractMessage(err, 'Impossible de charger les sessions.'));
+    throw new Error(extractMessage(err, 'Impossible de charger les rentrees.'));
   }
 }
 
-// ─── API : Cohortes ───────────────────────────────────────────────────────────
+/** @deprecated Utiliser getRentrees */
+export const getSessions = getRentrees;
+
+// --- API : Cohortes -----------------------------------------------------------
 
 /**
- * Récupère la liste des cohortes avec filtres optionnels.
- * GET /cohortes?statut=active&session_id=...
+ * Recupere la liste des cohortes avec filtres optionnels.
+ * GET /cohortes?statut=active&rentree_id=...
  */
 export async function getCohortes(params?: CohorteFilters): Promise<Cohorte[]> {
   try {
@@ -152,13 +125,14 @@ export async function getCohortes(params?: CohorteFilters): Promise<Cohorte[]> {
       if (params?.statut && params.statut !== 'toutes') {
         result = result.filter((c) => c.statut === params.statut);
       }
-      if (params?.session_id) {
-        result = result.filter((c) => c.session_id === params.session_id);
+      if (params?.rentree_id || params?.session_id) {
+        const rid = params.rentree_id || params.session_id;
+        result = result.filter((c) => c.rentree_id === rid);
       }
       if (params?.search) {
         const q = params.search.toLowerCase();
         result = result.filter(
-          (c) => c.nom.toLowerCase().includes(q) || c.session_nom?.toLowerCase().includes(q)
+          (c) => c.nom.toLowerCase().includes(q) || c.rentree_nom?.toLowerCase().includes(q)
         );
       }
       return result;
@@ -171,7 +145,7 @@ export async function getCohortes(params?: CohorteFilters): Promise<Cohorte[]> {
 }
 
 /**
- * Récupère le détail d'une cohorte par son ID.
+ * Recupere le detail d'une cohorte par son ID.
  * GET /cohortes/:id
  */
 export async function getCohorteById(id: string): Promise<Cohorte> {
@@ -190,19 +164,19 @@ export async function getCohorteById(id: string): Promise<Cohorte> {
 }
 
 /**
- * Crée une nouvelle cohorte.
+ * Cree une nouvelle cohorte.
  * POST /cohortes
  */
 export async function createCohorte(payload: CreateCohortePayload): Promise<Cohorte> {
   try {
     if (USE_MOCK) {
       await delay(600);
-      const session = MOCK_SESSIONS.find((s) => s.id === payload.session_id);
+      const rentree = MOCK_RENTREES.find((r) => r.id === payload.rentree_id);
       const newCohorte: Cohorte = {
         id: `coh-${Date.now()}`,
         nom: payload.nom,
-        session_id: payload.session_id,
-        session_nom: session?.nom,
+        rentree_id: payload.rentree_id,
+        rentree_nom: rentree?.nom,
         date_debut: payload.date_debut,
         date_fin: payload.date_fin,
         nb_membres: 0,
@@ -215,21 +189,19 @@ export async function createCohorte(payload: CreateCohortePayload): Promise<Coho
     const { data } = await api.post<Cohorte>('/cohortes', payload);
     return data;
   } catch (err) {
-    throw new Error(extractMessage(err, 'Impossible de créer la cohorte.'));
+    throw new Error(extractMessage(err, 'Impossible de creer la cohorte.'));
   }
 }
 
-// ─── API : Membres ────────────────────────────────────────────────────────────
-
 /**
- * Récupère les membres d'une cohorte.
+ * Recupere les membres d'une cohorte.
  * GET /cohortes/:id/membres
  */
 export async function getMembresByCohorte(cohortId: string): Promise<MembreCohorte[]> {
   try {
     if (USE_MOCK) {
-      await delay();
-      return MOCK_MEMBRES[cohortId] ?? [];
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return mockEtudiants;
     }
     const { data } = await api.get<MembreCohorte[]>(`/cohortes/${cohortId}/membres`);
     return data;
@@ -238,17 +210,17 @@ export async function getMembresByCohorte(cohortId: string): Promise<MembreCohor
   }
 }
 
-// ─── API : Projets ────────────────────────────────────────────────────────────
+// --- API : Projets ------------------------------------------------------------
 
 /**
- * Récupère les projets d'une cohorte.
+ * Recupere les projets d'une cohorte.
  * GET /cohortes/:id/projets
  */
 export async function getProjetsByCohorte(cohortId: string): Promise<ProjetCohorte[]> {
   try {
     if (USE_MOCK) {
-      await delay();
-      return MOCK_PROJETS[cohortId] ?? [];
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return mockProjets;
     }
     const { data } = await api.get<ProjetCohorte[]>(`/cohortes/${cohortId}/projets`);
     return data;
@@ -257,7 +229,7 @@ export async function getProjetsByCohorte(cohortId: string): Promise<ProjetCohor
   }
 }
 
-// ─── Aliases ──────────────────────────────────────────────────────────────────
+// --- Aliases ------------------------------------------------------------------
 export const getCohortById = getCohorteById;
 export const createCohort = createCohorte;
 export const getCohortMembers = getMembresByCohorte;
