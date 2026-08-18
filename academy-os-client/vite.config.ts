@@ -15,5 +15,8 @@ export default defineConfig({
     port: 5173,        // Port fixe
     strictPort: true,  // Erreur si le port est déjà utilisé (au lieu de passer à 5174)
     host: true,        // Expose sur le réseau local (0.0.0.0)
+    watch: {
+      usePolling: true,
+    },
   },
 })
