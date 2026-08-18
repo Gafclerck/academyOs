@@ -1,6 +1,5 @@
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
-from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     ChangePasswordView,
@@ -11,6 +10,7 @@ from .views import (
     MeView,
     RegisterView,
     ResetPasswordView,
+    TokenRefreshView,
     UserViewSet,
 )
 

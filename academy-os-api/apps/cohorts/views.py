@@ -102,12 +102,19 @@ class _MembersBaseView(generics.ListCreateAPIView):
         return Response({"results": results}, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(
-    summary="List or add learners to a cohort",
-    description="GET : liste des inscriptions. POST {emails:[...]} : ajoute des "
-    "apprenants (résultat par email : enrolled/already_enrolled/not_found/"
-    "role_incompatible).",
-    tags=["Cohorts"],
+@extend_schema_view(
+    get=extend_schema(
+        summary="List all learners in a cohort",
+        description="Liste paginée des inscriptions de la cohorte.",
+        tags=["Cohorts"],
+    ),
+    post=extend_schema(
+        summary="Add learners to a cohort",
+        description="Ajoute des apprenants par lot d'emails (`emails: [...]`). Résultat individuel par email : `enrolled`, `already_enrolled`, `not_found`, `role_incompatible`.",
+        request=AddEmailsSerializer,
+        responses={201: MemberBatchResultSerializer},
+        tags=["Cohorts"],
+    ),
 )
 class EnrollmentListCreateView(_MembersBaseView):
     expected_role = User.Role.LEARNER
@@ -119,17 +126,20 @@ class EnrollmentListCreateView(_MembersBaseView):
             "user", "mentor__user"
         )
 
-    @extend_schema(request=AddEmailsSerializer, responses={201: MemberBatchResultSerializer})
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
 
-
-@extend_schema(
-    summary="List or add trainers to a cohort",
-    description="GET : liste des affectations. POST {emails:[...]} : ajoute des "
-    "formateurs (résultat par email : assigned/already_assigned/not_found/"
-    "role_incompatible).",
-    tags=["Cohorts"],
+@extend_schema_view(
+    get=extend_schema(
+        summary="List all trainers in a cohort",
+        description="Liste paginée des affectations de formateurs de la cohorte.",
+        tags=["Cohorts"],
+    ),
+    post=extend_schema(
+        summary="Add trainers to a cohort",
+        description="Ajoute des formateurs par lot d'emails (`emails: [...]`). Résultat individuel par email : `assigned`, `already_assigned`, `not_found`, `role_incompatible`.",
+        request=AddEmailsSerializer,
+        responses={201: MemberBatchResultSerializer},
+        tags=["Cohorts"],
+    ),
 )
 class TrainerAssignmentListCreateView(_MembersBaseView):
     expected_role = User.Role.TRAINER
@@ -138,10 +148,6 @@ class TrainerAssignmentListCreateView(_MembersBaseView):
 
     def get_queryset(self):
         return self.model.objects.filter(cohort=self.get_cohort()).select_related("user")
-
-    @extend_schema(request=AddEmailsSerializer, responses={201: MemberBatchResultSerializer})
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
 
 
 class EnrollmentMentorView(APIView):
