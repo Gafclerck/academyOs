@@ -9,6 +9,13 @@ class Certificate(UUIDModel, TimeStampedModel):
         PENDING = "EN_ATTENTE", "En attente"
         SENT = "ENVOYE", "Envoye"
 
+    inscription = models.OneToOneField(
+        "enrollments.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="certificate",
+        null=True,
+        blank=True,
+    )
     date_generation = models.DateTimeField(auto_now_add=True)
     date_envoi = models.DateTimeField(null=True, blank=True)
     file_path = models.CharField(max_length=500, blank=True, default="")

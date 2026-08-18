@@ -53,6 +53,8 @@ LOCAL_APPS = [
     'apps.users',
     'apps.programs',
     'apps.session_cohort',
+    'apps.enrollments',
+    'apps.projects',
     'apps.certificates',
 ]
 
@@ -162,7 +164,7 @@ REST_FRAMEWORK = {
     },
 }
 
-# Réinitialisation de mot de passe / invitations
+# RÃ©initialisation de mot de passe / invitations
 PASSWORD_RESET_TOKEN_TTL_MINUTES = 30
 PASSWORD_RESET_INVITE_TTL_DAYS = 7
 
@@ -204,3 +206,5 @@ LOGGING = {
     'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}},
     'root': {'handlers': ['console'], 'level': 'DEBUG' if DEBUG else 'INFO'},
 }
+
+
