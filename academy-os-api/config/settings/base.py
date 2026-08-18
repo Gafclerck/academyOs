@@ -206,6 +206,7 @@ REST_FRAMEWORK = {
         'user': '1000/day',
         'login': '5/minute',
         'invite': '10/hour',
+        'enroll': '60/hour',
         'forgot': '5/hour',
         'reset': '5/hour',
     },

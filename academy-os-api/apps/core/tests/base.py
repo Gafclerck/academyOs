@@ -18,7 +18,7 @@ API_PREFIX = settings.API_PREFIX
 
 
 class AuthTestMixin:
-    THROTTLE_SCOPES = ("anon", "user", "login", "invite", "forgot", "reset")
+    THROTTLE_SCOPES = ("anon", "user", "login", "invite", "enroll", "forgot", "reset")
 
     def setUp(self):
         super().setUp()

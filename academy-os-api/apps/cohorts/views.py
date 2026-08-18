@@ -1,12 +1,27 @@
 from uuid import UUID
 
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import generics, status
 from rest_framework import viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 
-from apps.users.permissions import IsAdmin
-from .models import Intake, Cohort
-from .serializers import IntakeSerializer, CohortSerializer
+from apps.users.models import User
+from apps.users.permissions import IsAdmin, IsAdminOrOrganizer
+from .models import Cohort, Enrollment, Intake, TrainerAssignment
+from .serializers import (
+    AddEmailsSerializer,
+    AssignMentorSerializer,
+    CohortSerializer,
+    EnrollmentSerializer,
+    IntakeSerializer,
+    MemberBatchResultSerializer,
+    TrainerAssignmentSerializer,
+)
+from .services import add_users_to_cohort, assign_mentor
 
 
 @extend_schema_view(
@@ -55,3 +70,102 @@ class CohortViewSet(viewsets.ModelViewSet):
             return UUID(raw)
         except ValueError:
             raise ValidationError({param: ["Invalid UUID."]})
+
+
+def _get_cohort(cohort_id):
+    return get_object_or_404(Cohort, pk=cohort_id)
+
+
+class _MembersBaseView(generics.ListCreateAPIView):
+    """Base commune : liste + ajout batch de membres d'une cohorte."""
+
+    permission_classes = [IsAdminOrOrganizer]
+    expected_role = None
+    model = None
+
+    def get_throttles(self):
+        """Applique le throttle 'enroll' (60/h) uniquement sur les requêtes d'écriture (POST)."""
+        if self.request.method == "POST":
+            throttle = ScopedRateThrottle()
+            throttle.scope = "enroll"
+            return [throttle]
+        return super().get_throttles()
+
+    def get_cohort(self):
+        return _get_cohort(self.kwargs["cohort_id"])
+
+    def create(self, request, *args, **kwargs):
+        cohort = self.get_cohort()
+        serializer = AddEmailsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        results = add_users_to_cohort(serializer.validated_data["emails"], cohort, self.expected_role)
+        return Response({"results": results}, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    summary="List or add learners to a cohort",
+    description="GET : liste des inscriptions. POST {emails:[...]} : ajoute des "
+    "apprenants (résultat par email : enrolled/already_enrolled/not_found/"
+    "role_incompatible).",
+    tags=["Cohorts"],
+)
+class EnrollmentListCreateView(_MembersBaseView):
+    expected_role = User.Role.LEARNER
+    model = Enrollment
+    serializer_class = EnrollmentSerializer
+
+    def get_queryset(self):
+        return self.model.objects.filter(cohort=self.get_cohort()).select_related(
+            "user", "mentor__user"
+        )
+
+    @extend_schema(request=AddEmailsSerializer, responses={201: MemberBatchResultSerializer})
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+
+@extend_schema(
+    summary="List or add trainers to a cohort",
+    description="GET : liste des affectations. POST {emails:[...]} : ajoute des "
+    "formateurs (résultat par email : assigned/already_assigned/not_found/"
+    "role_incompatible).",
+    tags=["Cohorts"],
+)
+class TrainerAssignmentListCreateView(_MembersBaseView):
+    expected_role = User.Role.TRAINER
+    model = TrainerAssignment
+    serializer_class = TrainerAssignmentSerializer
+
+    def get_queryset(self):
+        return self.model.objects.filter(cohort=self.get_cohort()).select_related("user")
+
+    @extend_schema(request=AddEmailsSerializer, responses={201: MemberBatchResultSerializer})
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+
+class EnrollmentMentorView(APIView):
+    """PATCH /api/v1/cohorts/<id>/enrollments/<id>/ - poser/retirer le mentor."""
+
+    permission_classes = [IsAdminOrOrganizer]
+
+    @extend_schema(
+        summary="Assign or remove a mentor for an enrollment",
+        description="PATCH {mentor: <uuid> | null} : affecte ou retire le mentor de l'apprenant.",
+        request=AssignMentorSerializer,
+        responses={200: EnrollmentSerializer},
+        tags=["Cohorts"],
+    )
+    def patch(self, request, cohort_id, enrollment_id):
+        cohort = _get_cohort(cohort_id)
+        enrollment = get_object_or_404(Enrollment, pk=enrollment_id, cohort=cohort)
+        serializer = AssignMentorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        trainer_assignment = None
+        mentor_id = serializer.validated_data["mentor"]
+        if mentor_id is not None:
+            trainer_assignment = get_object_or_404(
+                TrainerAssignment, pk=mentor_id, cohort=cohort
+            )
+        enrollment = assign_mentor(enrollment, trainer_assignment)
+        return Response(EnrollmentSerializer(enrollment).data)

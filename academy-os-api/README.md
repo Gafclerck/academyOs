@@ -48,8 +48,8 @@ academy-os-api/
 | `Project` | `apps.programs` | FK → Program |
 | `Intake` ✅ | `apps.cohorts` | ex-`TrainingPeriod` ; période globale (`name`, `start_date`, `status`) |
 | `Cohort` ✅ | `apps.cohorts` | FK `program` → Program, FK `intake`, `description` |
-| `TrainerAssignment` | `apps.cohorts` | formateur affecté à une cohorte |
-| `Enrollment` | `apps.cohorts` | apprenant inscrit, `mentor` → TrainerAssignment |
+| `TrainerAssignment` ✅ | `apps.cohorts` | formateur affecté à une cohorte (contrainte d'unicité cohorte+user) |
+| `Enrollment` ✅ | `apps.cohorts` | apprenant inscrit, `mentor` → TrainerAssignment (même cohorte) |
 | `CourseSession` | `apps.pedagogy` | un cours ; FK → Cohort + Project + formateur |
 | `Absence` | `apps.pedagogy` | FK → CourseSession + Enrollment |
 | `ProjectAssignment` | `apps.evaluations` | projet confié à une inscription |
@@ -76,7 +76,17 @@ academy-os-api/
 | GET | `me/` | Authentifié | — | Profil de l'utilisateur connecté |
 | PATCH | `me/` | Authentifié | `first_name, last_name, phone_number` | Compléter/modifier le profil |
 | POST | `change-password/` | Authentifié | `old_password, new_password` | Changer son mot de passe |
-| POST | `invite/` | Organizer / Admin | `email, role` (`trainer`/`learner`) | Inviter un utilisateur par email (code envoyé par email) |
+| POST | `invite/` | Organizer / Admin | `email, role` ou `emails: [..], role` | Inviter des utilisateurs par email (batch `{emails:[...]}` → `{results:[...]}` par email) ; comptes créés `is_active=False`, activés via `reset-password` |
+
+### Endpoints membres d'une cohorte (`/api/v1/cohorts/<id>/`)
+
+| Méthode | Endpoint | Permissions | Corps | Description |
+|---|---|---|---|---|
+| GET | `cohorts/<id>/enrollments/` | Admin / Organizer | — | Liste des inscriptions (apprenants) |
+| POST | `cohorts/<id>/enrollments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des apprenants (résultat par email : `enrolled`/`already_enrolled`/`not_found`/`role_incompatible`) |
+| GET | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | — | Liste des formateurs affectés |
+| POST | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des formateurs (résultat par email : `assigned`/`already_assigned`/…) |
+| PATCH | `cohorts/<id>/enrollments/<id>/` | Admin / Organizer | `{mentor: uuid|null}` | Poser/retirer le mentor (doit être une affectation de la même cohorte, sinon 404) |
 | POST | `forgot-password/` | Public | `email` | Envoyer un code de réinitialisation (réponse identique si l'email existe ou non) |
 | POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (usage unique) |
 
@@ -114,7 +124,7 @@ Le module de settings est choisi **uniquement** via la variable d'environnement 
 - Authentification par JWT (Bearer) via simplejwt, avec rotation des refresh tokens et blacklist des tokens révoqués.
 - Permission par défaut : `IsAuthenticated`. Les endpoints publics doivent explicitement déclarer `permission_classes = [AllowAny]` et choisir un scope de throttling.
 - Rendus et parsers JSON uniquement.
-- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `invite` 10/h, `forgot` 5/h, `reset` 5/h.
+- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `invite` 10/h, `enroll` 60/h, `forgot` 5/h, `reset` 5/h.
 - CORS : ouvert en développement (`CORS_ALLOW_ALL_ORIGINS`), restreint en production à `CORS_ALLOWED_ORIGINS` (à configurer dans `.env` avec l'origine du front).
 
 ## Lancer le projet

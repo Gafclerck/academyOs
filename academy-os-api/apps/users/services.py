@@ -74,6 +74,25 @@ def send_account_created_email(email, code, connection=None):
     )
 
 
+def send_added_to_cohort_email(email, cohort_name, connection=None, role=None):
+    if role == User.Role.TRAINER:
+        message = (
+            f"Vous avez été affecté(e) en tant que formateur à la cohorte : {cohort_name}.\n"
+            f"Connectez-vous à la plateforme pour en savoir plus."
+        )
+    else:
+        message = (
+            f"Vous avez été inscrit(e) à la cohorte : {cohort_name}.\n"
+            f"Connectez-vous à la plateforme pour en savoir plus."
+        )
+    _send_email(
+        "Vous avez été ajouté(e) à une cohorte",
+        message,
+        email,
+        connection=connection,
+    )
+
+
 def create_user_by_admin(email, role, first_name="", last_name="", phone_number=None):
     """Crée un compte à la demande d'un admin, avec le rôle choisi.
 

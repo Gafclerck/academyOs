@@ -51,6 +51,7 @@ Thumbs.db
 .coverage
 htmlcov/
 AGENTS.md
+GEMINI.md
 
 # Frontend build & dependencies (Monorepo)
 academy-os-client/dist/
