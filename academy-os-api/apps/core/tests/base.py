@@ -14,6 +14,8 @@ from django.test import TestCase
 from rest_framework.test import APITestCase
 from rest_framework.throttling import SimpleRateThrottle
 
+API_PREFIX = settings.API_PREFIX
+
 
 class AuthTestMixin:
     THROTTLE_SCOPES = ("anon", "user", "login", "invite", "forgot", "reset")

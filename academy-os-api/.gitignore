@@ -10,3 +10,4 @@ staticfiles/
 .coverage
 htmlcov/
 .pytest_cache/
+CLASSE.md

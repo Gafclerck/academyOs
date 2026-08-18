@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import ThemeToggle from '@/components/theme-toggle'
 
+import logoXarala from '@/assets/logo-xarala.png'
+
 import {
   Loader2,
   Mail,
@@ -123,7 +125,6 @@ const Register = () => {
         dark:bg-[#19192D] dark:text-white
       "
     >
-
       {/* ═══════════════════════════════════════════
           THEME TOGGLE
       ═══════════════════════════════════════════ */}
@@ -137,8 +138,6 @@ const Register = () => {
       ═══════════════════════════════════════════ */}
 
       <div className="absolute inset-0">
-
-        {/* Orange glow - top left */}
 
         <motion.div
           className="
@@ -159,8 +158,6 @@ const Register = () => {
           }}
         />
 
-        {/* Orange glow - bottom right */}
-
         <motion.div
           className="
             absolute -bottom-40 -right-40
@@ -180,8 +177,6 @@ const Register = () => {
           }}
         />
 
-        {/* Grid */}
-
         <div
           className="
             absolute inset-0
@@ -194,7 +189,6 @@ const Register = () => {
             backgroundSize: '45px 45px',
           }}
         />
-
       </div>
 
       {/* ═══════════════════════════════════════════
@@ -210,7 +204,6 @@ const Register = () => {
           border border-slate-200
           bg-slate-100
           p-4 backdrop-blur-md
-          transition-colors
           dark:border-white/10
           dark:bg-white/[0.04]
           lg:block
@@ -228,7 +221,6 @@ const Register = () => {
           border border-slate-200
           bg-slate-100
           p-4 backdrop-blur-md
-          transition-colors
           dark:border-white/10
           dark:bg-white/[0.04]
           lg:block
@@ -246,7 +238,6 @@ const Register = () => {
           border border-slate-200
           bg-slate-100
           p-4 backdrop-blur-md
-          transition-colors
           dark:border-white/10
           dark:bg-white/[0.04]
           lg:block
@@ -283,14 +274,13 @@ const Register = () => {
             variants={itemVariants}
             className="mb-8 text-center"
           >
-
             <motion.div
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
               className="mx-auto mb-5 flex justify-center"
             >
               <img
-                src="/logo-xarala.png"
+                src={logoXarala}
                 alt="Logo Xarala"
                 className="h-auto w-[220px] object-contain"
               />
@@ -305,7 +295,6 @@ const Register = () => {
             >
               La technologie dans votre langue.
             </p>
-
           </motion.div>
 
           {/* ═════════════════════════════════════════
@@ -331,7 +320,7 @@ const Register = () => {
             "
           >
 
-            {/* Card orange decoration */}
+            {/* Card decorations */}
 
             <div
               className="
@@ -626,7 +615,6 @@ const Register = () => {
                       <Eye className="size-4" />
                     )}
                   </button>
-
                 </div>
 
                 {/* PASSWORD STRENGTH */}
@@ -704,7 +692,6 @@ const Register = () => {
                     {errors.password.message}
                   </motion.p>
                 )}
-
               </motion.div>
 
               {/* CONFIRM PASSWORD */}
@@ -799,19 +786,23 @@ const Register = () => {
                       <Eye className="size-4" />
                     )}
                   </button>
-
                 </div>
 
                 {errors.passwordConfirmation && (
                   <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
                     className="mt-2 text-xs text-red-500 dark:text-red-400"
                   >
                     {errors.passwordConfirmation.message}
                   </motion.p>
                 )}
-
               </motion.div>
 
               {/* SUBMIT */}
@@ -820,7 +811,6 @@ const Register = () => {
                 variants={itemVariants}
                 className="pt-1"
               >
-
                 <Button
                   type="submit"
                   disabled={isLoading}
@@ -885,11 +875,8 @@ const Register = () => {
                     )}
 
                   </span>
-
                 </Button>
-
               </motion.div>
-
             </motion.form>
 
             {/* TERMS */}
@@ -902,6 +889,7 @@ const Register = () => {
                 text-xs
                 leading-5
                 text-slate-500
+                dark:text-slate-400
               "
             >
               En créant un compte, vous acceptez nos{' '}
@@ -931,7 +919,6 @@ const Register = () => {
               >
                 Politique de confidentialité
               </Link>
-
             </motion.p>
 
             {/* DIVIDER */}
@@ -940,7 +927,6 @@ const Register = () => {
               variants={itemVariants}
               className="mt-7 flex items-center gap-3"
             >
-
               <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
 
               <span className="text-xs text-slate-400 dark:text-slate-600">
@@ -948,7 +934,6 @@ const Register = () => {
               </span>
 
               <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-
             </motion.div>
 
             {/* LOGIN */}
@@ -977,7 +962,6 @@ const Register = () => {
               >
                 Se connecter
               </Link>
-
             </motion.p>
 
           </motion.div>
@@ -990,7 +974,6 @@ const Register = () => {
             variants={itemVariants}
             className="mt-6 text-center"
           >
-
             <div className="flex items-center justify-center gap-1.5">
 
               <CheckCircle2 className="size-3 text-green-500 dark:text-green-400" />
@@ -1013,7 +996,6 @@ const Register = () => {
 
         </motion.div>
       </div>
-
     </main>
   )
 }

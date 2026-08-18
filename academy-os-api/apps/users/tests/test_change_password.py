@@ -1,7 +1,7 @@
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import TEST_PASSWORD, UserFactory
 
-CHANGE_PASSWORD_URL = "/api/auth/change-password/"
+CHANGE_PASSWORD_URL = f"{API_PREFIX}/auth/change-password/"
 
 
 class ChangePasswordTests(AuthAPITestCase):

@@ -1,10 +1,10 @@
 from django.core.cache import cache
 from rest_framework.throttling import SimpleRateThrottle
 
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
 
-FORGOT_URL = "/api/auth/forgot-password/"
+FORGOT_URL = f"{API_PREFIX}/auth/forgot-password/"
 
 
 class ThrottlingTests(AuthAPITestCase):

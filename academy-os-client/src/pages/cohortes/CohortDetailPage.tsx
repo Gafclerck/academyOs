@@ -4,7 +4,7 @@
  *
  * Sections:
  *   1. Header: Nom, Badge Statut, Période, Bouton Retour
- *   2. Cards Infos: Session parente, Membres, Projets
+ *   2. Cards Infos: Rentree parente, Membres, Projets
  *   3. Onglet Membres: tableau étudiants + rôle (GET /cohortes/:id/membres)
  *   4. Onglet Projets: tableau projets + avancement (GET /cohortes/:id/projets)
  *   5. Card État global: barre de progression % projets terminés
@@ -167,17 +167,18 @@ function MembersTab({ cohortId }: MembersTabProps) {
                   <div
                     className="size-8 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0"
                     style={{
-                      background: `hsl(${(membre.prenom.charCodeAt(0) * 17) % 360}, 60%, 55%)`,
+                      background: `hsl(${((membre.prenom || membre.nom || 'A').charCodeAt(0) * 17) % 360}, 60%, 55%)`,
                     }}
                   >
-                    {membre.prenom[0]}{membre.nom[0]}
+                    {(membre.prenom?.[0] || '') + (membre.nom?.[0] || 'U')}
                   </div>
                   <div>
                     <p className="font-medium text-foreground">
-                      {membre.prenom} {membre.nom}
+                      {membre.prenom ? `${membre.prenom} ${membre.nom}` : membre.nom}
                     </p>
                     <p className="text-xs text-muted-foreground sm:hidden">{membre.email}</p>
                   </div>
+
                 </div>
               </td>
               <td className="py-3.5 px-2 hidden sm:table-cell">
@@ -283,14 +284,15 @@ function ProjectsTab({ cohortId, onProjectsLoad }: ProjectsTabProps) {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h4 className="font-semibold text-foreground text-sm">{projet.nom}</h4>
-              <ProjetStatusBadge statut={projet.statut} />
+              {projet.statut && <ProjetStatusBadge statut={projet.statut} />}
             </div>
             {projet.description && (
               <p className="text-xs text-muted-foreground">{projet.description}</p>
             )}
             <div className="flex items-center gap-3">
-              <ProgressBar value={projet.etat_avancement} size="sm" showLabel className="flex-1" />
+              <ProgressBar value={projet.etat_avancement ?? projet.progression ?? 0} size="sm" showLabel className="flex-1" />
             </div>
+
           </div>
 
           {/* Métadonnées */}
@@ -457,8 +459,8 @@ export default function CohortDetailPage() {
       {/* ── 2. CARDS INFOS ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Session parente"
-          value={cohorte.session_nom || '—'}
+          label="Rentree parente"
+          value={cohorte.rentree_nom || '—'}
           icon={<BookOpen className="size-5" />}
           sub="Programme associé"
         />

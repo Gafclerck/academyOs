@@ -1,3 +1,4 @@
+
 /**
  * TÂCHE 2 — Vue liste des cohortes actives.
  * Route: /cohortes
@@ -14,7 +15,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
-  Loader2,
   AlertCircle,
   Users,
   FolderOpen,
@@ -25,6 +25,7 @@ import {
   ChevronDown,
   GraduationCap,
 } from 'lucide-react';
+
 import type { Cohorte, Session, CohorteFilters } from '@/types/cohorte';
 import { getCohortes, getSessions } from '@/services/cohorteService';
 import { CohorteStatusBadge } from '@/components/cohortes/Badge';
@@ -75,7 +76,7 @@ function CohortCard({ cohorte, onView, onEdit }: CohortCardProps) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold text-foreground text-sm">{cohorte.nom}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{cohorte.session_nom}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{cohorte.rentree_nom}</p>
         </div>
         <CohorteStatusBadge statut={cohorte.statut} />
       </div>
@@ -161,9 +162,10 @@ export default function CohortListPage() {
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleFilterChange = (key: keyof CohorteFilters, value: string) => {
+  const handleFilterChange = (key: keyof CohorteFilters, value: string | undefined) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
+
 
   const handleView = (id: string) => navigate(`/cohortes/${id}`);
   const handleEdit = (id: string) => {
@@ -290,7 +292,7 @@ export default function CohortListPage() {
         {/* Entête du tableau */}
         <div className="grid grid-cols-[2fr_2fr_2fr_80px_80px_110px_150px] gap-4 px-6 py-3.5 bg-muted/40 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           <span>Nom</span>
-          <span>Session parente</span>
+          <span>Rentree parente</span>
           <span>Période</span>
           <span className="text-center">Membres</span>
           <span className="text-center">Projets</span>
@@ -336,8 +338,8 @@ export default function CohortListPage() {
                   <span className="font-medium text-foreground text-sm truncate">{cohorte.nom}</span>
                 </div>
 
-                {/* Session parente */}
-                <span className="text-sm text-muted-foreground truncate">{cohorte.session_nom}</span>
+                {/* Rentree parente */}
+                <span className="text-sm text-muted-foreground truncate">{cohorte.rentree_nom}</span>
 
                 {/* Période */}
                 <div className="text-sm text-muted-foreground">

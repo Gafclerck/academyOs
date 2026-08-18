@@ -30,6 +30,10 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
+# Version de l'API : préfixe d'URL construit depuis une constante (contrat du code)
+API_VERSION = 'v1'
+API_PREFIX = f'/api/{API_VERSION}'
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -52,8 +56,11 @@ LOCAL_APPS = [
     'apps.core',
     'apps.users',
     'apps.programs',
-    'apps.session_cohort',
+    'apps.cohorts',
     'apps.certificates',
+    'apps.pedagogy',
+    'apps.evaluations',
+    'apps.attachments',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -148,6 +155,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.DefaultPagination',
+    'PAGE_SIZE': 20,
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
