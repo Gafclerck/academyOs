@@ -18,6 +18,12 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
+# Neutralise les fins de ligne CRLF (Windows) dans le script d'entrypoint.
+RUN sed -i 's/\r$//' /app/docker/entrypoint.sh \
+    && chmod +x /app/docker/entrypoint.sh
+
 EXPOSE 8000
+
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
