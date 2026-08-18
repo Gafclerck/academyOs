@@ -11,7 +11,7 @@ const Navbar = () => {
     <nav className="bg-white border-b border-gray-200 px-4 py-2 flex justify-between items-center w-full">
       <div className="text-lg font-semibold">My App</div>
       <div className="flex items-center gap-4">
-        <span>Welcome, {user?.name}</span>
+        <span>Welcome, {user?.full_name || user?.email}</span>
         <Button onClick={logout} variant="outline" size="sm">
           <LogOut className="w-4 h-4 mr-2" />
           Logout
