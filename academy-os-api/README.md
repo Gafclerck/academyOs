@@ -21,14 +21,14 @@ academy-os-api/
 │   │   ├── base.py          # configuration commune (apps, DRF, JWT, CORS, base de données)
 │   │   ├── development.py   # environnement de développement (DEBUG, CORS ouvert, email console)
 │   │   └── production.py    # environnement de production (DEBUG off, HSTS, cookies sécurisés)
-│   ├── urls.py              # routage : /admin/, /api/auth/, /api/programs/, /api/cohorts/, /api/schema|docs|redoc/
+│   ├── urls.py              # routage : /admin/, /api/v1/auth/, /api/v1/programs/, /api/v1/intakes/, /api/v1/cohorts/, /api/schema|docs|redoc/
 │   ├── wsgi.py              # point d'entrée WSGI ; module de settings par défaut : production
 │   └── asgi.py              # point d'entrée ASGI ; module de settings par défaut : production
 └── apps/
     ├── core/                # socle partagé : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, infra de test partagée (`base.py`/`factories.py`)
     ├── users/               # modèle utilisateur personnalisé, auth, RBAC
     ├── programs/            # catalogue de formation (Programme + Projet à venir)
-    ├── cohorts/             # TrainingPeriod + Cohort (périodes globales et cohortes)
+    ├── cohorts/             # Intake + Cohort (période globale avec name, FK program)
     ├── certificates/        # certificats (model-only pour l'instant)
     ├── pedagogy/            # COQUILLE : CourseSession + Absence (cours)
     ├── evaluations/         # COQUILLE : ProjectAssignment + Deliverable (soumission/correction)
@@ -46,8 +46,8 @@ academy-os-api/
 | Entité | App | Notes |
 |---|---|---|
 | `Project` | `apps.programs` | FK → Program |
-| `TrainingPeriod` ✅ | `apps.cohorts` | période globale (ex. « Été 2026 ») |
-| `Cohort` ✅ | `apps.cohorts` | ex-`Cohorte` ; à enrichir : FK `program` + `organizer` |
+| `Intake` ✅ | `apps.cohorts` | ex-`TrainingPeriod` ; période globale (`name`, `start_date`, `status`) |
+| `Cohort` ✅ | `apps.cohorts` | FK `program` → Program, FK `intake`, `description` |
 | `TrainerAssignment` | `apps.cohorts` | formateur affecté à une cohorte |
 | `Enrollment` | `apps.cohorts` | apprenant inscrit, `mentor` → TrainerAssignment |
 | `CourseSession` | `apps.pedagogy` | un cours ; FK → Cohort + Project + formateur |
@@ -57,12 +57,14 @@ academy-os-api/
 | `Attachment` | `apps.attachments` | fichier joint (éviter `File`, collision `django.core.files.File`) |
 | `Certificate` ✅ | `apps.certificates` | à compléter : FK → Enrollment |
 
-- **Distinction clé** : `TrainingPeriod` = période globale organisée par l'institution ; `CourseSession` = cours dispensé par un formateur à une cohorte. Ne pas confondre.
-- **Règles métier à valider en code** (pas seulement par FK) : les dates d'une `Cohort` doivent être comprises dans l'intervalle de son `TrainingPeriod` ; le `mentor` d'une `Enrollment` doit pointer vers un `TrainerAssignment` de la même cohorte.
+- **Distinction clé** : `Intake` = période globale organisée par l'institution ; `CourseSession` = cours dispensé par un formateur à une cohorte. Ne pas confondre.
+- **Règles métier à valider en code** (pas seulement par FK) : le `start_date` d'une `Cohort` ne doit pas précéder celui de son `Intake` ; le `mentor` d'une `Enrollment` doit pointer vers un `TrainerAssignment` de la même cohorte.
 - **Apps coquilles** (`pedagogy`, `evaluations`, `attachments`) : ne pas ajouter de code métier tant qu'une feature ne le nécessite pas — elles servent de guide d'architecture.
-- Routes exposées : `/api/auth/`, `/api/programs/`, `/api/cohorts/`, ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- Routes exposées : `/api/v1/auth/`, `/api/v1/programs/`, `/api/v1/intakes/`, `/api/v1/cohorts/` (version d'API pilotée par `settings.API_VERSION`), ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- **Pagination** (globale, `PageNumberPagination`) : tous les list endpoints renvoient `{count, next, previous, results}`. Paramètres : `page` (1-indexé), `page_size` (défaut `20`, max `100`).
+- **Filtres** sur `/api/v1/cohorts/` : `?intake={uuid}` (cohortes d'un intake), `?program={uuid}` (cohortes d'un programme) — combinables entre eux et avec la pagination. Un UUID invalide renvoie `400`.
 
-### Endpoints d'authentification (`/api/auth/`)
+### Endpoints d'authentification (`/api/v1/auth/`)
 
 | Méthode | Route | Accès | Corps | Description |
 |---|---|---|---|---|
@@ -130,6 +132,6 @@ L'API est alors disponible sur `http://127.0.0.1:8000/`, la documentation sur `/
 .\.venv\Scripts\python.exe manage.py test apps.users # une app ciblée
 ```
 
-Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`, `apps/cohorts/tests/`), avec les factories par app (ex. `ProgramFactory`, `TrainingPeriodFactory`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
+Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`, `apps/cohorts/tests/`), avec les factories par app (ex. `ProgramFactory`, `IntakeFactory`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
 
 ⚠️ Gotcha DRF : `SimpleRateThrottle.THROTTLE_RATES` est lié au dict d'origine à l'import — `@override_settings` ne marche pas, il faut patcher l'attribut de classe (voir `apps/core/tests/base.py`).

@@ -36,6 +36,22 @@ class IntakeViewSet(viewsets.ModelViewSet):
 class CohortViewSet(viewsets.ModelViewSet):
     """Full CRUD on cohorts."""
 
-    queryset = Cohort.objects.select_related("training_period").all()
+    queryset = Cohort.objects.select_related("intake", "program").all()
     serializer_class = CohortSerializer
     permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        """Liste les cohortes, filtrable par `intake` et `program` (UUID)."""
+        queryset = super().get_queryset()
+        for param, field in (("intake", "intake_id"), ("program", "program_id")):
+            raw = self.request.query_params.get(param)
+            if raw:
+                queryset = queryset.filter(**{field: self._parse_uuid(raw, param)})
+        return queryset
+
+    @staticmethod
+    def _parse_uuid(raw, param):
+        try:
+            return UUID(raw)
+        except ValueError:
+            raise ValidationError({param: ["Invalid UUID."]})
