@@ -5,6 +5,10 @@ from apps.users.models import User
 
 
 class CertificateModelTests(TestCase):
+    def setUp(self):
+        super().setUp()
+
+    # Vérifie qu'un certificat est créé avec les valeurs par défaut attendues.
     def test_certificate_is_created_with_default_values(self):
         certificate = Certificate.objects.create()
 
@@ -18,6 +22,7 @@ class CertificateModelTests(TestCase):
         self.assertEqual(certificate.file_path, "")
         self.assertIsNone(certificate.sent_by)
 
+    # Vérifie qu'un administrateur peut marquer un certificat comme envoyé.
     def test_certificate_can_be_sent_by_an_admin(self):
         admin = User.objects.create_user(
             email="admin@example.com",
@@ -36,6 +41,7 @@ class CertificateModelTests(TestCase):
         )
         self.assertEqual(certificate.sent_by, admin)
 
+    # Vérifie que chaque certificat possède un UUID unique.
     def test_certificate_has_a_unique_uuid(self):
         certificate_1 = Certificate.objects.create()
         certificate_2 = Certificate.objects.create()
