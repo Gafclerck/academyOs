@@ -68,6 +68,7 @@ LOCAL_APPS = [
     'apps.users',
     'apps.programs',
     'apps.cohorts',
+    'apps.projects',
     'apps.certificates',
     'apps.pedagogy',
     'apps.evaluations',
@@ -212,7 +213,7 @@ REST_FRAMEWORK = {
     },
 }
 
-# Réinitialisation de mot de passe / invitations
+# RÃ©initialisation de mot de passe / invitations
 PASSWORD_RESET_TOKEN_TTL_MINUTES = 30
 PASSWORD_RESET_INVITE_TTL_DAYS = 7
 
