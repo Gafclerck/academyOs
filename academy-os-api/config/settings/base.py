@@ -30,6 +30,21 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
+# Email : piloté par l'environnement. Défaut = console (dev local, zéro config).
+# Pour passer en SMTP réel (dev comme prod), suffit de mettre EMAIL_BACKEND et
+# les variables SMTP_* dans le .env — aucun changement de code nécessaire.
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='localhost')
+EMAIL_PORT = env.int('EMAIL_PORT', default=1025)  # 1025 = Mailpit/Mailhog local
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=False)
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='no-reply@academy.local')
+
+# Version de l'API : préfixe d'URL construit depuis une constante (contrat du code)
+API_VERSION = 'v1'
+API_PREFIX = f'/api/{API_VERSION}'
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -52,10 +67,12 @@ LOCAL_APPS = [
     'apps.core',
     'apps.users',
     'apps.programs',
-    'apps.session_cohort',
-    'apps.enrollments',
+    'apps.cohorts',
     'apps.projects',
     'apps.certificates',
+    'apps.pedagogy',
+    'apps.evaluations',
+    'apps.attachments',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -133,6 +150,35 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Stockage des fichiers (Attachment)
+# 'local' : disque du serveur (dev, zéro config). 's3' : bucket S3-compatible
+# (R2, Backblaze B2, DigitalOcean Spaces, AWS S3) — URLs signées et temporaires.
+STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')
+
+if STORAGE_BACKEND == 's3':
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'access_key': env('S3_ACCESS_KEY_ID'),
+                'secret_key': env('S3_SECRET_ACCESS_KEY'),
+                'bucket_name': env('S3_BUCKET_NAME'),
+                'endpoint_url': env('S3_ENDPOINT_URL', default=None),
+                'region_name': env('S3_REGION_NAME', default='auto'),
+                'default_acl': None,
+                'querystring_auth': True,
+                'querystring_expire': 3600,
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+else:
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -150,6 +196,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.DefaultPagination',
+    'PAGE_SIZE': 20,
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
@@ -159,6 +207,7 @@ REST_FRAMEWORK = {
         'user': '1000/day',
         'login': '5/minute',
         'invite': '10/hour',
+        'enroll': '60/hour',
         'forgot': '5/hour',
         'reset': '5/hour',
     },
@@ -205,6 +254,12 @@ LOGGING = {
     'formatters': {'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'}},
     'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}},
     'root': {'handlers': ['console'], 'level': 'DEBUG' if DEBUG else 'INFO'},
+    'loggers': {
+        # Le SDK AWS est très verbeux : on ne remonte que les erreurs.
+        'boto3': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'botocore': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        's3transfer': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+    },
 }
 
 

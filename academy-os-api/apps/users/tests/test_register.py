@@ -1,9 +1,10 @@
 from django.core import mail
 
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
+from apps.users.models import User
 
-REGISTER_URL = "/api/auth/register/"
+REGISTER_URL = f"{API_PREFIX}/auth/register/"
 
 
 def _payload(email="user@test.fr", role="trainer", **extra):
@@ -81,7 +82,31 @@ class RegisterTests(AuthAPITestCase):
         self.auth(self.admin).post(
             REGISTER_URL, _payload(email="new@test.fr", role="trainer"), format="json"
         )
+        user = User.objects.get(email="new@test.fr")
+        assert user.status == User.Status.PENDING
+        assert user.is_active is False
         response = self.post_json(
-            "/api/auth/login/", {"email": "new@test.fr", "password": "whatever"}
+            f"{API_PREFIX}/auth/login/", {"email": "new@test.fr", "password": "whatever"}
         )
         assert response.status_code == 401
+
+    def test_registered_user_full_activation_journey(self):
+        self.auth(self.admin).post(
+            REGISTER_URL, _payload(email="active@test.fr", role="trainer"), format="json"
+        )
+        code = self.get_code_from_last_email()
+        reset_response = self.post_json(
+            f"{API_PREFIX}/auth/reset-password/",
+            {"email": "active@test.fr", "code": code, "new_password": "NewSecurePassword123!"},
+        )
+        assert reset_response.status_code == 200
+        user = User.objects.get(email="active@test.fr")
+        assert user.status == User.Status.ACTIVE
+        assert user.is_active is True
+
+        login_response = self.post_json(
+            f"{API_PREFIX}/auth/login/",
+            {"email": "active@test.fr", "password": "NewSecurePassword123!"},
+        )
+        assert login_response.status_code == 200
+        assert "access" in login_response.json()

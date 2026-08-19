@@ -7,7 +7,7 @@ from apps.core.tests.factories import UserFactory
 
 from .factories import ProjectFactory
 
-PROJECTS_URL = "/api/projects/"
+PROJECTS_URL = "/api/v1/projects/"
 
 
 class ProjectAdminCrudTests(AuthAPITestCase):
@@ -19,8 +19,8 @@ class ProjectAdminCrudTests(AuthAPITestCase):
         project = ProjectFactory()
         response = self.auth(self.admin).get(PROJECTS_URL)
         assert response.status_code == 200
-        assert len(response.data) == 1
-        assert response.data[0]["title"] == project.title
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["title"] == project.title
 
     def test_admin_can_create_project(self):
         from apps.programs.tests.factories import ProgramFactory

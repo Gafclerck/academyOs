@@ -1,78 +1,198 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import type { AuthContextType, User } from '@/types/auth'
-import CURRENT_USER from '@/services/auth/currentUser'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
+
+import type {
+  AuthContextType,
+  JwtAuthTokens,
+  User,
+  LoginCredentials,
+} from '@/types/auth'
+
+import {
+  getCurrentUserService,
+} from '@/services/auth/currentUser'
+
+import {
+  loginService,
+} from '@/services/auth/login'
+
+import {
+  logoutService,
+} from '@/services/auth/logout'
+
 import { tokenStore } from '@/lib/tokenStore'
 
-// ─── Context ──────────────────────────────────────────────────────────────────
+export const AuthContext =
+  createContext<AuthContextType | null>(null)
 
-export const AuthContext = createContext<AuthContextType | null>(null)
+export const AuthProvider = ({
+  children,
+}: {
+  children: React.ReactNode
+}) => {
+  const [user, setUser] =
+    useState<User | null>(null)
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+  const [tokens, setTokens] =
+    useState<JwtAuthTokens | null>(null)
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState<boolean>(tokenStore.hasToken())
+  const [loading, setLoading] =
+    useState<boolean>(true)
 
-  const logout = useCallback((): void => {
-    tokenStore.clear()
-    setUser(null)
-  }, [])
+  const refreshUserProfile =
+    useCallback(async (): Promise<User | null> => {
+      try {
+        const currentUser =
+          await getCurrentUserService()
 
-  const login = useCallback(async (newToken: string): Promise<void> => {
-    tokenStore.set(newToken)
-    try {
-      const currentUser = await CURRENT_USER(newToken)
+        setUser(currentUser)
+
+        return currentUser
+      } catch {
+        setUser(null)
+
+        return null
+      }
+    }, [])
+
+  const login = useCallback(
+    async (
+      credentials: LoginCredentials,
+    ): Promise<void> => {
+      const newTokens =
+        await loginService(credentials)
+
+      tokenStore.setTokens(newTokens)
+      setTokens(newTokens)
+
+      const currentUser =
+        await getCurrentUserService()
+
       setUser(currentUser)
-    } catch {
-      // Si la récupération du profil échoue, on invalide la session
-      tokenStore.clear()
-      throw new Error('Impossible de récupérer le profil utilisateur.')
-    }
-  }, [])
+    },
+    [],
+  )
 
-  // Restauration de session au démarrage
+  const logout = useCallback(
+    async (): Promise<void> => {
+      const refresh =
+        tokenStore.getRefreshToken()
+
+      try {
+        if (refresh) {
+          await logoutService(refresh)
+        }
+      } catch {
+        // Même si l'API refuse le logout,
+        // on doit supprimer la session locale.
+      } finally {
+        tokenStore.clear()
+        setTokens(null)
+        setUser(null)
+      }
+    },
+    [],
+  )
+
   useEffect(() => {
-    const storedToken = tokenStore.get()
+    const access =
+      tokenStore.getAccessToken()
 
-    if (!storedToken) {
+    const refresh =
+      tokenStore.getRefreshToken()
+
+    if (!access || !refresh) {
       setLoading(false)
       return
     }
 
     let cancelled = false
 
-    CURRENT_USER(storedToken)
-      .then((currentUser) => {
-        if (!cancelled) setUser(currentUser)
-      })
-      .catch(() => {
-        // Token expiré ou invalide → on purge
-        if (!cancelled) logout()
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+    const restoreSession = async () => {
+      try {
+        const currentUser =
+          await getCurrentUserService()
+
+        if (!cancelled) {
+          setUser(currentUser)
+          setTokens({
+            access,
+            refresh,
+          })
+        }
+      } catch {
+        if (!cancelled) {
+          tokenStore.clear()
+          setUser(null)
+          setTokens(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    restoreSession()
 
     return () => {
       cancelled = true
     }
-  }, [logout])
+  }, [])
 
-  const isAuthenticated = user !== null
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      tokenStore.clear()
+      setUser(null)
+      setTokens(null)
+    }
+
+    window.addEventListener(
+      'auth:logout',
+      handleAuthLogout,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'auth:logout',
+        handleAuthLogout,
+      )
+    }
+  }, [])
+
+  const isAuthenticated =
+    user !== null && tokens !== null
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        tokens,
+        isAuthenticated,
+        loading,
+        login,
+        logout,
+        refreshUserProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext)
+
   if (!context) {
-    throw new Error('useAuth doit être utilisé dans un <AuthProvider>')
+    throw new Error(
+      'useAuth doit être utilisé dans un <AuthProvider>',
+    )
   }
+
   return context
 }

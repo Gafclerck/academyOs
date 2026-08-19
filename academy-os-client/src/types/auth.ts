@@ -1,60 +1,63 @@
-
-// ─── Auth Requests ────────────────────────────────────────────────────────────
-
-export interface LoginRequest {
-  email: string
-  password: string
-}
-
-export interface RegisterRequest {
-  name: string
-  email: string
-  password: string
-  passwordConfirmation: string
-}
-
-// ─── Auth Responses ───────────────────────────────────────────────────────────
-
-export interface LoginResponse {
-  success: true
-  token: string
-  message: string
-  user: User
-}
-
-export interface RegisterResponse {
-  success: true
-  message: string
-}
-
-// ─── Auth Errors ──────────────────────────────────────────────────────────────
-
-export interface ApiError {
-  success: false
-  message: string
-  errors?: {
-    name?: string[]
-    email?: string[]
-    password?: string[]
-    passwordConfirmation?: string[]
-  }
-}
-
-// ─── User ─────────────────────────────────────────────────────────────────────
+export type UserRole =
+  | 'admin'
+  | 'organizer'
+  | 'trainer'
+  | 'learner'
 
 export interface User {
-  id: number
-  name: string
+  id: string
   email: string
+  first_name: string
+  last_name: string
+  full_name: string
+  role: UserRole
+  phone_number: string | null
+  created_at: string
   avatar?: string
 }
 
-// ─── Auth Context ─────────────────────────────────────────────────────────────
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface JwtAuthTokens {
+  access: string
+  refresh: string
+}
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  email: string
+  code: string
+  new_password: string
+}
+
+export interface ChangePasswordRequest {
+  old_password: string
+  new_password: string
+}
+
+export interface RegisterRequest {
+  email: string
+  first_name: string
+  last_name: string
+  password: string
+  phone_number?: string
+  role?: UserRole
+}
 
 export interface AuthContextType {
   user: User | null
+  tokens: JwtAuthTokens | null
   isAuthenticated: boolean
-  login: (token: string) => Promise<void>
-  logout: () => void
   loading: boolean
+  login: (
+    credentials: LoginCredentials,
+  ) => Promise<void>
+  logout: () => Promise<void>
+  refreshUserProfile: () => Promise<User | null>
 }

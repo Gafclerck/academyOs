@@ -10,7 +10,7 @@ class Certificate(UUIDModel, TimeStampedModel):
         SENT = "ENVOYE", "Envoye"
 
     inscription = models.OneToOneField(
-        "enrollments.Enrollment",
+        "cohorts.Enrollment",
         on_delete=models.CASCADE,
         related_name="certificate",
         null=True,

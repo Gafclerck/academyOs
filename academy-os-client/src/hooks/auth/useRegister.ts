@@ -1,42 +1,59 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { REGISTER } from '@/services/auth/register'
-import { NetworkError } from '@/services/auth/login'
+
+import { registerService } from '@/services/auth/register'
+import { parseApiError } from '@/lib/errorUtils'
+
+import type { RegisterFormValues } from '@/lib/schemas'
 import type { RegisterRequest } from '@/types/auth'
 
 const useRegister = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
 
-  const register = async (request: RegisterRequest) => {
-    try {
-      setLoading(true)
-      const response = await REGISTER(request)
+  const handleRegister = async (
+    data: RegisterFormValues,
+  ): Promise<void> => {
+    setLoading(true)
 
-      if (response.success) {
-        toast.success(response.message || 'Compte créé avec succès !')
-        navigate('/login')
-        return { success: true }
-      } else {
-        // Erreur serveur avec message
-        toast.error(response.message || 'Inscription échouée. Vérifiez vos informations.')
-        return { error: response }
+    try {
+      // On extrait explicitement les champs attendus par le backend.
+      // confirm_password ne doit jamais être envoyé à l'API.
+      const payload: RegisterRequest = {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        password: data.password,
+        ...(data.phone_number
+          ? { phone_number: data.phone_number }
+          : {}),
       }
+
+      await registerService(payload)
+
+      toast.success('Compte créé avec succès !', {
+        description: 'Vous pouvez maintenant vous connecter.',
+      })
+
+      navigate('/login', { replace: true })
     } catch (error) {
-      if (error instanceof NetworkError) {
-        toast.error('Connexion impossible. Vérifiez votre réseau.')
-      } else {
-        toast.error('Une erreur inattendue est survenue. Réessayez plus tard.')
-        console.error('[useRegister]', error)
-      }
-      return { error }
+      const parsedError = parseApiError(error)
+
+      toast.error('Inscription échouée', {
+        description: parsedError.message,
+      })
+
+      console.error('[useRegister]', error)
     } finally {
       setLoading(false)
     }
   }
 
-  return { register, loading }
+  return {
+    handleRegister,
+    loading,
+  }
 }
 
 export default useRegister

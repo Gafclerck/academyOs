@@ -9,50 +9,116 @@ API REST Django du projet **Academy OS**
 - djangorestframework-simplejwt (authentification par JWT)
 - drf-spectacular (documentation OpenAPI / Swagger)
 - django-environ (configuration par variables d'environnement, 12-factor)
-- pytest + pytest-django (tests)
+- Tests : runner natif Django (`django.test.TestCase` / `rest_framework.test.APITestCase`)
 
 ## Architecture du projet
 
 ```
 academy-os-api/
 ├── manage.py                # outils de développement ; module de settings par défaut
-├── pytest.ini               # configuration des tests
 ├── config/
 │   ├── settings/
 │   │   ├── base.py          # configuration commune (apps, DRF, JWT, CORS, base de données)
 │   │   ├── development.py   # environnement de développement (DEBUG, CORS ouvert, email console)
 │   │   └── production.py    # environnement de production (DEBUG off, HSTS, cookies sécurisés)
-│   ├── urls.py              # routage : /admin/, /api/auth/, /api/schema|docs|redoc/
+│   ├── urls.py              # routage : /admin/, /api/v1/auth/, /api/v1/programs/, /api/v1/intakes/, /api/v1/cohorts/, /api/schema|docs|redoc/
 │   ├── wsgi.py              # point d'entrée WSGI ; module de settings par défaut : production
 │   └── asgi.py              # point d'entrée ASGI ; module de settings par défaut : production
 └── apps/
-    ├── users/               # modèle utilisateur personnalisé (apps.users)
-    └── core/                # Socle technique du projet fournissant des briques réutilisables : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, gestion d'exceptions personnalisée, utilitaires et mixins DRF.
+    ├── core/                # socle partagé : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, infra de test partagée (`base.py`/`factories.py`)
+    ├── users/               # modèle utilisateur personnalisé, auth, RBAC
+    ├── programs/            # catalogue de formation (Programme + Projet à venir)
+    ├── cohorts/             # Intake + Cohort (période globale avec name, FK program)
+    ├── certificates/        # certificats (model-only pour l'instant)
+    ├── pedagogy/            # COQUILLE : CourseSession + Absence (cours)
+    ├── evaluations/         # COQUILLE : ProjectAssignment + Deliverable (soumission/correction)
+    └── attachments/         # Attachment (upload de fichiers, stockage local/S3)
 
 ```
 
-### Organisation des applications
+### Organisation des applications — quoi mettre où
 
-- Les applications vivent sous `apps/` avec des chemins d'import dotted (ex. `apps.users`). Toute nouvelle application doit être déclarée dans `LOCAL_APPS` dans `config/settings/base.py`.
+- **Code en anglais** : apps, classes, champs, fichiers, routes, enums. Commentaires et descriptions d'API en français.
+- Les applications vivent sous `apps/` avec des chemins d'import dotted (ex. `apps.cohorts`). Toute nouvelle application doit être déclarée dans `LOCAL_APPS` dans `config/settings/base.py`.
 - Modèle utilisateur personnalisé : `AUTH_USER_MODEL = 'users.User'`. Les clés étrangères vers un utilisateur doivent référencer `settings.AUTH_USER_MODEL`, jamais le modèle `User` par défaut.
-- Routes exposées : `/api/auth/` pour l'authentification, ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- **Mapping entité → app** (les entités à venir ne sont pas encore implémentées : créer le modèle dans l'app indiquée) :
 
-### Endpoints d'authentification (`/api/auth/`)
+| Entité | App | Notes |
+|---|---|---|
+| `Project` | `apps.programs` | FK → Program |
+| `Intake` ✅ | `apps.cohorts` | ex-`TrainingPeriod` ; période globale (`name`, `start_date`, `status`) |
+| `Cohort` ✅ | `apps.cohorts` | FK `program` → Program, FK `intake`, `description` |
+| `TrainerAssignment` ✅ | `apps.cohorts` | formateur affecté à une cohorte (contrainte d'unicité cohorte+user) |
+| `Enrollment` ✅ | `apps.cohorts` | apprenant inscrit, `mentor` → TrainerAssignment (même cohorte) |
+| `CourseSession` | `apps.pedagogy` | un cours ; FK → Cohort + Project + formateur |
+| `Absence` | `apps.pedagogy` | FK → CourseSession + Enrollment |
+| `ProjectAssignment` | `apps.evaluations` | projet confié à une inscription |
+| `Deliverable` | `apps.evaluations` | soumission/correction d'un projet |
+| `Attachment` ✅ | `apps.attachments` | fichier joint polymorphe (éviter `File`, collision `django.core.files.File`) ; lien GenericForeignKey vers toute entité |
+| `Certificate` ✅ | `apps.certificates` | à compléter : FK → Enrollment |
+
+- **Distinction clé** : `Intake` = période globale organisée par l'institution ; `CourseSession` = cours dispensé par un formateur à une cohorte. Ne pas confondre.
+- **Règles métier à valider en code** (pas seulement par FK) : le `start_date` d'une `Cohort` ne doit pas précéder celui de son `Intake` ; le `mentor` d'une `Enrollment` doit pointer vers un `TrainerAssignment` de la même cohorte.
+- **Apps coquilles** (`pedagogy`, `evaluations`) : ne pas ajouter de code métier tant qu'une feature ne le nécessite pas — elles servent de guide d'architecture.
+- Routes exposées : `/api/v1/auth/`, `/api/v1/programs/`, `/api/v1/intakes/`, `/api/v1/cohorts/`, `/api/v1/attachments/` (version d'API pilotée par `settings.API_VERSION`), ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
+- **Stockage des fichiers** : bascule par `STORAGE_BACKEND` (`local` en dev, `s3` en prod). En `s3`, les URLs de téléchargement sont signées et temporaires (`querystring_auth`) ; en `local` (dev), les fichiers sous `/media/` sont servis directement et donc publics — réservé au développement.
+- **Pagination** (globale, `PageNumberPagination`) : tous les list endpoints renvoient `{count, next, previous, results}`. Paramètres : `page` (1-indexé), `page_size` (défaut `20`, max `100`).
+- **Filtres** sur `/api/v1/cohorts/` : `?intake={uuid}` (cohortes d'un intake), `?program={uuid}` (cohortes d'un programme) — combinables entre eux et avec la pagination. Un UUID invalide renvoie `400`.
+
+### Endpoints d'authentification (`/api/v1/auth/`)
 
 | Méthode | Route | Accès | Corps | Description |
 |---|---|---|---|---|
-| POST | `register/` | Admin | `email, role` (`admin`/`organizer`/`trainer`/`learner`), `first_name`, `last_name`, `phone_number` | Créer un compte (rôle au choix) ; email avec code envoyé pour définir le premier mot de passe |
-| POST | `login/` | Public | `email, password` | Connexion JWT (`access`, `refresh`) |
+| POST | `register/` | Admin | `email, role` (`admin`/`organizer`/`trainer`/`learner`), `first_name`, `last_name`, `phone_number` | Créer un compte (statut `pending`) ; email avec code (7j) pour premier mot de passe |
+| POST | `login/` | Public | `email, password` | Connexion JWT (`access`, `refresh`) — réservée aux comptes `active` (limite 5/min) |
 | POST | `token/refresh/` | Public | `refresh` | Rotation du refresh token |
 | POST | `logout/` | Authentifié | `refresh` | Révocation du refresh token (blacklist) |
 | GET | `me/` | Authentifié | — | Profil de l'utilisateur connecté |
 | PATCH | `me/` | Authentifié | `first_name, last_name, phone_number` | Compléter/modifier le profil |
 | POST | `change-password/` | Authentifié | `old_password, new_password` | Changer son mot de passe |
-| POST | `invite/` | Organizer / Admin | `email, role` (`trainer`/`learner`) | Inviter un utilisateur par email (code envoyé par email) |
-| POST | `forgot-password/` | Public | `email` | Envoyer un code de réinitialisation (réponse identique si l'email existe ou non) |
-| POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (usage unique) |
+| POST | `invite/` | Organizer / Admin | `email, role` ou `emails: [..], role` | Inviter des utilisateurs par email (batch `{emails:[...]}` → `{results:[...]}` par email) ; statut `pending`, code valable 7 jours |
+| POST | `forgot-password/` | Public | `email` | Envoyer un code OTP (réponse 200 anti-énumération) : 30 min si `active`, 7 jours si `pending` |
+| POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (active les comptes `pending` en `active`) |
+
+### Endpoints d'administration des utilisateurs (`/api/v1/users/`)
+
+| Méthode | Route | Permissions | Filtres / Paramètres | Description |
+|---|---|---|---|---|
+| GET | `users/` | Admin | `?role=`, `?status=`, `?is_active=`, `?search=` | Liste paginée de tous les utilisateurs avec filtres combinables |
+| GET | `users/<id>/` | Admin | — | Détails complets d'un utilisateur (rôle, statut, dates, téléphone) |
+| PATCH | `users/<id>/` | Admin | `status`, `role`, `first_name`, `last_name`, `phone_number` | Modifier un utilisateur (ex: suspension `suspended`, réactivation `active`) |
+| DELETE | `users/<id>/` | Admin | — | Supprimer un compte (interdit sur son propre compte administrateur) |
+
+### Cycle de vie des statuts (`status`)
+- **`pending`** : Compte pré-créé / invité, en attente de définition du premier mot de passe (`is_active = False`).
+- **`active`** : Compte actif pouvant s'authentifier (`is_active = True`).
+- **`suspended`** : Compte suspendu par l'administrateur (`is_active = False`).
+- **`archived`** : Compte archivé / désactivé définitivement (`is_active = False`).
+- `User.is_active` est synchronisé automatiquement avec `status == 'active'`.
+
+### Endpoints membres d'une cohorte (`/api/v1/cohorts/<id>/`)
+
+| Méthode | Endpoint | Permissions | Corps | Description |
+|---|---|---|---|---|
+| GET | `cohorts/<id>/enrollments/` | Admin / Organizer | — | Liste des inscriptions (apprenants) |
+| POST | `cohorts/<id>/enrollments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des apprenants (résultat par email : `enrolled`/`already_enrolled`/`not_found`/`role_incompatible`/`user_inactive`) |
+| GET | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | — | Liste des formateurs affectés |
+| POST | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des formateurs (résultat par email : `assigned`/`already_assigned`/…) |
+| PATCH | `cohorts/<id>/enrollments/<id>/` | Admin / Organizer | `{mentor: uuid|null}` | Poser/retirer le mentor (doit être une affectation de la même cohorte, sinon 404) |
 
 L'invitation crée un compte **sans mot de passe utilisable** (`set_unusable_password()`) ; le code reçu par email lui permet de définir son premier mot de passe via `reset-password/`. Les codes sont hashés (HMAC-SHA256) et expirants (`PasswordResetToken`).
+
+### Endpoints pièces jointes (`/api/v1/attachments/`)
+
+| Méthode | Route | Accès | Corps | Description |
+|---|---|---|---|---|
+| POST | `attachments/` | Authentifié | `file` (multipart/form-data) | Uploader un fichier (extensions autorisées, max 10 Mo) ; stocké sous un nom UUID |
+| GET | `attachments/<id>/` | Auteur ou admin | — | Détail + URL de téléchargement (signée en S3) |
+| DELETE | `attachments/<id>/` | Auteur ou admin | — | Supprimer le fichier |
+
+**Lien polymorphe (GenericForeignKey)** : `Attachment` se rattache à n'importe quelle entité métier (`Projet`, `Livrable`, `Session`, `Certificat`…) via `content_type`/`object_id` nullables. Pour la **création d'un parent avec fichiers**, on n'utilise pas cet endpoint : la vue de création du parent reçoit une requête **multipart unique** (champs + fichiers `file` répétés) et appelle le service `create_attachments(user, files, parent=...)` (`apps/attachments/services.py`) dans la même requête transactionnelle — pas de manipulation d'ids côté front. Chaque parent porte `attachments = GenericRelation(...)` et renvoie ses fichiers imbriqués.
+
+Règle d'accès actuelle (Attachment non lié) : seul l'auteur de l'upload ou un admin consulte/supprime. La matrice RBAC complète (mentor/organizer de la cohorte concernée) sera appliquée quand `Attachment` sera lié à une entité métier.
 
 ## Configuration
 
@@ -67,14 +133,14 @@ Le module de settings est choisi **uniquement** via la variable d'environnement 
 
 ### Base de données
 
-- `base.py` lit la variable `DATABASE_URL` via `env.db()`. Par défaut, le projet utilise la base SQLite locale (`db.sqlite3`) ( A fixer avec le docker-compose pour la base PostgreSQL en dev ).
+- `base.py` lit la variable `DATABASE_URL` via `env.db()`. Par défaut, le projet utilise PostgreSQL (via Docker avec `docker-compose.yml` à la racine, ou le service Windows `localhost:5432` selon le `.env`). Sans `DATABASE_URL`, il retombe sur SQLite local (`db.sqlite3`). psycopg2 est épinglé, donc la prod nécessite un `DATABASE_URL` PostgreSQL.
 
 ### API et authentification
 
 - Authentification par JWT (Bearer) via simplejwt, avec rotation des refresh tokens et blacklist des tokens révoqués.
 - Permission par défaut : `IsAuthenticated`. Les endpoints publics doivent explicitement déclarer `permission_classes = [AllowAny]` et choisir un scope de throttling.
 - Rendus et parsers JSON uniquement.
-- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `invite` 10/h, `forgot` 5/h, `reset` 5/h.
+- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `invite` 10/h, `enroll` 60/h, `forgot` 5/h, `reset` 5/h.
 - CORS : ouvert en développement (`CORS_ALLOW_ALL_ORIGINS`), restreint en production à `CORS_ALLOWED_ORIGINS` (à configurer dans `.env` avec l'origine du front).
 
 ## Lancer le projet
@@ -101,7 +167,10 @@ L'API est alors disponible sur `http://127.0.0.1:8000/`, la documentation sur `/
 ## Tests
 
 ```powershell
-.\.venv\Scripts\python.exe manage.py test apps.users
+.\.venv\Scripts\python.exe manage.py test            # suite complète
+.\.venv\Scripts\python.exe manage.py test apps.users # une app ciblée
 ```
 
-Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
+Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`, `apps/cohorts/tests/`), avec les factories par app (ex. `ProgramFactory`, `IntakeFactory`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
+
+⚠️ Gotcha DRF : `SimpleRateThrottle.THROTTLE_RATES` est lié au dict d'origine à l'import — `@override_settings` ne marche pas, il faut patcher l'attribut de classe (voir `apps/core/tests/base.py`).

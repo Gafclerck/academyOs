@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import ThemeToggle from '@/components/theme-toggle'
 
+import logoXarala from '@/assets/logo-xarala.png'
+
 import {
   Loader2,
   Mail,
@@ -17,6 +19,7 @@ import {
   Users,
   Award,
   CheckCircle2,
+  Phone,
 } from 'lucide-react'
 
 import {
@@ -91,7 +94,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const { register: registerUser, loading } = useRegister()
+  const { handleRegister, loading } = useRegister()
 
   const {
     register,
@@ -108,10 +111,13 @@ const Register = () => {
 
   const passwordValue = watch('password', '')
   const strength = getPasswordStrength(passwordValue)
+
   const isLoading = loading || isSubmitting
 
-  const onSubmit = async (data: RegisterFormValues) => {
-    await registerUser(data)
+  const onSubmit = async (
+    data: RegisterFormValues,
+  ) => {
+    await handleRegister(data)
   }
 
   return (
@@ -138,7 +144,7 @@ const Register = () => {
 
       <div className="absolute inset-0">
 
-        {/* Orange glow - top left */}
+        {/* Orange glow */}
 
         <motion.div
           className="
@@ -159,7 +165,7 @@ const Register = () => {
           }}
         />
 
-        {/* Orange glow - bottom right */}
+        {/* Second orange glow */}
 
         <motion.div
           className="
@@ -210,7 +216,6 @@ const Register = () => {
           border border-slate-200
           bg-slate-100
           p-4 backdrop-blur-md
-          transition-colors
           dark:border-white/10
           dark:bg-white/[0.04]
           lg:block
@@ -228,7 +233,6 @@ const Register = () => {
           border border-slate-200
           bg-slate-100
           p-4 backdrop-blur-md
-          transition-colors
           dark:border-white/10
           dark:bg-white/[0.04]
           lg:block
@@ -246,7 +250,6 @@ const Register = () => {
           border border-slate-200
           bg-slate-100
           p-4 backdrop-blur-md
-          transition-colors
           dark:border-white/10
           dark:bg-white/[0.04]
           lg:block
@@ -268,6 +271,7 @@ const Register = () => {
           px-4 py-10
         "
       >
+
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -290,7 +294,7 @@ const Register = () => {
               className="mx-auto mb-5 flex justify-center"
             >
               <img
-                src="/logo-xarala.png"
+                src={logoXarala}
                 alt="Logo Xarala"
                 className="h-auto w-[220px] object-contain"
               />
@@ -331,7 +335,7 @@ const Register = () => {
             "
           >
 
-            {/* Card orange decoration */}
+            {/* Card decorations */}
 
             <div
               className="
@@ -361,6 +365,7 @@ const Register = () => {
               variants={itemVariants}
               className="relative mb-8 text-center"
             >
+
               <h2
                 className="
                   text-2xl font-bold tracking-tight
@@ -380,6 +385,7 @@ const Register = () => {
               >
                 Rejoignez Xarala et commencez votre parcours
               </p>
+
             </motion.div>
 
             {/* FORM */}
@@ -391,11 +397,12 @@ const Register = () => {
               className="relative space-y-5"
             >
 
-              {/* NAME */}
+              {/* FIRST NAME */}
 
               <motion.div variants={itemVariants}>
+
                 <Label
-                  htmlFor="name"
+                  htmlFor="first_name"
                   className="
                     mb-2 block
                     text-sm font-medium
@@ -403,7 +410,7 @@ const Register = () => {
                     dark:text-slate-200
                   "
                 >
-                  Nom complet
+                  Prénom
                 </Label>
 
                 <div className="group relative">
@@ -420,12 +427,12 @@ const Register = () => {
                   />
 
                   <Input
-                    id="name"
+                    id="first_name"
                     type="text"
-                    placeholder="Votre nom complet"
-                    autoComplete="name"
+                    placeholder="Votre prénom"
+                    autoComplete="given-name"
                     disabled={isLoading}
-                    {...register('name')}
+                    {...register('first_name')}
                     className={`
                       h-12 rounded-xl
                       border-slate-200
@@ -444,28 +451,126 @@ const Register = () => {
                       dark:placeholder:text-slate-600
                       dark:focus:bg-white/[0.08]
                       ${
-                        errors.name
+                        errors.first_name
                           ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/10'
                           : ''
                       }
                     `}
                   />
+
                 </div>
 
-                {errors.name && (
+                {errors.first_name && (
                   <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2 text-xs text-red-500 dark:text-red-400"
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      mt-2 text-xs
+                      text-red-500
+                      dark:text-red-400
+                    "
                   >
-                    {errors.name.message}
+                    {errors.first_name.message}
                   </motion.p>
                 )}
+
+              </motion.div>
+
+              {/* LAST NAME */}
+
+              <motion.div variants={itemVariants}>
+
+                <Label
+                  htmlFor="last_name"
+                  className="
+                    mb-2 block
+                    text-sm font-medium
+                    text-slate-700
+                    dark:text-slate-200
+                  "
+                >
+                  Nom
+                </Label>
+
+                <div className="group relative">
+
+                  <User
+                    className="
+                      absolute left-4 top-1/2 z-10
+                      size-4 -translate-y-1/2
+                      text-slate-400
+                      transition-colors duration-200
+                      group-focus-within:text-[#FF6B0B]
+                      dark:text-slate-500
+                    "
+                  />
+
+                  <Input
+                    id="last_name"
+                    type="text"
+                    placeholder="Votre nom"
+                    autoComplete="family-name"
+                    disabled={isLoading}
+                    {...register('last_name')}
+                    className={`
+                      h-12 rounded-xl
+                      border-slate-200
+                      bg-slate-50
+                      pl-11
+                      text-slate-900
+                      placeholder:text-slate-400
+                      transition-all duration-300
+                      focus:border-[#FF6B0B]/60
+                      focus:bg-white
+                      focus:ring-4
+                      focus:ring-[#FF6B0B]/10
+                      dark:border-white/10
+                      dark:bg-white/5
+                      dark:text-white
+                      dark:placeholder:text-slate-600
+                      dark:focus:bg-white/[0.08]
+                      ${
+                        errors.last_name
+                          ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/10'
+                          : ''
+                      }
+                    `}
+                  />
+
+                </div>
+
+                {errors.last_name && (
+                  <motion.p
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      mt-2 text-xs
+                      text-red-500
+                      dark:text-red-400
+                    "
+                  >
+                    {errors.last_name.message}
+                  </motion.p>
+                )}
+
               </motion.div>
 
               {/* EMAIL */}
 
               <motion.div variants={itemVariants}>
+
                 <Label
                   htmlFor="email"
                   className="
@@ -522,22 +627,115 @@ const Register = () => {
                       }
                     `}
                   />
+
                 </div>
 
                 {errors.email && (
                   <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2 text-xs text-red-500 dark:text-red-400"
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      mt-2 text-xs
+                      text-red-500
+                      dark:text-red-400
+                    "
                   >
                     {errors.email.message}
                   </motion.p>
                 )}
+
+              </motion.div>
+
+              {/* PHONE */}
+
+              <motion.div variants={itemVariants}>
+
+                <Label
+                  htmlFor="phone_number"
+                  className="
+                    mb-2 block
+                    text-sm font-medium
+                    text-slate-700
+                    dark:text-slate-200
+                  "
+                >
+                  Téléphone
+                </Label>
+
+                <div className="group relative">
+
+                  <Phone
+                    className="
+                      absolute left-4 top-1/2 z-10
+                      size-4 -translate-y-1/2
+                      text-slate-400
+                      transition-colors duration-200
+                      group-focus-within:text-[#FF6B0B]
+                      dark:text-slate-500
+                    "
+                  />
+
+                  <Input
+                    id="phone_number"
+                    type="tel"
+                    placeholder="Votre numéro de téléphone"
+                    autoComplete="tel"
+                    disabled={isLoading}
+                    {...register('phone_number')}
+                    className="
+                      h-12 rounded-xl
+                      border-slate-200
+                      bg-slate-50
+                      pl-11
+                      text-slate-900
+                      placeholder:text-slate-400
+                      transition-all duration-300
+                      focus:border-[#FF6B0B]/60
+                      focus:bg-white
+                      focus:ring-4
+                      focus:ring-[#FF6B0B]/10
+                      dark:border-white/10
+                      dark:bg-white/5
+                      dark:text-white
+                      dark:placeholder:text-slate-600
+                      dark:focus:bg-white/[0.08]
+                    "
+                  />
+
+                </div>
+
+                {errors.phone_number && (
+                  <motion.p
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      mt-2 text-xs
+                      text-red-500
+                      dark:text-red-400
+                    "
+                  >
+                    {errors.phone_number.message}
+                  </motion.p>
+                )}
+
               </motion.div>
 
               {/* PASSWORD */}
 
               <motion.div variants={itemVariants}>
+
                 <Label
                   htmlFor="password"
                   className="
@@ -565,7 +763,11 @@ const Register = () => {
 
                   <Input
                     id="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={
+                      showPassword
+                        ? 'text'
+                        : 'password'
+                    }
                     placeholder="••••••••"
                     autoComplete="new-password"
                     disabled={isLoading}
@@ -598,7 +800,9 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={() =>
-                      setShowPassword((value) => !value)
+                      setShowPassword(
+                        (value) => !value,
+                      )
                     }
                     disabled={isLoading}
                     className="
@@ -643,8 +847,12 @@ const Register = () => {
                     }}
                     className="mt-3"
                   >
+
                     <div className="flex gap-1.5">
-                      {Array.from({ length: 5 }).map((_, index) => (
+
+                      {Array.from({
+                        length: 5,
+                      }).map((_, index) => (
                         <motion.div
                           key={index}
                           initial={{
@@ -667,9 +875,16 @@ const Register = () => {
                           `}
                         />
                       ))}
+
                     </div>
 
-                    <div className="mt-1.5 flex items-center justify-between">
+                    <div
+                      className="
+                        mt-1.5 flex
+                        items-center
+                        justify-between
+                      "
+                    >
 
                       <span
                         className="
@@ -692,14 +907,25 @@ const Register = () => {
                       </span>
 
                     </div>
+
                   </motion.div>
                 )}
 
                 {errors.password && (
                   <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2 text-xs text-red-500 dark:text-red-400"
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      mt-2 text-xs
+                      text-red-500
+                      dark:text-red-400
+                    "
                   >
                     {errors.password.message}
                   </motion.p>
@@ -712,7 +938,7 @@ const Register = () => {
               <motion.div variants={itemVariants}>
 
                 <Label
-                  htmlFor="passwordConfirmation"
+                  htmlFor="confirm_password"
                   className="
                     mb-2 block
                     text-sm font-medium
@@ -737,12 +963,16 @@ const Register = () => {
                   />
 
                   <Input
-                    id="passwordConfirmation"
-                    type={showConfirm ? 'text' : 'password'}
+                    id="confirm_password"
+                    type={
+                      showConfirm
+                        ? 'text'
+                        : 'password'
+                    }
                     placeholder="••••••••"
                     autoComplete="new-password"
                     disabled={isLoading}
-                    {...register('passwordConfirmation')}
+                    {...register('confirm_password')}
                     className={`
                       h-12 rounded-xl
                       border-slate-200
@@ -761,7 +991,7 @@ const Register = () => {
                       dark:placeholder:text-slate-600
                       dark:focus:bg-white/[0.08]
                       ${
-                        errors.passwordConfirmation
+                        errors.confirm_password
                           ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/10'
                           : ''
                       }
@@ -771,7 +1001,9 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={() =>
-                      setShowConfirm((value) => !value)
+                      setShowConfirm(
+                        (value) => !value,
+                      )
                     }
                     disabled={isLoading}
                     className="
@@ -802,13 +1034,23 @@ const Register = () => {
 
                 </div>
 
-                {errors.passwordConfirmation && (
+                {errors.confirm_password && (
                   <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2 text-xs text-red-500 dark:text-red-400"
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      mt-2 text-xs
+                      text-red-500
+                      dark:text-red-400
+                    "
                   >
-                    {errors.passwordConfirmation.message}
+                    {errors.confirm_password.message}
                   </motion.p>
                 )}
 
@@ -853,7 +1095,10 @@ const Register = () => {
                         to-transparent
                       "
                       animate={{
-                        x: ['-100%', '200%'],
+                        x: [
+                          '-100%',
+                          '200%',
+                        ],
                       }}
                       transition={{
                         duration: 2,
@@ -863,11 +1108,23 @@ const Register = () => {
                     />
                   )}
 
-                  <span className="relative flex items-center justify-center">
+                  <span
+                    className="
+                      relative flex
+                      items-center
+                      justify-center
+                    "
+                  >
 
                     {isLoading ? (
                       <>
-                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        <Loader2
+                          className="
+                            mr-2 size-4
+                            animate-spin
+                          "
+                        />
+
                         Création du compte...
                       </>
                     ) : (
@@ -902,6 +1159,7 @@ const Register = () => {
                 text-xs
                 leading-5
                 text-slate-500
+                dark:text-slate-400
               "
             >
               En créant un compte, vous acceptez nos{' '}
@@ -931,23 +1189,42 @@ const Register = () => {
               >
                 Politique de confidentialité
               </Link>
-
             </motion.p>
 
             {/* DIVIDER */}
 
             <motion.div
               variants={itemVariants}
-              className="mt-7 flex items-center gap-3"
+              className="
+                mt-7 flex items-center gap-3
+              "
             >
 
-              <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
+              <div
+                className="
+                  h-px flex-1
+                  bg-slate-200
+                  dark:bg-white/10
+                "
+              />
 
-              <span className="text-xs text-slate-400 dark:text-slate-600">
+              <span
+                className="
+                  text-xs
+                  text-slate-400
+                  dark:text-slate-600
+                "
+              >
                 OU
               </span>
 
-              <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
+              <div
+                className="
+                  h-px flex-1
+                  bg-slate-200
+                  dark:bg-white/10
+                "
+              />
 
             </motion.div>
 
@@ -991,27 +1268,57 @@ const Register = () => {
             className="mt-6 text-center"
           >
 
-            <div className="flex items-center justify-center gap-1.5">
+            <div
+              className="
+                flex items-center
+                justify-center gap-1.5
+              "
+            >
 
-              <CheckCircle2 className="size-3 text-green-500 dark:text-green-400" />
+              <CheckCircle2
+                className="
+                  size-3
+                  text-green-500
+                  dark:text-green-400
+                "
+              />
 
-              <p className="text-xs text-slate-500 dark:text-slate-600">
+              <p
+                className="
+                  text-xs
+                  text-slate-500
+                  dark:text-slate-600
+                "
+              >
                 Inscription sécurisée
               </p>
 
             </div>
 
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-700">
+            <p
+              className="
+                mt-1 text-xs
+                text-slate-500
+                dark:text-slate-700
+              "
+            >
               © {new Date().getFullYear()} Xarala
             </p>
 
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-700">
+            <p
+              className="
+                mt-1 text-xs
+                text-slate-500
+                dark:text-slate-700
+              "
+            >
               La technologie dans votre langue.
             </p>
 
           </motion.div>
 
         </motion.div>
+
       </div>
 
     </main>

@@ -1,12 +1,13 @@
 from django.core import mail
 from django.utils import timezone
 
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import RESET_CODE, UserFactory, PasswordResetTokenFactory
+from apps.users.models import User
 
-FORGOT_URL = "/api/auth/forgot-password/"
-RESET_URL = "/api/auth/reset-password/"
-LOGIN_URL = "/api/auth/login/"
+FORGOT_URL = f"{API_PREFIX}/auth/forgot-password/"
+RESET_URL = f"{API_PREFIX}/auth/reset-password/"
+LOGIN_URL = f"{API_PREFIX}/auth/login/"
 NEW_PASSWORD = "NouveauPass123!"
 
 
@@ -98,7 +99,7 @@ class PasswordResetTests(AuthAPITestCase):
 
     def test_full_journey_invite_reset_login(self):
         self.auth(self.organizer).post(
-            "/api/auth/invite/", {"email": "etudiant@test.fr", "role": "learner"}, format="json"
+            f"{API_PREFIX}/auth/invite/", {"email": "etudiant@test.fr", "role": "learner"}, format="json"
         )
         code = self.get_code_from_last_email()
         reset = self.post_json(
@@ -110,3 +111,93 @@ class PasswordResetTests(AuthAPITestCase):
             LOGIN_URL, {"email": "etudiant@test.fr", "password": NEW_PASSWORD}
         )
         assert login.status_code == 200
+
+    def test_forgot_pending_user_resends_invitation_email(self):
+        pending_user = UserFactory(pending=True)
+        response = self._forgot(pending_user.email)
+        assert response.status_code == 200
+        assert len(mail.outbox) == 1
+        assert "invit" in mail.outbox[0].subject.lower()
+
+    def test_forgot_suspended_user_does_not_send_email(self):
+        suspended_user = UserFactory(suspended=True)
+        response = self._forgot(suspended_user.email)
+        assert response.status_code == 200
+        assert len(mail.outbox) == 0
+
+    def test_reset_suspended_user_rejected(self):
+        suspended = UserFactory(suspended=True)
+        code = "123456"
+        from apps.users.services import _hash_code
+        from apps.users.models import PasswordResetToken
+        PasswordResetToken.objects.create(
+            user=suspended,
+            token=_hash_code(code),
+            expires_at=timezone.now() + timezone.timedelta(minutes=30),
+        )
+        response = self.post_json(
+            RESET_URL,
+            {"email": suspended.email, "code": code, "new_password": NEW_PASSWORD},
+        )
+        assert response.status_code == 400
+        assert "désactivé" in str(response.data)
+
+    def test_new_forgot_invalidates_previous_otp(self):
+        self._forgot(self.learner.email)
+        first_code = self.get_code_from_last_email()
+        self._forgot(self.learner.email)
+        second_code = self.get_code_from_last_email()
+        assert first_code != second_code
+
+        # Le premier code doit échouer
+        response_old = self.post_json(
+            RESET_URL,
+            {"email": self.learner.email, "code": first_code, "new_password": NEW_PASSWORD},
+        )
+        assert response_old.status_code == 400
+
+        # Le second code doit réussir
+        response_new = self.post_json(
+            RESET_URL,
+            {"email": self.learner.email, "code": second_code, "new_password": NEW_PASSWORD},
+        )
+        assert response_new.status_code == 200
+
+    def test_forgot_archived_user_does_not_send_email(self):
+        archived_user = UserFactory(archived=True)
+        response = self._forgot(archived_user.email)
+        assert response.status_code == 200
+        assert len(mail.outbox) == 0
+
+    def test_reset_archived_user_rejected(self):
+        archived = UserFactory(archived=True)
+        code = "123456"
+        from apps.users.services import _hash_code
+        from apps.users.models import PasswordResetToken
+        PasswordResetToken.objects.create(
+            user=archived,
+            token=_hash_code(code),
+            expires_at=timezone.now() + timezone.timedelta(minutes=30),
+        )
+        response = self.post_json(
+            RESET_URL,
+            {"email": archived.email, "code": code, "new_password": NEW_PASSWORD},
+        )
+        assert response.status_code == 400
+        assert "désactivé" in str(response.data)
+
+    def test_reset_password_transitions_status_from_pending_to_active(self):
+        pending_user = UserFactory(pending=True)
+        assert pending_user.status == User.Status.PENDING
+        assert pending_user.is_active is False
+
+        self._forgot(pending_user.email)
+        code = self.get_code_from_last_email()
+        response = self.post_json(
+            RESET_URL,
+            {"email": pending_user.email, "code": code, "new_password": NEW_PASSWORD},
+        )
+        assert response.status_code == 200
+        pending_user.refresh_from_db()
+        assert pending_user.status == User.Status.ACTIVE
+        assert pending_user.is_active is True

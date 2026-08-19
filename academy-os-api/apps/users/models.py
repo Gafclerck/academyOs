@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
@@ -15,22 +16,27 @@ class UserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
         if not email:
             raise ValueError("L'adresse email est obligatoire.")
-        email = self.normalize_email(email)
+        email = self.normalize_email(email).strip().lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
+    def get_by_natural_key(self, username):
+        return self.get(**{f"{self.model.USERNAME_FIELD}__iexact": username.strip().lower()})
+
     def create_user(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("role", User.Role.LEARNER)
+        extra_fields.setdefault("status", User.Status.ACTIVE)
         return self._create_user(email, password, **extra_fields)
 
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("role", User.Role.ADMIN)
+        extra_fields.setdefault("status", User.Status.ACTIVE)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser doit avoir is_staff=True.")
@@ -47,13 +53,30 @@ class User(AbstractBaseUser, PermissionsMixin):
         TRAINER = "trainer", "Trainer"
         LEARNER = "learner", "Learner"
 
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACTIVE = "active", "Active"
+        SUSPENDED = "suspended", "Suspended"
+        ARCHIVED = "archived", "Archived"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True, db_index=True)
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LEARNER)
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        validators=[
+            RegexValidator(
+                regex=r"^\+?[0-9\s\-()]{7,20}$",
+                message="Format de numéro de téléphone invalide.",
+            )
+        ],
+    )
 
     password_reset_at = models.DateTimeField(null=True, blank=True)
 
@@ -71,6 +94,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         db_table = "users"
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        # Synchronise is_active avec status (seul ACTIVE a is_active=True)
+        self.is_active = (self.status == self.Status.ACTIVE)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            if "status" in update_fields:
+                update_fields.add("is_active")
+            kwargs["update_fields"] = list(update_fields)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.email} ({self.role})"

@@ -2,10 +2,10 @@ from django.core import mail
 
 from apps.users.models import User
 
-from apps.core.tests.base import AuthAPITestCase
+from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import TEST_PASSWORD, UserFactory
 
-INVITE_URL = "/api/auth/invite/"
+INVITE_URL = f"{API_PREFIX}/auth/invite/"
 
 class InviteTests(AuthAPITestCase):
     def setUp(self):
@@ -30,7 +30,9 @@ class InviteTests(AuthAPITestCase):
         assert response.status_code == 201
         user = User.objects.get(email="formateur@test.fr")
         assert user.role == User.Role.TRAINER
+        assert user.status == User.Status.PENDING
         assert user.has_usable_password() is False
+        assert user.is_active is False
         assert len(mail.outbox) == 1
         assert self.get_code_from_last_email()
 
@@ -39,7 +41,10 @@ class InviteTests(AuthAPITestCase):
             INVITE_URL, {"email": "apprenant@test.fr"}, format="json"
         )
         assert response.status_code == 201
-        assert User.objects.get(email="apprenant@test.fr").role == User.Role.LEARNER
+        user = User.objects.get(email="apprenant@test.fr")
+        assert user.role == User.Role.LEARNER
+        assert user.status == User.Status.PENDING
+        assert user.is_active is False
 
     def test_invite_admin_role_rejected(self):
         response = self.auth(self.organizer).post(
@@ -60,6 +65,15 @@ class InviteTests(AuthAPITestCase):
             INVITE_URL, {"email": "invite@test.fr", "role": "learner"}, format="json"
         )
         response = self.post_json(
-            "/api/auth/login/", {"email": "invite@test.fr", "password": TEST_PASSWORD}
+            f"{API_PREFIX}/auth/login/", {"email": "invite@test.fr", "password": TEST_PASSWORD}
         )
         assert response.status_code == 401
+
+    def test_invite_suspended_user_rejected(self):
+        suspended = UserFactory(suspended=True)
+        response = self.auth(self.organizer).post(
+            INVITE_URL, {"email": suspended.email, "role": "learner"}, format="json"
+        )
+        assert response.status_code == 400
+        assert "désactivé" in str(response.data)
+        assert len(mail.outbox) == 0
