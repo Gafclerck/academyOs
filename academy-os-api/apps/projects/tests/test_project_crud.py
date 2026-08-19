@@ -15,6 +15,7 @@ class ProjectAdminCrudTests(AuthAPITestCase):
         super().setUp()
         self.admin = UserFactory(admin=True)
 
+    # Vérifie qu'un administrateur peut lister tous les projets (réponse paginée).
     def test_admin_can_list_projects(self):
         project = ProjectFactory()
         response = self.auth(self.admin).get(PROJECTS_URL)
@@ -22,6 +23,7 @@ class ProjectAdminCrudTests(AuthAPITestCase):
         assert response.data["count"] == 1
         assert response.data["results"][0]["title"] == project.title
 
+    # Vérifie qu'un administrateur peut créer un projet avec programme, titre et ordre.
     def test_admin_can_create_project(self):
         from apps.programs.tests.factories import ProgramFactory
 
@@ -36,12 +38,14 @@ class ProjectAdminCrudTests(AuthAPITestCase):
         assert response.status_code == 201
         assert response.data["title"] == data["title"]
 
+    # Vérifie qu'un administrateur peut récupérer le détail d'un projet précis.
     def test_admin_can_retrieve_project(self):
         project = ProjectFactory()
         response = self.auth(self.admin).get(f"{PROJECTS_URL}{project.id}/")
         assert response.status_code == 200
         assert response.data["id"] == str(project.id)
 
+    # Vérifie qu'un administrateur peut modifier tous les champs d'un projet existant.
     def test_admin_can_update_project(self):
         project = ProjectFactory()
         data = {
@@ -55,12 +59,14 @@ class ProjectAdminCrudTests(AuthAPITestCase):
         project.refresh_from_db()
         assert project.title == "Projet mis à jour"
 
+    # Vérifie qu'un administrateur peut supprimer un projet et qu'il n'existe plus.
     def test_admin_can_delete_project(self):
         project = ProjectFactory()
         response = self.auth(self.admin).delete(f"{PROJECTS_URL}{project.id}/")
         assert response.status_code == 204
         assert not self.project_exists(project.id)
 
+    # Vérifie la contrainte d'unicité : deux projets même programme + même ordre = erreur.
     def test_unique_constraint_per_program_and_order(self):
         from apps.projects.models import Project
 

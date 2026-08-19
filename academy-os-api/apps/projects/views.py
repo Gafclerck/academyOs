@@ -7,9 +7,6 @@ from .models import Project
 from .serializers import ProjectSerializer
 
 
-# ViewSet CRUD complet pour les projets.
-# Lecture (list, retrieve) : tous les utilisateurs authentifiés.
-# Écriture (create, update, partial_update, destroy) : administrateurs uniquement.
 @extend_schema_view(
     list=extend_schema(summary="Lister les projets", tags=["Projects"]),
     create=extend_schema(summary="Créer un projet", tags=["Projects"]),
@@ -22,10 +19,19 @@ from .serializers import ProjectSerializer
     destroy=extend_schema(summary="Supprimer un projet", tags=["Projects"]),
 )
 class ProjectViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD pour les projets.
+
+    - Lecture (list, retrieve) : tous les utilisateurs authentifiés.
+      Étudiants, mentors et gestionnaires doivent pouvoir consulter
+      les projets sur lesquels ils travaillent.
+    - Écriture (create, update, partial_update, destroy) : administrateurs uniquement.
+    """
+
     queryset = Project.objects.select_related("program").all()
     serializer_class = ProjectSerializer
 
     def get_permissions(self):
+        """Retourne les permissions adaptées à l'action en cours."""
         if self.action in ("list", "retrieve"):
             return [permissions.IsAuthenticated()]
         return [IsAdmin()]
