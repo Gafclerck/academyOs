@@ -1,4 +1,5 @@
-﻿from django.db import models
+from django.contrib.contenttypes.fields import GenericRelation
+from django.db import models
 
 from apps.core.models import UUIDModel, TimeStampedModel
 from apps.programs.models import Program
@@ -13,10 +14,8 @@ class Project(UUIDModel, TimeStampedModel):
     """
 
     class StatusProjectEnum(models.TextChoices):
-        EN_ATTENTE = "en_attente", "En attente"
-        EN_COURS_VALIDATION = "en_cours_validation", "En cours de validation"
-        VALIDE = "valide", "Validé"
-        REJETE = "rejete", "Rejeté"
+        DRAFT = "draft", "Non publié"
+        PUBLISHED = "published", "Publié"
 
     # Programme auquel ce projet appartient (obligatoire).
     program = models.ForeignKey(
@@ -28,22 +27,28 @@ class Project(UUIDModel, TimeStampedModel):
     title = models.CharField(max_length=255)
     # Description détaillée du projet (consignes, livrables attendus…).
     description = models.TextField(blank=True, default="")
-    # Statut du cycle de vie : en attente → en cours de validation → validé ou rejeté.
+    # Statut de publication : non publié (brouillon) ou publié.
     status = models.CharField(
         max_length=30,
         choices=StatusProjectEnum.choices,
-        default=StatusProjectEnum.EN_ATTENTE,
+        default=StatusProjectEnum.DRAFT,
     )
     # Rang du projet dans l'ordre de passage du programme (commence à 1).
-    ordre = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(default=1)
+
+    # Pièces jointes polymorphiques (énoncés, consignes, ressources) avec suppression en cascade
+    attachments = GenericRelation(
+        "attachments.Attachment",
+        related_query_name="projects",
+    )
 
     class Meta:
         db_table = "projects"
-        ordering = ["program", "ordre", "-created_at"]
+        ordering = ["program", "order", "-created_at"]
         constraints = [
             # Deux projets ne peuvent pas avoir le même rang dans un même programme.
             models.UniqueConstraint(
-                fields=["program", "ordre"],
+                fields=["program", "order"],
                 name="unique_project_order_per_program",
             )
         ]

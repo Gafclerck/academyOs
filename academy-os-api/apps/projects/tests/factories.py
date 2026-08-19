@@ -14,5 +14,5 @@ class ProjectFactory(factory.django.DjangoModelFactory):
     program = factory.SubFactory(ProgramFactory)
     title = factory.Sequence(lambda n: f"Projet {n}")
     description = ""
-    status = Project.StatusProjectEnum.EN_ATTENTE
-    ordre = factory.Sequence(lambda n: n + 1)
+    status = Project.StatusProjectEnum.DRAFT
+    order = factory.Sequence(lambda n: n + 1)

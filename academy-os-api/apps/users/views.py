@@ -8,7 +8,10 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView as SimpleJWTTokenRefreshView,
+)
 
 from .models import User
 from .serializers import (
@@ -33,6 +36,13 @@ from .services import (
 )
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Obtain JWT token pair (access and refresh)",
+        description="Authentification par email et mot de passe. Renvoie une paire de tokens JWT (`access` et `refresh`).",
+        tags=["Auth"],
+    )
+)
 class LoginView(TokenObtainPairView):
     """POST /api/v1/auth/login/ - Authentification JWT avec limitation de débit (5/min)."""
 
@@ -40,6 +50,29 @@ class LoginView(TokenObtainPairView):
     throttle_scope = "login"
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Refresh JWT access token",
+        description="Renvoie un nouveau token d'accès JWT (`access`) à partir d'un refresh token valide (`refresh`).",
+        tags=["Auth"],
+    )
+)
+class TokenRefreshView(SimpleJWTTokenRefreshView):
+    """POST /api/v1/auth/token/refresh/ - Rafraîchissement du token d'accès JWT."""
+
+    pass
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Register a new user (Admin only)",
+        description="Création d'un compte utilisateur par un administrateur (choix du rôle : admin, organizer, trainer, learner). "
+        "L'utilisateur reçoit un code par email pour initialiser son mot de passe.",
+        request=RegisterSerializer,
+        responses={201: UserSerializer},
+        tags=["Auth"],
+    )
+)
 class RegisterView(generics.CreateAPIView):
     """POST /api/v1/auth/register/ - création d'un compte par l'admin, rôle au choix.
 
@@ -51,7 +84,6 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [IsAdmin]
 
-    @extend_schema(responses={201: UserSerializer})
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -59,6 +91,11 @@ class RegisterView(generics.CreateAPIView):
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(summary="Retrieve the authenticated user's profile", tags=["Auth"]),
+    patch=extend_schema(summary="Update the authenticated user's profile", tags=["Auth"]),
+    put=extend_schema(summary="Update the authenticated user's profile", tags=["Auth"])
+)
 class MeView(generics.RetrieveUpdateAPIView):
     """GET /api/v1/auth/me/ et PATCH /api/v1/auth/me/"""
 
@@ -82,7 +119,7 @@ class ChangePasswordView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    @extend_schema(request=ChangePasswordSerializer, responses={200: None})
+    @extend_schema(request=ChangePasswordSerializer, responses={200: None}, tags=["Auth"])
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -98,6 +135,7 @@ class LogoutView(APIView):
     @extend_schema(
         request={"application/json": {"type": "object", "properties": {"refresh": {"type": "string"}}}},
         responses={205: None},
+        tags=["Auth"]
     )
     def post(self, request):
         refresh = request.data.get("refresh")
@@ -122,7 +160,7 @@ class InviteView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "invite"
 
-    @extend_schema(request=InviteSerializer, responses={200: None, 201: None})
+    @extend_schema(request=InviteSerializer, responses={200: None, 201: None}, tags=["Auth"])
     def post(self, request):
         serializer = InviteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -152,7 +190,7 @@ class ForgotPasswordView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "forgot"
 
-    @extend_schema(request=ForgotPasswordSerializer, responses={200: None})
+    @extend_schema(request=ForgotPasswordSerializer, responses={200: None}, tags=["Auth"])
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -170,7 +208,6 @@ class ForgotPasswordView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class ResetPasswordView(APIView):
     """POST /api/v1/auth/reset-password/ - définit un nouveau mot de passe via le code."""
 
@@ -178,7 +215,7 @@ class ResetPasswordView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "reset"
 
-    @extend_schema(request=ResetPasswordSerializer, responses={200: None})
+    @extend_schema(request=ResetPasswordSerializer, responses={200: None}, tags=["Auth"])
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -198,12 +235,16 @@ class ResetPasswordView(APIView):
     destroy=extend_schema(summary="Delete a user", tags=["Users"]),
 )
 class UserViewSet(viewsets.ModelViewSet):
-    """Administration des utilisateurs (réservé aux admins)."""
+    """Administration des utilisateurs (Admin : CRUD complet ; Organizer : consultation)."""
 
     queryset = User.objects.all()
     serializer_class = AdminUserSerializer
-    permission_classes = [IsAdmin]
     http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAdminOrOrganizer()]
+        return [IsAdmin()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
