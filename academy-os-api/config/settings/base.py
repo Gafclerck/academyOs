@@ -210,7 +210,9 @@ REST_FRAMEWORK = {
         'enroll': '60/hour',
         'forgot': '5/hour',
         'reset': '5/hour',
+        'activate': '5/hour',
     },
+
 }
 
 # RÃ©initialisation de mot de passe / invitations

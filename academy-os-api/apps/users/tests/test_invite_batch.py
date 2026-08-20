@@ -10,9 +10,10 @@ from apps.core.tests.factories import UserFactory
 from apps.users.models import User
 
 INVITE_URL = f"{API_PREFIX}/auth/invite/"
-RESET_URL = f"{API_PREFIX}/auth/reset-password/"
+ACTIVATE_URL = f"{API_PREFIX}/auth/activate/"
 LOGIN_URL = f"{API_PREFIX}/auth/login/"
 NEW_PASSWORD = "NouveauPass123!"
+
 
 
 class InviteBatchTests(AuthAPITestCase):
@@ -102,12 +103,21 @@ class InviteBatchTests(AuthAPITestCase):
         assert User.objects.get(email="invite@test.fr").status == User.Status.PENDING
         assert User.objects.get(email="invite@test.fr").is_active is False
         code = self.get_code_from_last_email()
-        reset = self.post_json(
-            RESET_URL,
-            {"email": "invite@test.fr", "code": code, "new_password": NEW_PASSWORD},
+        activate = self.post_json(
+
+            ACTIVATE_URL,
+            {
+                "email": "invite@test.fr",
+                "code": code,
+                "new_password": NEW_PASSWORD,
+                "first_name": "Awa",
+                "last_name": "Diop",
+                "phone_number": "+221771234567",
+            },
         )
-        assert reset.status_code == 200
+        assert activate.status_code == 200
         assert User.objects.get(email="invite@test.fr").status == User.Status.ACTIVE
         assert User.objects.get(email="invite@test.fr").is_active is True
+        assert User.objects.get(email="invite@test.fr").first_name == "Awa"
         login = self.post_json(LOGIN_URL, {"email": "invite@test.fr", "password": NEW_PASSWORD})
         assert login.status_code == 200
