@@ -43,14 +43,24 @@ def generate_reset_token(user, expires_in=None):
     return code
 
 
+def get_frontend_url(setting_name: str, default_path: str = "") -> str:
+    """Construit une URL absolue vers le frontend en combinant FRONTEND_URL et le chemin configuré."""
+    base_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    path = getattr(settings, setting_name, default_path).strip()
+    if path:
+        return f"{base_url}/{path.lstrip('/')}"
+    return base_url
+
+
 def _render_and_send_email(template_name, context, subject, email, connection=None, plain_text=None):
-    """Rend un template HTML d'email et l'envoie de manière asynchrone (ou synchrone en test)."""
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    """Rend un template HTML d'email et l'envoie de manière asynchrone (ou synchrone en test/batch)."""
+    base_frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    logo_url = get_frontend_url("FRONTEND_LOGO_PATH", "/logo-xarala.png")
     full_context = {
         "subject": subject,
-        "frontend_url": frontend_url,
+        "frontend_url": base_frontend_url,
         "current_year": timezone.now().year,
-        "logo_url": f"{frontend_url}/logo-xarala.png",
+        "logo_url": logo_url,
         **context,
     }
     html_content = render_to_string(template_name, full_context)
@@ -76,17 +86,8 @@ def _render_and_send_email(template_name, context, subject, email, connection=No
         )
 
 
-def _send_email(subject, message, email, connection=None):
-    """Fallback basique texte brut vers la tâche Celery asynchrone."""
-    if connection is not None:
-        send_mail(subject, message, FROM_EMAIL, [email], connection=connection)
-    else:
-        send_email_async.delay(subject, message, [email], from_email=FROM_EMAIL)
-
-
 def send_reset_password_email(email, code, connection=None):
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    reset_url = f"{frontend_url}/reset-password"
+    reset_url = get_frontend_url("FRONTEND_RESET_PASSWORD_PATH", "/reset-password")
     plain_text = (
         f"Bonjour,\n\n"
         f"Vous avez demandé la réinitialisation de votre mot de passe sur Xarala Academy.\n"
@@ -109,8 +110,7 @@ def send_reset_password_email(email, code, connection=None):
 
 
 def send_invitation_email(email, code, connection=None, role=None):
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    activate_url = f"{frontend_url}/reset-password"
+    activate_url = get_frontend_url("FRONTEND_ACTIVATE_ACCOUNT_PATH", "/invite-reset-password")
     role_label = "Formateur" if role == User.Role.TRAINER else "Organisateur" if role == User.Role.ORGANIZER else "Apprenant"
     plain_text = (
         f"Bonjour,\n\n"
@@ -135,8 +135,7 @@ def send_invitation_email(email, code, connection=None, role=None):
 
 
 def send_account_created_email(email, code, connection=None):
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    activate_url = f"{frontend_url}/reset-password"
+    activate_url = get_frontend_url("FRONTEND_ACTIVATE_ACCOUNT_PATH", "/invite-reset-password")
     plain_text = (
         f"Bonjour,\n\n"
         f"Un compte a été créé pour vous sur Xarala Academy.\n"
@@ -159,8 +158,7 @@ def send_account_created_email(email, code, connection=None):
 
 
 def send_added_to_cohort_email(email, cohort_name, connection=None, role=None):
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    cohort_url = f"{frontend_url}/programmes"
+    cohort_url = get_frontend_url("FRONTEND_COHORTS_PATH", "/programmes")
     if role == User.Role.TRAINER:
         plain_text = f"Bonjour,\n\nVous avez été affecté(e) en tant que formateur à la cohorte : {cohort_name}.\n\nLien : {cohort_url}"
     else:
