@@ -1,4 +1,3 @@
-
 import React from 'react'
 import {
   NavLink,
@@ -35,10 +34,10 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     description: 'Offres de formation & cursus',
   },
   {
-    name: 'Rentrees',
+    name: 'Rentrées',
     href: '/rentrees',
     icon: CalendarDays,
-    description: 'Rentrees academiques',
+    description: 'Rentrées académiques',
   },
   {
     name: 'Cohortes',
@@ -72,7 +71,7 @@ export const ProgrammeSidebar: React.FC<
   const { logout, user } = useAuth()
 
   // ─────────────────────────────────────────────
-  // DECONNEXION
+  // DÉCONNEXION
   // ─────────────────────────────────────────────
 
   const handleLogout = async () => {
@@ -84,7 +83,7 @@ export const ProgrammeSidebar: React.FC<
   }
 
   // ─────────────────────────────────────────────
-  // INITIAL USER
+  // UTILISATEUR
   // ─────────────────────────────────────────────
 
   const userInitials =
@@ -99,6 +98,9 @@ export const ProgrammeSidebar: React.FC<
 
   const userEmail =
     user?.email || 'admin@xarala.co'
+
+  const isProfileActive =
+    location.pathname === '/profile'
 
   return (
     <aside
@@ -205,153 +207,149 @@ export const ProgrammeSidebar: React.FC<
 
           <nav className="space-y-1">
 
-            {SIDEBAR_ITEMS.map(
-              (item, index) => {
-                const Icon = item.icon
+            {SIDEBAR_ITEMS.map((item, index) => {
+              const Icon = item.icon
 
-                const isActive =
-                  item.href === '/programmes'
-                    ? location.pathname.startsWith(
-                        '/programmes',
-                      )
-                    : location.pathname.startsWith(
-                        item.href,
-                      )
+              const isActive =
+                item.href === '/programmes'
+                  ? location.pathname.startsWith('/programmes')
+                  : location.pathname.startsWith(item.href)
 
-                return (
-                  <NavLink
-                    key={item.name}
-                    to={item.href}
-                    onClick={onCloseMobile}
-                    className={`
-                      group
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={onCloseMobile}
+                  className={`
+                    group
+                    flex
+                    items-center
+                    justify-between
+                    rounded-xl
+                    px-3
+                    py-2.5
+                    text-sm
+                    font-medium
+                    transition-all
+
+                    ${
+                      isActive
+                        ? `
+                          bg-[#FF6B0B]
+                          font-semibold
+                          text-white
+                          shadow-md
+                          shadow-[#FF6B0B]/25
+                        `
+                        : `
+                          text-slate-600
+                          hover:bg-slate-100
+                          hover:text-slate-900
+
+                          dark:text-slate-300
+                          dark:hover:bg-white/5
+                          dark:hover:text-white
+                        `
+                    }
+                  `}
+                >
+
+                  <div
+                    className="
                       flex
+                      min-w-0
                       items-center
-                      justify-between
-                      rounded-xl
-                      px-3
-                      py-2.5
-                      text-sm
-                      font-medium
-                      transition-all
-
-                      ${
-                        isActive
-                          ? `
-                            bg-[#FF6B0B]
-                            font-semibold
-                            text-white
-                            shadow-md
-                            shadow-[#FF6B0B]/25
-                          `
-                          : `
-                            text-slate-600
-                            hover:bg-slate-100
-                            hover:text-slate-900
-
-                            dark:text-slate-300
-                            dark:hover:bg-white/5
-                            dark:hover:text-white
-                          `
-                      }
-                    `}
+                      gap-3
+                    "
                   >
 
                     <div
-                      className="
-                        flex
-                        min-w-0
-                        items-center
-                        gap-3
-                      "
-                    >
-
-                      <div
-                        className={`
-                          flex
-                          size-8
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-lg
-                          transition-colors
-
-                          ${
-                            isActive
-                              ? `
-                                bg-white/20
-                                text-white
-                              `
-                              : `
-                                bg-slate-100
-                                text-slate-500
-
-                                group-hover:bg-[#FF6B0B]/10
-                                group-hover:text-[#FF6B0B]
-
-                                dark:bg-white/5
-                                dark:text-slate-400
-                              `
-                          }
-                        `}
-                      >
-                        <Icon className="size-4" />
-                      </div>
-
-                      <div className="truncate">
-
-                        <p className="truncate text-sm leading-tight">
-                          {item.name}
-                        </p>
-
-                        <p
-                          className={`
-                            truncate
-                            text-[10px]
-
-                            ${
-                              isActive
-                                ? 'text-white/80'
-                                : 'text-slate-400 dark:text-slate-500'
-                            }
-                          `}
-                        >
-                          Niveau {index + 1}
-                        </p>
-
-                      </div>
-                    </div>
-
-                    <ChevronRight
                       className={`
-                        size-4
-                        transition-transform
+                        flex
+                        size-8
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-lg
+                        transition-colors
 
                         ${
                           isActive
                             ? `
+                              bg-white/20
                               text-white
-                              opacity-80
                             `
                             : `
-                              text-slate-300
-                              opacity-0
+                              bg-slate-100
+                              text-slate-500
 
-                              group-hover:translate-x-0.5
-                              group-hover:opacity-100
+                              group-hover:bg-[#FF6B0B]/10
+                              group-hover:text-[#FF6B0B]
 
-                              dark:text-slate-600
+                              dark:bg-white/5
+                              dark:text-slate-400
                             `
                         }
                       `}
-                    />
+                    >
+                      <Icon className="size-4" />
+                    </div>
 
-                  </NavLink>
-                )
-              },
-            )}
+                    <div className="truncate">
+
+                      <p className="truncate text-sm leading-tight">
+                        {item.name}
+                      </p>
+
+                      <p
+                        className={`
+                          truncate
+                          text-[10px]
+
+                          ${
+                            isActive
+                              ? 'text-white/80'
+                              : 'text-slate-400 dark:text-slate-500'
+                          }
+                        `}
+                      >
+                        Niveau {index + 1}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <ChevronRight
+                    className={`
+                      size-4
+                      transition-transform
+
+                      ${
+                        isActive
+                          ? `
+                            text-white
+                            opacity-80
+                          `
+                          : `
+                            text-slate-300
+                            opacity-0
+
+                            group-hover:translate-x-0.5
+                            group-hover:opacity-100
+
+                            dark:text-slate-600
+                          `
+                      }
+                    `}
+                  />
+
+                </NavLink>
+              )
+            })}
 
           </nav>
+
         </div>
 
         {/* ═══════════════════════════════════════════
@@ -441,24 +439,50 @@ export const ProgrammeSidebar: React.FC<
         "
       >
 
-        {/* USER */}
+        {/* ═══════════════════════════════════════════
+            PROFIL UTILISATEUR
+            Nom + email cliquables
+        ═══════════════════════════════════════════ */}
 
-        <div
-          className="
+        <NavLink
+          to="/profile"
+          onClick={onCloseMobile}
+          className={`
+            group
             flex
+            w-full
             items-center
             gap-3
             rounded-xl
-            bg-slate-50
             p-2
-            dark:bg-white/[0.03]
-          "
+            text-left
+            transition-all
+
+            ${
+              isProfileActive
+                ? `
+                  bg-[#FF6B0B]/10
+                  ring-1
+                  ring-[#FF6B0B]/20
+                `
+                : `
+                  bg-slate-50
+                  hover:bg-[#FF6B0B]/5
+
+                  dark:bg-white/[0.03]
+                  dark:hover:bg-white/[0.06]
+                `
+            }
+          `}
+          aria-label="Consulter mon profil"
         >
+
+          {/* AVATAR */}
 
           <div
             className="
               flex
-              size-8
+              size-9
               shrink-0
               items-center
               justify-center
@@ -467,16 +491,22 @@ export const ProgrammeSidebar: React.FC<
               text-xs
               font-bold
               text-[#FF6B0B]
+              transition-transform
+              duration-200
+              group-hover:scale-105
             "
           >
             {userInitials}
           </div>
 
-          <div className="min-w-0 flex-1 text-xs">
+          {/* NOM + EMAIL */}
+
+          <div className="min-w-0 flex-1">
 
             <p
               className="
                 truncate
+                text-xs
                 font-semibold
                 text-slate-900
                 dark:text-white
@@ -498,7 +528,23 @@ export const ProgrammeSidebar: React.FC<
 
           </div>
 
-        </div>
+          {/* CHEVRON */}
+
+          <ChevronRight
+            className="
+              size-4
+              shrink-0
+              text-slate-300
+              opacity-0
+              transition-all
+              duration-200
+              group-hover:translate-x-0.5
+              group-hover:opacity-100
+              dark:text-slate-600
+            "
+          />
+
+        </NavLink>
 
         {/* ═══════════════════════════════════════════
             LOGOUT

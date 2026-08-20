@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from '@/pages/auth/login';
-import Register from '@/pages/auth/register';
 import ForgotPassword from '@/pages/auth/ForgotPassword';
 
 import PrivateRoutes from '@/routes/privateRoutes';
@@ -24,13 +23,14 @@ import AddUserPage from '@/modules/programme/pages/AddUserPage'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import CohortListPage from '@/pages/CohortListPage';
 import InviteResetPassword from '@/pages/auth/InviteResetPassword'
+import Profile from '@/pages/Profile'
+
 
 const AppRoutes = () => {
   return (
     <Routes>
       {/* ── AUTHENTIFICATION ──────────────────────────────── */}
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/invite-reset-password"element={<InviteResetPassword />}/>
@@ -69,7 +69,7 @@ const AppRoutes = () => {
             {/* 6. Utilisateurs */}
            <Route path="/users" element={<UsersPage />} />
            <Route path="/users/new" element={<AddUserPage />} />
-
+          <Route path="/profile" element={<Profile />} />
 
         </Route>
       </Route>

@@ -482,21 +482,21 @@ const Login = () => {
 
             </motion.div>
 
-            {/* REGISTER */}
+            {/* ACCESS INFORMATION */}
 
-            <motion.p
+            <motion.div
               variants={itemVariants}
-              className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400"
+              className="mt-6 rounded-xl border border-orange-200 bg-orange-50/70 p-4 text-center dark:border-orange-500/20 dark:bg-orange-500/10"
             >
-              Vous n'avez pas encore de compte ?{' '}
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                Vous n'avez pas encore de compte ?
+              </p>
 
-              <Link
-                to="/register"
-                className="font-semibold text-[#FF6B0B] transition-colors duration-200 hover:text-orange-500 dark:hover:text-orange-300"
-              >
-                Créer un compte
-              </Link>
-            </motion.p>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                L'accès à Xarala est réservé aux utilisateurs
+                invités par un administrateur.
+              </p>
+            </motion.div>
 
           </motion.div>
 
