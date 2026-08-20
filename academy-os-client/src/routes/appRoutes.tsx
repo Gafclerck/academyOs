@@ -19,6 +19,8 @@ import InviterApprenant from '@/modules/programme/pages/InviterApprenant';
 import InviterFormateur from '@/modules/programme/pages/InviterFormateur';
 import { ProjetListPage } from '@/pages/programme/ProjetListPage';
 import { ProjetDetailPage } from '@/pages/programme/ProjetDetailPage';
+import { ProjetSoumissionPage } from '@/pages/programme/ProjetSoumissionPage';
+import { ProjetReviewPage } from '@/pages/programme/ProjetReviewPage';
 import CertificatListPage from '@/pages/programme/CertificatListPage';
 
 import CohortListPage from '@/pages/CohortListPage';
@@ -62,6 +64,8 @@ const AppRoutes = () => {
           {/* 5. Projets */}
           <Route path="/projets" element={<ProjetListPage />} />
           <Route path="/projets/:id" element={<ProjetDetailPage />} />
+          <Route path="/projets/:projetId/soumettre" element={<ProjetSoumissionPage />} />
+          <Route path="/projets/:projetId/reviews" element={<ProjetReviewPage />} />
           <Route path="/cohortes/:cohorteId/certificats" element={<CertificatListPage />} />
         </Route>
       </Route>

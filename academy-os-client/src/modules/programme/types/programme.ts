@@ -177,7 +177,49 @@ export interface UpdateMembreDTO {
   role?: 'etudiant' | 'mentor' | 'lead' | 'admin';
 }
 
-// ─── 8. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
+// ─── 8. SOUMISSION & REVIEW ───────────────────────────────────────────────────
+
+export interface SoumissionProjet {
+  id: string;
+  projet_id: string;
+  cohorte_id: string;
+  membre_id: string;
+  nom_apprenant: string;
+  prenom_apprenant: string;
+  fichier_url?: string;
+  commentaire?: string;
+  statut: 'soumis' | 'en_correction' | 'corrige' | 'accepte' | 'refuse';
+  score?: number;
+  feedback?: string;
+  date_soumission: string;
+  date_review?: string;
+}
+
+export interface CreateSoumissionDTO {
+  projet_id: string;
+  cohorte_id: string;
+  membre_id: string;
+  fichier_url?: string;
+  commentaire?: string;
+}
+
+export interface ReviewProjet {
+  id: string;
+  soumission_id: string;
+  correcteur_id: string;
+  correcteur_nom: string;
+  score: number;
+  feedback: string;
+  date_review: string;
+}
+
+export interface CreateReviewDTO {
+  soumission_id: string;
+  score: number;
+  feedback: string;
+}
+
+// ─── 9. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
 // À supprimer progressivement
 
 /** @deprecated Utiliser RentreeProgramme */
