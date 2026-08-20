@@ -20,8 +20,7 @@ import {
 import ThemeToggle from '@/components/theme-toggle'
 import logoXarala from '@/assets/logo-xarala.png'
 
-import { resetPassword } from '@/services/auth/resetPassword'
-import { updateMe } from '@/services/auth/updateMe'
+import { activateAccount } from '@/services/auth/activate'
 
 // ─────────────────────────────────────────────
 // ANIMATIONS
@@ -166,26 +165,19 @@ const InviteResetPassword = () => {
       setLoading(true)
 
       // ─────────────────────────────────────────────
-      // ÉTAPE 1
-      // RESET DU MOT DE PASSE
+      // ACTIVATION DU COMPTE
+      // UN SEUL APPEL API
       // ─────────────────────────────────────────────
 
-      await resetPassword({
+      await activateAccount({
         email: email.trim(),
         code: code.trim(),
-        new_password: password,
-      })
-
-      // ─────────────────────────────────────────────
-      // ÉTAPE 2
-      // MISE À JOUR DU PROFIL
-      // ─────────────────────────────────────────────
-
-      await updateMe({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone_number: phone.trim(),
+        new_password: password,
       })
+
 
       // ─────────────────────────────────────────────
       // SUCCÈS
@@ -206,7 +198,9 @@ const InviteResetPassword = () => {
 
       setError(
         data?.detail ||
-          data?.code?.[0] ||
+          data?.message ||
+          data?.code ||
+          data?.password?.[0] ||
           data?.new_password?.[0] ||
           data?.first_name?.[0] ||
           data?.last_name?.[0] ||
@@ -355,7 +349,7 @@ const InviteResetPassword = () => {
             className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-300/30 transition-colors duration-500 dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/30 dark:backdrop-blur-2xl sm:p-8"
           >
 
-            {/* Décorations */}
+            {/* DÉCORATIONS */}
 
             <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-[#FF6B0B]/10 blur-3xl" />
 
@@ -410,6 +404,7 @@ const InviteResetPassword = () => {
             ) : (
 
               <>
+
                 {/* ═════════════════════════════════
                     HEADER
                 ═════════════════════════════════ */}
@@ -812,7 +807,9 @@ const InviteResetPassword = () => {
                   </button>
 
                 </motion.p>
+
               </>
+
             )}
 
           </motion.div>
@@ -843,3 +840,4 @@ const InviteResetPassword = () => {
 }
 
 export default InviteResetPassword
+

@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
@@ -101,9 +100,13 @@ const ResetPassword = () => {
   ) => {
     event.preventDefault()
 
+    // Effacer l'ancien message
     setError('')
 
-    // Vérification des champs
+    // ───────────────────────────────────────────
+    // VÉRIFICATION DES CHAMPS
+    // ───────────────────────────────────────────
+
     if (
       !email.trim() ||
       !code.trim() ||
@@ -114,19 +117,28 @@ const ResetPassword = () => {
       return
     }
 
-    // Vérification de l'email
+    // ───────────────────────────────────────────
+    // VÉRIFICATION EMAIL
+    // ───────────────────────────────────────────
+
     if (!email.includes('@')) {
       setError('Veuillez entrer une adresse email valide.')
       return
     }
 
-    // Vérification du code
+    // ───────────────────────────────────────────
+    // VÉRIFICATION CODE
+    // ───────────────────────────────────────────
+
     if (code.length !== 6) {
       setError('Le code doit contenir 6 chiffres.')
       return
     }
 
-    // Vérification des mots de passe
+    // ───────────────────────────────────────────
+    // VÉRIFICATION MOT DE PASSE
+    // ───────────────────────────────────────────
+
     if (password !== confirmPassword) {
       setError(
         'Les deux mots de passe ne correspondent pas.',
@@ -141,20 +153,26 @@ const ResetPassword = () => {
       return
     }
 
+    // ───────────────────────────────────────────
+    // APPEL API
+    // ───────────────────────────────────────────
+
     try {
       setLoading(true)
 
-      // Appel de l'endpoint reset-password
       await resetPassword({
         email: email.trim(),
         code: code.trim(),
         new_password: password,
       })
 
-      // Reset réussi
+      // ─────────────────────────────────────────
+      // SUCCÈS
+      // ─────────────────────────────────────────
+
       setSuccess(true)
 
-      // Retour vers la connexion après 2 secondes
+      // Redirection vers login après 2 secondes
       setTimeout(() => {
         navigate('/login')
       }, 2000)
@@ -166,10 +184,24 @@ const ResetPassword = () => {
 
       const data = err?.response?.data
 
+      // ─────────────────────────────────────────
+      // MESSAGE D'ERREUR BACKEND
+      // ─────────────────────────────────────────
+      //
+      // Exemple backend :
+      //
+      // {
+      //   "code": "Code invalide ou expiré."
+      // }
+      //
+      // On récupère donc data.code directement.
+      // ─────────────────────────────────────────
+
       setError(
         data?.detail ||
+          data?.message ||
+          data?.code ||
           data?.email?.[0] ||
-          data?.code?.[0] ||
           data?.new_password?.[0] ||
           'Le code est invalide ou expiré.',
       )
@@ -185,13 +217,17 @@ const ResetPassword = () => {
   return (
     <main className="relative flex min-h-screen w-full overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-[#19192D]">
 
-      {/* THEME TOGGLE */}
+      {/* ─────────────────────────────────────────
+          THEME TOGGLE
+      ───────────────────────────────────────── */}
 
       <div className="fixed right-5 top-5 z-50">
         <ThemeToggle />
       </div>
 
-      {/* BACKGROUND */}
+      {/* ─────────────────────────────────────────
+          BACKGROUND
+      ───────────────────────────────────────── */}
 
       <div className="absolute inset-0">
 
@@ -232,7 +268,9 @@ const ResetPassword = () => {
 
       </div>
 
-      {/* FLOATING ICONS */}
+      {/* ─────────────────────────────────────────
+          FLOATING ICONS
+      ───────────────────────────────────────── */}
 
       <motion.div
         variants={floatingVariants}
@@ -258,7 +296,9 @@ const ResetPassword = () => {
         <Users className="size-6 text-green-500 dark:text-green-400" />
       </motion.div>
 
-      {/* CONTENT */}
+      {/* ─────────────────────────────────────────
+          CONTENT
+      ───────────────────────────────────────── */}
 
       <div className="relative z-10 flex min-h-screen w-full items-center justify-center overflow-y-auto px-4 py-10">
 
@@ -269,7 +309,9 @@ const ResetPassword = () => {
           className="w-full max-w-[440px]"
         >
 
-          {/* LOGO */}
+          {/* ─────────────────────────────────────
+              LOGO
+          ───────────────────────────────────── */}
 
           <motion.div
             variants={itemVariants}
@@ -294,20 +336,24 @@ const ResetPassword = () => {
 
           </motion.div>
 
-          {/* CARD */}
+          {/* ─────────────────────────────────────
+              CARD
+          ───────────────────────────────────── */}
 
           <motion.div
             variants={itemVariants}
             className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-300/30 transition-colors duration-500 dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/30 dark:backdrop-blur-2xl sm:p-8"
           >
 
-            {/* Décoration */}
+            {/* DÉCORATION */}
 
             <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-[#FF6B0B]/10 blur-3xl" />
 
             <div className="pointer-events-none absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-[#FF6B0B]/5 blur-3xl" />
 
-            {/* SUCCESS */}
+            {/* ─────────────────────────────────
+                SUCCESS
+            ───────────────────────────────── */}
 
             {success ? (
 
@@ -356,7 +402,9 @@ const ResetPassword = () => {
 
               <>
 
-                {/* HEADER */}
+                {/* ─────────────────────────────
+                    HEADER
+                ───────────────────────────── */}
 
                 <motion.div
                   variants={itemVariants}
@@ -378,7 +426,9 @@ const ResetPassword = () => {
 
                 </motion.div>
 
-                {/* ERROR */}
+                {/* ─────────────────────────────
+                    ERROR
+                ───────────────────────────── */}
 
                 {error && (
                   <motion.div
@@ -390,13 +440,15 @@ const ResetPassword = () => {
                       opacity: 1,
                       y: 0,
                     }}
-                    className="relative mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+                    className="relative mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
                   >
                     {error}
                   </motion.div>
                 )}
 
-                {/* FORM */}
+                {/* ─────────────────────────────
+                    FORM
+                ───────────────────────────── */}
 
                 <motion.form
                   variants={containerVariants}
@@ -424,9 +476,10 @@ const ResetPassword = () => {
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           setEmail(event.target.value)
-                        }
+                          setError('')
+                        }}
                         placeholder="vous@exemple.com"
                         autoComplete="email"
                         disabled={loading}
@@ -458,14 +511,15 @@ const ResetPassword = () => {
                         inputMode="numeric"
                         maxLength={6}
                         value={code}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           setCode(
                             event.target.value.replace(
                               /\D/g,
                               '',
                             ),
                           )
-                        }
+                          setError('')
+                        }}
                         placeholder="483921"
                         disabled={loading}
                         className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm tracking-[0.3em] text-slate-900 outline-none transition-all duration-300 placeholder:text-slate-400 focus:border-[#FF6B0B]/60 focus:bg-white focus:ring-4 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-600 dark:focus:bg-white/[0.08]"
@@ -498,9 +552,10 @@ const ResetPassword = () => {
                             : 'password'
                         }
                         value={password}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           setPassword(event.target.value)
-                        }
+                          setError('')
+                        }}
                         placeholder="••••••••"
                         autoComplete="new-password"
                         disabled={loading}
@@ -556,11 +611,12 @@ const ResetPassword = () => {
                             : 'password'
                         }
                         value={confirmPassword}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           setConfirmPassword(
                             event.target.value,
                           )
-                        }
+                          setError('')
+                        }}
                         placeholder="••••••••"
                         autoComplete="new-password"
                         disabled={loading}
@@ -639,7 +695,9 @@ const ResetPassword = () => {
 
                 </motion.form>
 
-                {/* LOGIN */}
+                {/* ─────────────────────────────
+                    LOGIN
+                ───────────────────────────── */}
 
                 <motion.p
                   variants={itemVariants}
@@ -662,7 +720,9 @@ const ResetPassword = () => {
 
           </motion.div>
 
-          {/* FOOTER */}
+          {/* ─────────────────────────────────────
+              FOOTER
+          ───────────────────────────────────── */}
 
           <motion.div
             variants={itemVariants}
@@ -688,4 +748,3 @@ const ResetPassword = () => {
 }
 
 export default ResetPassword
-
