@@ -151,3 +151,38 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert second_response.status_code == 200
         assert first_response.data["id"] == second_response.data["id"]
         assert Certificate.objects.filter(inscription=enrollment).count() == 1
+
+
+class CertificatePdfGenerationTests(TestCase):
+    """Tests du service de génération du PDF de certificat."""
+
+    def tearDown(self):
+        super().tearDown()
+        from django.core.files.storage import default_storage
+        # Nettoie les fichiers PDF générés pendant les tests.
+        try:
+            _, files = default_storage.listdir("certificates")
+            for f in files:
+                default_storage.delete(f"certificates/{f}")
+        except FileNotFoundError:
+            pass
+
+    # Vérifie que la génération du PDF crée un fichier non vide et met à jour file_path.
+    def test_generate_certificate_pdf_creates_file(self):
+        from apps.certificates.services import generate_certificate_pdf
+        from django.core.files.storage import default_storage
+        from django.utils import timezone
+
+        certificate = CertificateFactory(
+            status=Certificate.StatusCertificateEnum.SENT,
+        )
+        certificate.date_envoi = timezone.now()
+        certificate.save(update_fields=["date_envoi"])
+
+        result = generate_certificate_pdf(certificate)
+
+        self.assertTrue(result.file_path)
+        self.assertTrue(default_storage.exists(result.file_path))
+        with default_storage.open(result.file_path, "rb") as f:
+            content = f.read()
+        self.assertGreater(len(content), 1000)
