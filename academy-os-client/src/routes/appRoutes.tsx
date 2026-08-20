@@ -6,6 +6,7 @@ import ForgotPassword from '@/pages/auth/ForgotPassword';
 
 import PrivateRoutes from '@/routes/privateRoutes';
 
+
 import { ProgrammeLayout } from '@/modules/programme/components/layout/ProgrammeLayout';
 import { ProgrammeListPage } from '@/modules/programme/pages/ProgrammeListPage';
 import { ProgrammeCreatePage } from '@/modules/programme/pages/ProgrammeCreatePage';
@@ -17,9 +18,12 @@ import { CohorteCreatePage } from '@/modules/programme/pages/CohorteCreatePage';
 import { CohorteDetailPage } from '@/modules/programme/pages/CohorteDetailPage';
 import InviterApprenant from '@/modules/programme/pages/InviterApprenant';
 import InviterFormateur from '@/modules/programme/pages/InviterFormateur';
+import UsersPage from '@/modules/programme/pages/UsersPage';
 import { ProjetListPage } from '@/modules/programme/pages/ProjetListPage';
-
+import AddUserPage from '@/modules/programme/pages/AddUserPage'
+import ResetPassword from '@/pages/auth/ResetPassword'
 import CohortListPage from '@/pages/CohortListPage';
+import InviteResetPassword from '@/pages/auth/InviteResetPassword'
 
 const AppRoutes = () => {
   return (
@@ -28,6 +32,8 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/invite-reset-password"element={<InviteResetPassword />}/>
 
       {/* ── MODULE PROGRAMME & HIERARCHIE COMPLETE (PROTÉGÉ) ── */}
       <Route element={<PrivateRoutes />}>
@@ -59,6 +65,12 @@ const AppRoutes = () => {
 
           {/* 5. Projets */}
           <Route path="/projets" element={<ProjetListPage />} />
+
+            {/* 6. Utilisateurs */}
+           <Route path="/users" element={<UsersPage />} />
+           <Route path="/users/new" element={<AddUserPage />} />
+
+
         </Route>
       </Route>
 
