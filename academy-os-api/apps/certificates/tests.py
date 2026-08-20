@@ -229,3 +229,41 @@ class CertificateEmailTaskTests(AuthAPITestCase):
         self.auth(self.admin).post(url, data, format="json")
 
         assert len(mail.outbox) == 1
+
+
+class CertificateEdgeCaseTests(AuthAPITestCase):
+    """Tests des cas limites non couverts par les autres classes."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = UserFactory(admin=True)
+
+    # Vérifie qu'un ID de certificat totalement inexistant renvoie 404, pas une erreur serveur.
+    def test_detail_with_nonexistent_certificate_id_returns_404(self):
+        import uuid
+
+        random_id = uuid.uuid4()
+        response = self.client.get(f"{CERTIFICATES_URL}{random_id}/")
+        assert response.status_code == 404
+
+    # Vérifie qu'un enrollment_id inexistant sur /generate/ renvoie 404, pas une erreur serveur.
+    def test_generate_with_nonexistent_enrollment_returns_404(self):
+        import uuid
+
+        random_id = uuid.uuid4()
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}generate/",
+            {"enrollment_id": str(random_id)},
+            format="json",
+        )
+        assert response.status_code == 404
+
+    # Vérifie qu'un appel totalement non authentifié sur /generate/ est bloqué.
+    def test_unauthenticated_user_cannot_generate_certificate(self):
+        enrollment = EnrollmentFactory()
+        response = self.client.post(
+            f"{CERTIFICATES_URL}generate/",
+            {"enrollment_id": str(enrollment.id)},
+            format="json",
+        )
+        assert response.status_code in (401, 403)
