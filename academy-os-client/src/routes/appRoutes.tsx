@@ -17,7 +17,9 @@ import { CohorteCreatePage } from '@/modules/programme/pages/CohorteCreatePage';
 import { CohorteDetailPage } from '@/modules/programme/pages/CohorteDetailPage';
 import InviterApprenant from '@/modules/programme/pages/InviterApprenant';
 import InviterFormateur from '@/modules/programme/pages/InviterFormateur';
-import { ProjetListPage } from '@/modules/programme/pages/ProjetListPage';
+import { ProjetListPage } from '@/pages/programme/ProjetListPage';
+import { ProjetDetailPage } from '@/pages/programme/ProjetDetailPage';
+import CertificatListPage from '@/pages/programme/CertificatListPage';
 
 import CohortListPage from '@/pages/CohortListPage';
 
@@ -59,6 +61,8 @@ const AppRoutes = () => {
 
           {/* 5. Projets */}
           <Route path="/projets" element={<ProjetListPage />} />
+          <Route path="/projets/:id" element={<ProjetDetailPage />} />
+          <Route path="/cohortes/:cohorteId/certificats" element={<CertificatListPage />} />
         </Route>
       </Route>
 
