@@ -9,6 +9,7 @@ from apps.users.permissions import IsAdmin
 from .models import Certificate
 from .serializers import CertificateSerializer, CertificatePublicSerializer
 from .services import generate_certificate
+from .tasks import send_certificate_email_task
 
 
 class MyCertificatesView(APIView):
@@ -51,8 +52,9 @@ class GenerateCertificateView(APIView):
 
     Attend un champ enrollment_id dans le corps de la requête. Crée le
     certificat lié (statut EN_ATTENTE) s'il n'existe pas déjà, ou renvoie
-    le certificat existant sans le dupliquer. La génération du PDF et
-    l'envoi de l'email sont branchés dans une étape ultérieure.
+    le certificat existant sans le dupliquer. Déclenche la tâche Celery
+    d'envoi d'email uniquement pour un certificat nouvellement créé, pas
+    pour un appel redondant sur un certificat existant.
     """
 
     permission_classes = [IsAdmin]
@@ -67,6 +69,10 @@ class GenerateCertificateView(APIView):
 
         enrollment = get_object_or_404(Enrollment, pk=enrollment_id)
         certificate, created = generate_certificate(enrollment)
+
+        if created:
+            send_certificate_email_task.delay(str(certificate.id))
+
         serializer = CertificateSerializer(certificate)
 
         return Response(

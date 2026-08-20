@@ -186,3 +186,46 @@ class CertificatePdfGenerationTests(TestCase):
         with default_storage.open(result.file_path, "rb") as f:
             content = f.read()
         self.assertGreater(len(content), 1000)
+
+
+class CertificateEmailTaskTests(AuthAPITestCase):
+    """Tests de bout en bout : generation -> Celery -> email avec piece jointe."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = UserFactory(admin=True)
+
+    # Vérifie que générer un certificat déclenche bien l'envoi d'un email avec le PDF joint.
+    def test_generate_certificate_sends_email_with_attachment(self):
+        from django.core import mail
+
+        enrollment = EnrollmentFactory()
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}generate/",
+            {"enrollment_id": str(enrollment.id)},
+            format="json",
+        )
+        assert response.status_code == 201
+
+        assert len(mail.outbox) == 1
+        sent_email = mail.outbox[0]
+        assert enrollment.user.email in sent_email.to
+        assert len(sent_email.attachments) == 1
+
+        attachment_name, attachment_content, attachment_mimetype = sent_email.attachments[0]
+        assert attachment_name.endswith(".pdf")
+        assert attachment_mimetype == "application/pdf"
+        assert len(attachment_content) > 1000
+
+    # Vérifie qu'un deuxième appel sur la même inscription ne renvoie pas d'email.
+    def test_generating_twice_does_not_resend_email(self):
+        from django.core import mail
+
+        enrollment = EnrollmentFactory()
+        url = f"{CERTIFICATES_URL}generate/"
+        data = {"enrollment_id": str(enrollment.id)}
+
+        self.auth(self.admin).post(url, data, format="json")
+        self.auth(self.admin).post(url, data, format="json")
+
+        assert len(mail.outbox) == 1
