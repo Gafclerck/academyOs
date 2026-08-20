@@ -107,3 +107,47 @@ class CertificateDetailEndpointTests(AuthAPITestCase):
         certificate = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
         response = self.client.get(f"{CERTIFICATES_URL}{certificate.id}/")
         assert response.status_code == 404
+
+
+class CertificateGenerateEndpointTests(AuthAPITestCase):
+    """Tests de l'endpoint POST /certificates/generate/."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = UserFactory(admin=True)
+
+    # Vérifie qu'un administrateur peut déclencher la génération d'un certificat.
+    def test_admin_can_generate_certificate(self):
+        enrollment = EnrollmentFactory()
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}generate/",
+            {"enrollment_id": str(enrollment.id)},
+            format="json",
+        )
+        assert response.status_code == 201
+        assert response.data["status"] == Certificate.StatusCertificateEnum.PENDING
+
+    # Vérifie qu'un utilisateur non-admin ne peut pas déclencher la génération.
+    def test_non_admin_cannot_generate_certificate(self):
+        enrollment = EnrollmentFactory()
+        learner = UserFactory()
+        response = self.auth(learner).post(
+            f"{CERTIFICATES_URL}generate/",
+            {"enrollment_id": str(enrollment.id)},
+            format="json",
+        )
+        assert response.status_code == 403
+
+    # Vérifie que générer deux fois pour la même inscription ne crée pas de doublon.
+    def test_generating_twice_does_not_duplicate_certificate(self):
+        enrollment = EnrollmentFactory()
+        url = f"{CERTIFICATES_URL}generate/"
+        data = {"enrollment_id": str(enrollment.id)}
+
+        first_response = self.auth(self.admin).post(url, data, format="json")
+        second_response = self.auth(self.admin).post(url, data, format="json")
+
+        assert first_response.status_code == 201
+        assert second_response.status_code == 200
+        assert first_response.data["id"] == second_response.data["id"]
+        assert Certificate.objects.filter(inscription=enrollment).count() == 1
