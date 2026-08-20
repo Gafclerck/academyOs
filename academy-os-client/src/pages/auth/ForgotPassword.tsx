@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
@@ -27,6 +28,8 @@ import {
   forgotPasswordSchema,
   type ForgotPasswordFormValues,
 } from '@/lib/schemas'
+
+import { forgotPassword } from '@/services/auth/forgotPassword'
 
 // ─────────────────────────────────────────────
 // ANIMATIONS
@@ -87,6 +90,7 @@ const floatingVariants: Variants = {
 const ForgotPassword = () => {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [apiError, setApiError] = useState('')
 
   const {
     register,
@@ -97,22 +101,35 @@ const ForgotPassword = () => {
     mode: 'onBlur',
   })
 
-  const onSubmit = async (data: ForgotPasswordFormValues) => {
+  // ─────────────────────────────────────────────
+  // SUBMIT
+  // ─────────────────────────────────────────────
+
+  const onSubmit = async (
+    data: ForgotPasswordFormValues,
+  ) => {
     setLoading(true)
+    setApiError('')
 
     try {
-      /*
-       * Pour le moment, on simule l'envoi.
-       *
-       * Plus tard :
-       * await forgotPassword(data)
-       */
-
-      console.log('Forgot password:', data)
-
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+      await forgotPassword({
+        email: data.email.trim(),
+      })
 
       setSubmitted(true)
+    } catch (err: any) {
+      console.error(
+        'Erreur forgot password :',
+        err,
+      )
+
+      const responseData = err?.response?.data
+
+      setApiError(
+        responseData?.detail ||
+          responseData?.email?.[0] ||
+          "Une erreur s'est produite. Veuillez réessayer.",
+      )
     } finally {
       setLoading(false)
     }
@@ -141,7 +158,7 @@ const ForgotPassword = () => {
 
       <div className="absolute inset-0">
 
-        {/* Orange glow */}
+        {/* Orange glow gauche */}
 
         <motion.div
           className="
@@ -163,7 +180,7 @@ const ForgotPassword = () => {
           }}
         />
 
-        {/* Second orange glow */}
+        {/* Orange glow droite */}
 
         <motion.div
           className="
@@ -283,7 +300,7 @@ const ForgotPassword = () => {
         >
 
           {/* ═════════════════════════════════════════
-              LOGO XARALA
+              LOGO
           ═════════════════════════════════════════ */}
 
           <motion.div
@@ -344,7 +361,7 @@ const ForgotPassword = () => {
             "
           >
 
-            {/* Card decorations */}
+            {/* Décorations */}
 
             <div
               className="
@@ -370,9 +387,9 @@ const ForgotPassword = () => {
 
             {!submitted ? (
               <>
-                {/* ═══════════════════════════════════════
+                {/* ═════════════════════════════════
                     HEADER
-                ═══════════════════════════════════════ */}
+                ═════════════════════════════════ */}
 
                 <motion.div
                   variants={itemVariants}
@@ -407,15 +424,46 @@ const ForgotPassword = () => {
                       dark:text-slate-400
                     "
                   >
-                    Pas d&apos;inquiétude. Entrez votre adresse email et nous
-                    vous enverrons un lien pour réinitialiser votre mot de
-                    passe.
+                    Pas d&apos;inquiétude. Entrez votre
+                    adresse email et nous vous enverrons
+                    un code pour réinitialiser votre mot
+                    de passe.
                   </p>
                 </motion.div>
 
-                {/* ═══════════════════════════════════════
+                {/* ═════════════════════════════════
+                    API ERROR
+                ═════════════════════════════════ */}
+
+                {apiError && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      y: -5,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="
+                      relative mb-5
+                      rounded-xl
+                      border border-red-200
+                      bg-red-50
+                      p-3
+                      text-sm text-red-600
+                      dark:border-red-500/20
+                      dark:bg-red-500/10
+                      dark:text-red-400
+                    "
+                  >
+                    {apiError}
+                  </motion.div>
+                )}
+
+                {/* ═════════════════════════════════
                     FORM
-                ═══════════════════════════════════════ */}
+                ═════════════════════════════════ */}
 
                 <motion.form
                   variants={containerVariants}
@@ -439,6 +487,7 @@ const ForgotPassword = () => {
                     </Label>
 
                     <div className="group relative">
+
                       <Mail
                         className="
                           absolute left-4 top-1/2
@@ -496,7 +545,11 @@ const ForgotPassword = () => {
                           opacity: 1,
                           y: 0,
                         }}
-                        className="mt-2 text-xs text-red-500 dark:text-red-400"
+                        className="
+                          mt-2 text-xs
+                          text-red-500
+                          dark:text-red-400
+                        "
                       >
                         {errors.email.message}
                       </motion.p>
@@ -548,28 +601,42 @@ const ForgotPassword = () => {
                         />
                       )}
 
-                      <span className="relative flex items-center justify-center">
+                      <span
+                        className="
+                          relative
+                          flex items-center
+                          justify-center
+                        "
+                      >
                         {loading ? (
                           <>
-                            <Loader2 className="mr-2 size-4 animate-spin" />
+                            <Loader2
+                              className="
+                                mr-2 size-4
+                                animate-spin
+                              "
+                            />
                             Envoi en cours...
                           </>
                         ) : (
                           <>
-                            Envoyer le lien
+                            Envoyer le code
 
                             <ArrowRight
                               className="
                                 ml-2 size-4
-                                transition-transform duration-300
+                                transition-transform
+                                duration-300
                                 group-hover:translate-x-1
                               "
                             />
                           </>
                         )}
                       </span>
+
                     </Button>
                   </motion.div>
+
                 </motion.form>
 
                 {/* BACK TO LOGIN */}
@@ -597,9 +664,9 @@ const ForgotPassword = () => {
               </>
             ) : (
 
-              /* ═══════════════════════════════════════
-                 SUCCESS STATE
-              ═══════════════════════════════════════ */
+              /* ═════════════════════════════════
+                 SUCCESS
+              ═════════════════════════════════ */
 
               <motion.div
                 initial={{
@@ -637,7 +704,13 @@ const ForgotPassword = () => {
                     bg-green-400/10
                   "
                 >
-                  <CheckCircle2 className="size-8 text-green-500 dark:text-green-400" />
+                  <CheckCircle2
+                    className="
+                      size-8
+                      text-green-500
+                      dark:text-green-400
+                    "
+                  />
                 </motion.div>
 
                 <h2
@@ -658,8 +731,9 @@ const ForgotPassword = () => {
                     dark:text-slate-400
                   "
                 >
-                  Si un compte existe avec cette adresse email, vous recevrez
-                  un lien pour réinitialiser votre mot de passe.
+                  Si un compte existe avec cette adresse
+                  email, vous recevrez un code pour
+                  réinitialiser votre mot de passe.
                 </p>
 
                 <div
@@ -681,7 +755,8 @@ const ForgotPassword = () => {
                       dark:text-slate-500
                     "
                   >
-                    💡 Pensez également à vérifier votre dossier
+                    💡 Pensez également à vérifier votre
+                    dossier
                     <span
                       className="
                         font-medium
@@ -716,6 +791,7 @@ const ForgotPassword = () => {
 
               </motion.div>
             )}
+
           </motion.div>
 
           {/* ═════════════════════════════════════════
@@ -727,7 +803,14 @@ const ForgotPassword = () => {
             className="mt-6 text-center"
           >
             <div className="flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="size-3 text-green-500 dark:text-green-400" />
+
+              <CheckCircle2
+                className="
+                  size-3
+                  text-green-500
+                  dark:text-green-400
+                "
+              />
 
               <p
                 className="
@@ -738,6 +821,7 @@ const ForgotPassword = () => {
               >
                 Connexion sécurisée
               </p>
+
             </div>
 
             <p
@@ -759,6 +843,7 @@ const ForgotPassword = () => {
             >
               La technologie dans votre langue.
             </p>
+
           </motion.div>
 
         </motion.div>
@@ -768,3 +853,4 @@ const ForgotPassword = () => {
 }
 
 export default ForgotPassword
+

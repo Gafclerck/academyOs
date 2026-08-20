@@ -110,7 +110,7 @@ def send_reset_password_email(email, code, connection=None):
 
 def send_invitation_email(email, code, connection=None, role=None):
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
-    activate_url = f"{frontend_url}/register"
+    activate_url = f"{frontend_url}/reset-password"
     role_label = "Formateur" if role == User.Role.TRAINER else "Organisateur" if role == User.Role.ORGANIZER else "Apprenant"
     plain_text = (
         f"Bonjour,\n\n"

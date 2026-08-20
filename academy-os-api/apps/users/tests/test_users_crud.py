@@ -16,10 +16,23 @@ class UserCRUDTests(AuthAPITestCase):
     def test_unauthenticated_cannot_access(self):
         assert self.client.get(USERS_URL).status_code == 401
 
-    def test_non_admin_forbidden(self):
-        assert self.auth(self.organizer).get(USERS_URL).status_code == 403
+    def test_trainer_and_learner_forbidden(self):
         assert self.auth(self.trainer).get(USERS_URL).status_code == 403
         assert self.auth(self.learner).get(USERS_URL).status_code == 403
+
+    def test_organizer_can_list_and_retrieve_users(self):
+        response = self.auth(self.organizer).get(USERS_URL)
+        assert response.status_code == 200
+        assert response.data["count"] >= 4
+
+        detail_response = self.auth(self.organizer).get(f"{USERS_URL}{self.learner.id}/")
+        assert detail_response.status_code == 200
+        assert detail_response.data["email"] == self.learner.email
+
+    def test_organizer_cannot_modify_or_delete_user(self):
+        url = f"{USERS_URL}{self.learner.id}/"
+        assert self.auth(self.organizer).patch(url, {"status": "suspended"}, format="json").status_code == 403
+        assert self.auth(self.organizer).delete(url).status_code == 403
 
     def test_admin_can_list_users(self):
         response = self.auth(self.admin).get(USERS_URL)
