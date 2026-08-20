@@ -223,8 +223,12 @@ PASSWORD_RESET_INVITE_TTL_DAYS = 7
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Frontend URL
+# Frontend URL & Chemins de redirection configurables
 FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173')
+FRONTEND_RESET_PASSWORD_PATH = env('FRONTEND_RESET_PASSWORD_PATH', default='/reset-password')
+FRONTEND_ACTIVATE_ACCOUNT_PATH = env('FRONTEND_ACTIVATE_ACCOUNT_PATH', default='/invite-reset-password')
+FRONTEND_COHORTS_PATH = env('FRONTEND_COHORTS_PATH', default='/programmes')
+FRONTEND_LOGO_PATH = env('FRONTEND_LOGO_PATH', default='/logo-xarala.png')
 
 
 # Email

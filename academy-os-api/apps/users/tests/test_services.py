@@ -71,3 +71,21 @@ class ServiceTests(AuthTestCase):
         user2, created2 = invite_user("formateur@test.fr", User.Role.TRAINER)
         assert created2 is False
         assert user2.id == user.id
+
+    def test_get_frontend_url_formatting(self):
+        from django.test import override_settings
+        from apps.users.services import get_frontend_url
+
+        with override_settings(FRONTEND_URL="https://app.academy.xarala.co/"):
+            # Valeur par défaut configurée dans settings
+            url1 = get_frontend_url("FRONTEND_RESET_PASSWORD_PATH")
+            assert url1 == "https://app.academy.xarala.co/reset-password"
+
+            # Setting explicite surchargé
+            with override_settings(FRONTEND_RESET_PASSWORD_PATH="/auth/nouveau-reset"):
+                url2 = get_frontend_url("FRONTEND_RESET_PASSWORD_PATH")
+                assert url2 == "https://app.academy.xarala.co/auth/nouveau-reset"
+
+            # Setting inexistant : utilise le fallback
+            url3 = get_frontend_url("FRONTEND_UNKNOWN_SETTING", "/fallback-path")
+            assert url3 == "https://app.academy.xarala.co/fallback-path"
