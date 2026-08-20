@@ -19,5 +19,7 @@ REST_FRAMEWORK = {
         'enroll': None,
         'forgot': None,
         'reset': None,
+        'activate': None,
     },
 }
+

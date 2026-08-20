@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.users.models import PasswordResetToken, User
 from apps.users.services import (
     _hash_code,
-    create_user_by_admin,
+    activate_user,
     generate_reset_token,
     invite_user,
     reset_password,
@@ -32,10 +32,10 @@ class ServiceTests(AuthTestCase):
         token = PasswordResetToken.objects.get(user=learner)
         assert token.is_expired is False
 
-    def test_reset_password_marks_token_used(self):
-        learner = UserFactory(pending=True)
-        assert learner.status == User.Status.PENDING
-        assert learner.is_active is False
+    def test_reset_password_marks_token_used_for_active_user(self):
+        learner = UserFactory()
+        assert learner.status == User.Status.ACTIVE
+        assert learner.is_active is True
         code = generate_reset_token(learner)
         reset_password(learner.email, code, NEW_PASSWORD)
         token = PasswordResetToken.objects.get(user=learner)
@@ -43,24 +43,47 @@ class ServiceTests(AuthTestCase):
         learner.refresh_from_db()
         assert learner.check_password(NEW_PASSWORD)
         assert learner.password_reset_at is not None
-        assert learner.status == User.Status.ACTIVE
-        assert learner.is_active is True
 
-    def test_create_user_by_admin_duplicate_email(self):
-        existing = UserFactory()
+    def test_reset_password_fails_for_pending_user(self):
+        pending = UserFactory(pending=True)
+        code = generate_reset_token(pending)
         with self.assertRaises(serializers.ValidationError):
-            create_user_by_admin(email=existing.email, role=User.Role.TRAINER)
+            reset_password(pending.email, code, NEW_PASSWORD)
 
-    def test_create_user_by_admin_creates_account(self):
-        user = create_user_by_admin(
-            email="nouveau@test.fr", role=User.Role.TRAINER, first_name="Awa", last_name="Diop"
+    def test_activate_user_service(self):
+        pending = UserFactory(pending=True, first_name="", last_name="")
+        code = generate_reset_token(pending)
+        activate_user(
+            email=pending.email,
+            code=code,
+            new_password=NEW_PASSWORD,
+            first_name="Awa",
+            last_name="Diop",
+            phone_number="+221771234567",
         )
-        assert user.role == User.Role.TRAINER
-        assert user.status == User.Status.PENDING
-        assert user.is_active is False
-        assert user.first_name == "Awa"
-        assert user.has_usable_password() is False
-        assert PasswordResetToken.objects.filter(user=user).exists()
+        token = PasswordResetToken.objects.get(user=pending)
+        assert token.used is True
+        pending.refresh_from_db()
+        assert pending.check_password(NEW_PASSWORD)
+        assert pending.password_reset_at is not None
+        assert pending.status == User.Status.ACTIVE
+        assert pending.is_active is True
+        assert pending.first_name == "Awa"
+        assert pending.last_name == "Diop"
+        assert pending.phone_number == "+221771234567"
+
+    def test_activate_user_fails_for_already_active_user(self):
+        active = UserFactory()
+        code = generate_reset_token(active)
+        with self.assertRaises(serializers.ValidationError):
+            activate_user(
+                email=active.email,
+                code=code,
+                new_password=NEW_PASSWORD,
+                first_name="Awa",
+                last_name="Diop",
+            )
+
 
     def test_invite_user_get_or_create(self):
         user, created = invite_user("formateur@test.fr", User.Role.TRAINER)

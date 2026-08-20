@@ -177,43 +177,13 @@ def send_added_to_cohort_email(email, cohort_name, connection=None, role=None):
     )
 
 
-
-def create_user_by_admin(email, role, first_name="", last_name="", phone_number=None):
-    """Crée un compte à la demande d'un admin, avec le rôle choisi.
-
-    Le compte n'a pas de mot de passe utilisable : un code est envoyé par email
-    pour définir le premier mot de passe via le flow reset-password.
-    Lève serializers.ValidationError si l'email est déjà utilisé.
-    """
-    from rest_framework import serializers
-
-    email = BaseUserManager.normalize_email(email).strip().lower()
-    if User.objects.filter(email__iexact=email).exists():
-        raise serializers.ValidationError({"email": "Un utilisateur avec cet email existe déjà."})
-    user = User.objects.create_user(
-        email=email,
-        password=None,
-        role=role,
-        status=User.Status.PENDING,
-        first_name=first_name,
-        last_name=last_name,
-        phone_number=phone_number,
-    )
-    user.set_unusable_password()
-    user.status = User.Status.PENDING
-    user.is_active = False
-    user.save(update_fields=["password", "status", "is_active"])
-    code = generate_reset_token(user, expires_in=timezone.timedelta(days=INVITE_CODE_TTL_DAYS))
-    send_account_created_email(user.email, code)
-    return user
-
-
 def invite_user(email, role, connection=None):
     """Crée (ou réutilise) un utilisateur par email et lui envoie une invitation.
 
     Le nouveau compte a le statut 'pending' (is_active=False) et n'a pas de mot
-    de passe utilisable : le code envoyé sert à définir le premier mot de passe
-    via le flow reset-password, qui active le compte (status='active').
+    de passe utilisable : le code envoyé sert à définir le mot de passe et
+    compléter le profil via le flow activate (/auth/activate/), qui active le
+    compte (status='active').
     Retourne (user, created).
     """
     email = BaseUserManager.normalize_email(email).strip().lower()
@@ -251,7 +221,7 @@ def invite_users(emails, role):
     - Une seule connexion SMTP est réutilisée pour tout le lot (efficace).
     - Chaque envoi est isolé : un échec SMTP n'abandonne ni la création des
       autres comptes ni les envois suivants.
-    - Retourne une liste de dicts {email, status: created|reused, detail}.
+      - Retourne une liste de dicts {email, status: created|reused, detail}.
     """
     connection = mail.get_connection()
     results = []
@@ -280,11 +250,11 @@ def invite_users(emails, role):
     return results
 
 
-def reset_password(email, code, new_password):
-    """Valide le code et définit le nouveau mot de passe (usage unique, expiration).
+def _validate_and_consume_token(email, code, allowed_status=None):
+    """Valide l'utilisateur, son statut et le code OTP, puis révoque les tokens.
 
-    Active les comptes 'pending' en 'active'. Lève serializers.ValidationError si le
-    code est inconnu, expiré, déjà utilisé ou si le compte est suspendu/archivé.
+    Lève serializers.ValidationError si le code est invalide, expiré ou si
+    le statut du compte ne correspond pas à `allowed_status`.
     """
     from rest_framework import serializers
 
@@ -293,20 +263,59 @@ def reset_password(email, code, new_password):
     if not user:
         raise serializers.ValidationError({"code": "Code invalide ou expiré."})
 
-    # Protection explicite contre la réactivation d'un compte suspendu ou archivé
+    # Protection contre les comptes désactivés
     if user.status in (User.Status.SUSPENDED, User.Status.ARCHIVED):
         raise serializers.ValidationError({"code": "Ce compte est désactivé. Contactez l'administrateur."})
+
+    if allowed_status is not None:
+        if allowed_status == User.Status.PENDING and user.status != User.Status.PENDING:
+            if user.status == User.Status.ACTIVE:
+                raise serializers.ValidationError(
+                    {"code": "Ce compte est déjà activé. Veuillez vous connecter ou réinitialiser votre mot de passe."}
+                )
+            raise serializers.ValidationError({"code": "Ce compte n'est pas en attente d'activation."})
+        elif allowed_status == User.Status.ACTIVE and user.status != User.Status.ACTIVE:
+            if user.status == User.Status.PENDING:
+                raise serializers.ValidationError(
+                    {"code": "Ce compte n'est pas encore activé. Veuillez utiliser l'activation de compte."}
+                )
+            raise serializers.ValidationError({"code": "Ce compte n'est pas actif."})
 
     token = PasswordResetToken.objects.filter(user=user, token=_hash_code(code), used=False).first()
     if not token or token.is_expired:
         raise serializers.ValidationError({"code": "Code invalide ou expiré."})
 
-    user.set_password(new_password)
-    user.password_reset_at = timezone.now()
-    user.status = User.Status.ACTIVE
-    user.is_active = True
-    user.save(update_fields=["password", "password_reset_at", "status", "is_active"])
-
     # Révoque tous les tokens de l'utilisateur
     PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
     return user
+
+
+def reset_password(email, code, new_password):
+    """Valide le code et définit le nouveau mot de passe pour un compte ACTIVE.
+
+    Lève serializers.ValidationError si le code est invalide, expiré ou si le
+    compte n'est pas actif.
+    """
+    user = _validate_and_consume_token(email, code, allowed_status=User.Status.ACTIVE)
+    user.set_password(new_password)
+    user.password_reset_at = timezone.now()
+    user.save(update_fields=["password", "password_reset_at"])
+    return user
+
+
+def activate_user(email, code, new_password, first_name, last_name, phone_number=None):
+    """Valide le code d'invitation, enregistre le profil et active le compte PENDING.
+
+    Lève serializers.ValidationError si le code est invalide, expiré ou si le
+    compte n'est pas en attente d'activation.
+    """
+    user = _validate_and_consume_token(email, code, allowed_status=User.Status.PENDING)
+    user.set_password(new_password)
+    user.password_reset_at = timezone.now()
+    user.first_name = first_name.strip()
+    user.last_name = last_name.strip()
+    user.phone_number = phone_number.strip() if phone_number else None
+    user.status = User.Status.ACTIVE
+    user.is_active = True
+    user.save(update_fields=["password", "password_reset_at", "first_name", "last_name", "phone_number", "status", "is_active"])
+    return user
