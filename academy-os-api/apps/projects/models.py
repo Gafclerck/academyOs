@@ -1,4 +1,5 @@
 from django.contrib.contenttypes.fields import GenericRelation
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from apps.core.models import UUIDModel, TimeStampedModel
@@ -34,7 +35,10 @@ class Project(UUIDModel, TimeStampedModel):
         default=StatusProjectEnum.DRAFT,
     )
     # Rang du projet dans l'ordre de passage du programme (commence à 1).
-    order = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+    )
 
     # Pièces jointes polymorphiques (énoncés, consignes, ressources) avec suppression en cascade
     attachments = GenericRelation(

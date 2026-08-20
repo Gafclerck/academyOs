@@ -70,6 +70,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
         return [IsAdmin()]
 
+    def perform_create(self, serializer):
+        project = serializer.save()
+        if project.status == Project.StatusProjectEnum.PUBLISHED:
+            from apps.evaluations.services import create_assignments_for_project
+            create_assignments_for_project(project)
+
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+        project = serializer.save()
+        if (
+            old_status != Project.StatusProjectEnum.PUBLISHED
+            and project.status == Project.StatusProjectEnum.PUBLISHED
+        ):
+            from apps.evaluations.services import create_assignments_for_project
+            create_assignments_for_project(project)
+
     def get_queryset(self):
         queryset = super().get_queryset()
 
