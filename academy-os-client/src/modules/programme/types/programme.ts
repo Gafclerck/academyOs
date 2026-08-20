@@ -135,7 +135,91 @@ export interface CohorteDetailKPIs {
   nb_projets: number;
 }
 
-// ─── 7. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
+// ─── 7. CERTIFICAT ────────────────────────────────────────────────────────────
+
+export interface Certificat {
+  id: string;
+  cohorte_id: string;
+  membre_id: string;
+  nom_apprenant: string;
+  prenom_apprenant: string;
+  nom_projet?: string;
+  date_obtention: string;
+  score?: number;
+  lien_download?: string;
+}
+
+export interface CreateProjetDTO {
+  cohorte_id: string;
+  nom: string;
+  description?: string;
+  date_debut?: string;
+  date_fin_prevue?: string;
+}
+
+export interface CreateCertificatDTO {
+  cohorte_id: string;
+  membre_id: string;
+  nom_projet?: string;
+  score?: number;
+}
+
+export interface CreateMembreDTO {
+  cohorte_id: string;
+  rentree_id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: 'etudiant' | 'mentor' | 'lead' | 'admin';
+}
+
+export interface UpdateMembreDTO {
+  role?: 'etudiant' | 'mentor' | 'lead' | 'admin';
+}
+
+// ─── 8. SOUMISSION & REVIEW ───────────────────────────────────────────────────
+
+export interface SoumissionProjet {
+  id: string;
+  projet_id: string;
+  cohorte_id: string;
+  membre_id: string;
+  nom_apprenant: string;
+  prenom_apprenant: string;
+  fichier_url?: string;
+  commentaire?: string;
+  statut: 'soumis' | 'en_correction' | 'corrige' | 'accepte' | 'refuse';
+  score?: number;
+  feedback?: string;
+  date_soumission: string;
+  date_review?: string;
+}
+
+export interface CreateSoumissionDTO {
+  projet_id: string;
+  cohorte_id: string;
+  membre_id: string;
+  fichier_url?: string;
+  commentaire?: string;
+}
+
+export interface ReviewProjet {
+  id: string;
+  soumission_id: string;
+  correcteur_id: string;
+  correcteur_nom: string;
+  score: number;
+  feedback: string;
+  date_review: string;
+}
+
+export interface CreateReviewDTO {
+  soumission_id: string;
+  score: number;
+  feedback: string;
+}
+
+// ─── 9. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
 // À supprimer progressivement
 
 /** @deprecated Utiliser RentreeProgramme */

@@ -5,7 +5,6 @@ import {
   FolderGit2,
   ArrowLeft,
   CalendarDays,
-  Mail,
   Pencil,
   UserPlus,
   FolderOpen,
@@ -16,9 +15,10 @@ import {
   useMembresByCohorte,
   useProjetsByCohorte,
 } from '../hooks/useProgrammes';
-import type { Membre, ProjetCohorte } from '../types/programme';
+import type { ProjetCohorte } from '../types/programme';
 import { StatCard } from '../components/ui/StatCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { MembreManagement } from '../components/MembreManagement';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
 import { Button } from '@/components/ui/button';
 
@@ -29,86 +29,8 @@ export const CohorteDetailPage: React.FC = () => {
 
   const { data: cohorte, isLoading: cohLoading } = useCohorte(id);
   const { data: kpis } = useCohorteDetailKPIs(id);
-  const { data: membres = [], isLoading: membLoading } = useMembresByCohorte(id);
+  const { data: membres = [] } = useMembresByCohorte(id);
   const { data: projets = [], isLoading: projLoading } = useProjetsByCohorte(id);
-
-  /* ================= MEMBRES ================= */
-  const membresColumns = useMemo<ColumnDef<Membre>[]>(
-    () => [
-      {
-        accessorKey: 'nom',
-        header: 'Apprenant / Membre',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-full bg-gradient-to-br from-[#FF6B0B] to-[#FF8C38] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-              {row.original.avatar ||
-                `${row.original.prenom?.[0] || ''}${row.original.nom?.[0] || ''}`}
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {row.original.prenom} {row.original.nom}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                Inscrit le {row.original.date_rejoint || '2026-01-15'}
-              </p>
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: ({ row }) => (
-          <a
-            href={`mailto:${row.original.email}`}
-            className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 hover:text-[#FF6B0B] transition-colors"
-          >
-            <Mail className="size-3.5 text-slate-400" />
-            {row.original.email}
-          </a>
-        ),
-      },
-      {
-        accessorKey: 'role',
-        header: 'Rôle',
-        cell: ({ row }) => {
-          const role = row.original.role;
-          const roleConfig: Record<string, { label: string; cls: string }> = {
-            etudiant: {
-              label: 'Étudiant',
-              cls: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
-            },
-            mentor: {
-              label: 'Mentor',
-              cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-            },
-            lead: {
-              label: 'Team Lead',
-              cls: 'bg-[#FF6B0B]/10 text-[#FF6B0B] border-[#FF6B0B]/20',
-            },
-            admin: {
-              label: 'Admin',
-              cls: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
-            },
-          };
-
-          const current = roleConfig[role] || {
-            label: role,
-            cls: 'bg-slate-100 text-slate-600',
-          };
-
-          return (
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${current.cls}`}
-            >
-              {current.label}
-            </span>
-          );
-        },
-      },
-    ],
-    []
-  );
 
   /* ================= PROJETS ================= */
   const projetsColumns = useMemo<ColumnDef<ProjetCohorte>[]>(
@@ -393,15 +315,7 @@ export const CohorteDetailPage: React.FC = () => {
 
       {/* ================= CONTENU ONGLET ================= */}
       {activeTab === 'membres' && (
-        <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] shadow-sm overflow-hidden">
-          <DataTable
-            columns={membresColumns}
-            data={membres}
-            isLoading={membLoading}
-            searchPlaceholder="Rechercher un étudiant par nom ou email..."
-            emptyMessage="Aucun étudiant assigné à cette cohorte pour le moment."
-          />
-        </div>
+        <MembreManagement cohorteId={cohorte.id} rentreeId={cohorte.rentree_id || ''} />
       )}
 
       {activeTab === 'projets' && (
