@@ -24,7 +24,7 @@ import ResetPassword from '@/pages/auth/ResetPassword'
 import CohortListPage from '@/pages/CohortListPage';
 import InviteResetPassword from '@/pages/auth/InviteResetPassword'
 import Profile from '@/pages/Profile'
-
+import AdminDashboard from '@/pages/AdminDashboard'
 
 const AppRoutes = () => {
   return (
@@ -37,9 +37,13 @@ const AppRoutes = () => {
 
       {/* ── MODULE PROGRAMME & HIERARCHIE COMPLETE (PROTÉGÉ) ── */}
       <Route element={<PrivateRoutes />}>
+      
         <Route element={<ProgrammeLayout />}>
+
+          <Route path="/admin/dashboard" element={<AdminDashboard />}/>
+
           {/* 1. Programmes */}
-          <Route path="/" element={<Navigate to="/programmes" replace />} />
+          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/programmes" element={<ProgrammeListPage />} />
           <Route path="/programmes/new" element={<ProgrammeCreatePage />} />
           <Route path="/programmes/:id" element={<ProgrammeDetailPage />} />
@@ -70,6 +74,7 @@ const AppRoutes = () => {
            <Route path="/users" element={<UsersPage />} />
            <Route path="/users/new" element={<AddUserPage />} />
           <Route path="/profile" element={<Profile />} />
+
 
         </Route>
       </Route>

@@ -5,6 +5,7 @@ import {
 } from 'react-router-dom'
 
 import {
+  LayoutDashboard,
   BookOpen,
   CalendarDays,
   GraduationCap,
@@ -27,6 +28,12 @@ interface SidebarItem {
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
+  {
+    name: 'Dashboard',
+    href: '/admin/dashboard',
+    icon: LayoutDashboard,
+    description: "Vue générale de l'académie",
+  },
   {
     name: 'Programmes',
     href: '/programmes',
@@ -202,18 +209,20 @@ export const ProgrammeSidebar: React.FC<
               dark:text-slate-500
             "
           >
-            Hiérarchie Métier
+            Navigation
           </p>
 
           <nav className="space-y-1">
 
-            {SIDEBAR_ITEMS.map((item, index) => {
+            {SIDEBAR_ITEMS.map((item) => {
               const Icon = item.icon
 
               const isActive =
-                item.href === '/programmes'
-                  ? location.pathname.startsWith('/programmes')
-                  : location.pathname.startsWith(item.href)
+                item.href === '/admin/dashboard'
+                  ? location.pathname === '/admin/dashboard'
+                  : item.href === '/programmes'
+                    ? location.pathname.startsWith('/programmes')
+                    : location.pathname.startsWith(item.href)
 
               return (
                 <NavLink
@@ -263,6 +272,8 @@ export const ProgrammeSidebar: React.FC<
                     "
                   >
 
+                    {/* ICÔNE */}
+
                     <div
                       className={`
                         flex
@@ -295,6 +306,8 @@ export const ProgrammeSidebar: React.FC<
                       <Icon className="size-4" />
                     </div>
 
+                    {/* TEXTE */}
+
                     <div className="truncate">
 
                       <p className="truncate text-sm leading-tight">
@@ -313,12 +326,14 @@ export const ProgrammeSidebar: React.FC<
                           }
                         `}
                       >
-                        Niveau {index + 1}
+                        {item.description}
                       </p>
 
                     </div>
 
                   </div>
+
+                  {/* CHEVRON */}
 
                   <ChevronRight
                     className={`
@@ -441,7 +456,6 @@ export const ProgrammeSidebar: React.FC<
 
         {/* ═══════════════════════════════════════════
             PROFIL UTILISATEUR
-            Nom + email cliquables
         ═══════════════════════════════════════════ */}
 
         <NavLink
@@ -547,7 +561,7 @@ export const ProgrammeSidebar: React.FC<
         </NavLink>
 
         {/* ═══════════════════════════════════════════
-            LOGOUT
+            DÉCONNEXION
         ═══════════════════════════════════════════ */}
 
         <button
@@ -609,4 +623,3 @@ export const ProgrammeSidebar: React.FC<
 }
 
 export default ProgrammeSidebar
-
