@@ -57,3 +57,5 @@ GEMINI.md
 academy-os-client/dist/
 academy-os-client/dist-ssr/
 academy-os-client/node_modules/
+.vite/
+*.local
