@@ -3,272 +3,167 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   UserPlus,
-  Search,
-  Mail,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { addTrainers } from '@/services/membreService'
 
 const InviterFormateur: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
 
-  const [search, setSearch] = useState('')
-  const [selectedFormateurs, setSelectedFormateurs] = useState<number[]>([])
-  const [invitationSent, setInvitationSent] = useState(false)
+  const [emails, setEmails] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState<{ email: string; status: string; detail: string }[]>([])
+  const [submitted, setSubmitted] = useState(false)
 
-  // Données temporaires pour tester l'interface
-  const formateurs = [
-    {
-      id: 1,
-      prenom: 'Moussa',
-      nom: 'Diop',
-      email: 'moussa.diop@example.com',
-    },
-    {
-      id: 2,
-      prenom: 'Aminata',
-      nom: 'Fall',
-      email: 'aminata.fall@example.com',
-    },
-    {
-      id: 3,
-      prenom: 'Cheikh',
-      nom: 'Sow',
-      email: 'cheikh.sow@example.com',
-    },
-    {
-      id: 4,
-      prenom: 'Fatou',
-      nom: 'Ndiaye',
-      email: 'fatou.ndiaye@example.com',
-    },
-  ]
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const lines = emails
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
 
-  const filteredFormateurs = formateurs.filter((formateur) => {
-    const value = search.toLowerCase()
+    if (lines.length === 0) {
+      return
+    }
 
-    return (
-      formateur.prenom.toLowerCase().includes(value) ||
-      formateur.nom.toLowerCase().includes(value) ||
-      formateur.email.toLowerCase().includes(value)
-    )
-  })
-
-  const toggleFormateur = (formateurId: number) => {
-    setSelectedFormateurs((prev) =>
-      prev.includes(formateurId)
-        ? prev.filter((id) => id !== formateurId)
-        : [...prev, formateurId]
-    )
+    setLoading(true)
+    try {
+      const data = await addTrainers(id || '', lines)
+      setResults(data.results)
+      setSubmitted(true)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de l\'envoi des invitations.'
+      setResults(lines.map((email) => ({ email, status: 'error', detail: message })))
+      setSubmitted(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleInvitation = () => {
-    console.log('Cohorte :', id)
-    console.log('Formateurs sélectionnés :', selectedFormateurs)
-
-    // Plus tard :
-    // appel API pour envoyer les invitations
-
-    setInvitationSent(true)
-
-    setTimeout(() => {
-      navigate(`/cohortes/${id}`)
-    }, 1500)
-  }
+  const successCount = results.filter((r) => r.status === 'assigned').length
+  const hasErrors = results.some((r) => r.status !== 'assigned')
 
   return (
     <div className="space-y-6">
 
-      {/* ================= HEADER ================= */}
       <div className="bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 p-6 rounded-2xl shadow-sm">
-
         <div className="flex items-center gap-3">
-
           <Button
             variant="outline"
             size="icon"
             onClick={() => navigate(`/cohortes/${id}`)}
-            className="size-9 rounded-lg"
+            className="size-9 rounded-lg border-slate-200 dark:border-white/10"
           >
             <ArrowLeft className="size-4" />
           </Button>
-
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
               Inviter des formateurs
             </h1>
-
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Sélectionnez les formateurs à inviter dans cette cohorte.
+              Saisissez les emails des formateurs à affecter à cette cohorte.
             </p>
           </div>
-
         </div>
-
       </div>
 
-      {/* ================= MESSAGE DE SUCCÈS ================= */}
-      {invitationSent && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/20">
-
-          <div className="size-9 rounded-full bg-emerald-500/10 flex items-center justify-center">
-            <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
+      {submitted && (
+        <div className={`flex items-start gap-3 p-4 rounded-2xl border ${hasErrors ? 'border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/20' : 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 dark:border-emerald-500/20'}`}>
+          <div className={`size-10 rounded-full flex items-center justify-center shrink-0 ${hasErrors ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'}`}>
+            {hasErrors ? <AlertCircle className="size-5" /> : <CheckCircle2 className="size-5" />}
           </div>
-
           <div>
-            <p className="font-bold text-sm text-emerald-700 dark:text-emerald-400">
-              Invitation envoyée
+            <p className={`font-bold ${hasErrors ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+              {hasErrors ? 'Affectations terminées avec des erreurs' : 'Formateurs ajoutés avec succès'}
             </p>
-
-            <p className="text-xs text-emerald-600 dark:text-emerald-500">
-              Les formateurs sélectionnés ont été invités dans la cohorte.
+            <p className={`text-sm mt-1 ${hasErrors ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}`}>
+              {successCount} formateur(s) ajouté(s) sur {results.length}.
             </p>
           </div>
-
         </div>
       )}
 
-      {/* ================= CONTENU ================= */}
-      <div className="bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-sm">
-
-        {/* ================= RECHERCHE ================= */}
-        <div className="p-5 border-b border-slate-200 dark:border-white/10">
-
-          <div className="relative">
-
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher un formateur..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/30"
+      {!submitted && (
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-200 dark:border-white/10 space-y-2">
+            <Label htmlFor="emails">Emails des formateurs</Label>
+            <Textarea
+              id="emails"
+              value={emails}
+              onChange={(e) => setEmails(e.target.value)}
+              placeholder="formateur1@exemple.com&#10;formateur2@exemple.com&#10;..."
+              rows={8}
+              className="rounded-xl"
             />
-
+            <p className="text-xs text-slate-500">
+              Un email par ligne. Les comptes doivent déjà exister avec le rôle formateur.
+            </p>
           </div>
 
-        </div>
-
-        {/* ================= LISTE ================= */}
-        <div className="divide-y divide-slate-200 dark:divide-white/10">
-
-          {filteredFormateurs.length === 0 ? (
-
-            <div className="p-10 text-center">
-
-              <UsersIcon />
-
-              <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Aucun formateur trouvé
-              </p>
-
+          <div className="p-5 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              <strong className="text-slate-900 dark:text-white">
+                {emails.split(/[\n,]+/).filter((e) => e.trim().length > 0).length}
+              </strong>{' '}
+              email(s) saisi(s)
+            </p>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(`/cohortes/${id}`)}
+                disabled={loading}
+                className="flex-1 sm:flex-none"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none"
+              >
+                <UserPlus className="size-4" />
+                {loading ? 'Ajout en cours...' : 'Ajouter'}
+              </Button>
             </div>
+          </div>
+        </form>
+      )}
 
-          ) : (
-
-            filteredFormateurs.map((formateur) => {
-
-              const selected = selectedFormateurs.includes(formateur.id)
-
-              return (
-                <div
-                  key={formateur.id}
-                  onClick={() => toggleFormateur(formateur.id)}
-                  className={`flex items-center justify-between p-5 cursor-pointer transition-colors ${
-                    selected
-                      ? 'bg-blue-500/5'
-                      : 'hover:bg-slate-50 dark:hover:bg-white/5'
-                  }`}
-                >
-
-                  {/* INFORMATIONS */}
-                  <div className="flex items-center gap-3">
-
-                    {/* AVATAR */}
-                    <div className="size-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-400 text-white font-bold flex items-center justify-center text-sm">
-                      {formateur.prenom[0]}
-                      {formateur.nom[0]}
-                    </div>
-
-                    {/* NOM + EMAIL */}
-                    <div>
-
-                      <p className="font-bold text-sm text-slate-900 dark:text-white">
-                        {formateur.prenom} {formateur.nom}
-                      </p>
-
-                      <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                        <Mail className="size-3" />
-                        {formateur.email}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                  {/* CHECKBOX */}
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => toggleFormateur(formateur.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="size-4 accent-blue-600"
-                  />
-
-                </div>
-              )
-            })
-          )}
-
-        </div>
-
-        {/* ================= FOOTER ================= */}
-        <div className="p-5 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
-
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            <strong className="text-slate-900 dark:text-white">
-              {selectedFormateurs.length}
-            </strong>{' '}
-            formateur(s) sélectionné(s)
-          </p>
-
-          <div className="flex gap-2">
-
+      {submitted && results.length > 0 && (
+        <div className="bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-200 dark:border-white/10">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Résultats</h3>
+          </div>
+          <div className="divide-y divide-slate-200 dark:divide-white/10">
+            {results.map((r, idx) => (
+              <div key={idx} className="flex items-center justify-between p-4">
+                <span className="text-sm font-mono text-slate-700 dark:text-slate-300">{r.email}</span>
+                <span className={`text-xs font-semibold ${['assigned'].includes(r.status) ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {r.detail}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="p-5 border-t border-slate-200 dark:border-white/10">
             <Button
               variant="outline"
               onClick={() => navigate(`/cohortes/${id}`)}
-              disabled={invitationSent}
+              className="w-full sm:w-auto"
             >
-              Annuler
+              Retour à la cohorte
             </Button>
-
-            <Button
-              onClick={handleInvitation}
-              disabled={
-                selectedFormateurs.length === 0 || invitationSent
-              }
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <UserPlus className="size-4" />
-              Inviter
-            </Button>
-
           </div>
-
         </div>
-
-      </div>
-
+      )}
     </div>
   )
 }
-
-const UsersIcon = () => (
-  <div className="mx-auto size-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-    <UserPlus className="size-5 text-slate-400" />
-  </div>
-)
 
 export default InviterFormateur

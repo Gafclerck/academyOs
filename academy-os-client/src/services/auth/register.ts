@@ -9,7 +9,7 @@ export const registerService = async (
   payload: RegisterRequest,
 ): Promise<User> => {
   const response = await API.post<User>(
-    '/auth/register/',
+    'auth/register/',
     payload,
   )
 
