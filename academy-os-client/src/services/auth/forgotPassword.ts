@@ -9,7 +9,7 @@ export const forgotPasswordService = async (
   email: string,
 ): Promise<MessageResponse> => {
   const response = await API.post<MessageResponse>(
-    '/auth/forgot-password/',
+    'auth/forgot-password/',
     {
       email,
     },
@@ -22,7 +22,7 @@ export const resetPasswordService = async (
   payload: ResetPasswordRequest,
 ): Promise<MessageResponse> => {
   const response = await API.post<MessageResponse>(
-    '/auth/reset-password/',
+    'auth/reset-password/',
     payload,
   )
 

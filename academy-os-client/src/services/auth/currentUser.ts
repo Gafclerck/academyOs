@@ -2,7 +2,7 @@ import API from '@/api/api'
 import type { User } from '@/types/auth'
 
 export const getCurrentUserService = async (): Promise<User> => {
-  const response = await API.get<User>('/auth/me/')
+  const response = await API.get<User>('auth/me/')
 
   return response.data
 }
@@ -14,7 +14,7 @@ export const updateMeService = async (
   >>,
 ): Promise<User> => {
   const response = await API.patch<User>(
-    '/auth/me/',
+    'auth/me/',
     data,
   )
 

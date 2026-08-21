@@ -4,7 +4,7 @@ export const logoutService = async (
   refresh: string,
 ): Promise<void> => {
   await API.post(
-    '/auth/logout/',
+      'auth/logout/',
     {
       refresh,
     },
