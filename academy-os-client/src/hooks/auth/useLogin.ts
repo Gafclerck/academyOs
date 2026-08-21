@@ -26,7 +26,7 @@ const useLogin = () => {
       })
 
       // Après connexion → Dashboard
-      navigate('/admin/dashboard', {
+      navigate('/dashboard', {
         replace: true,
       })
     } catch (error) {

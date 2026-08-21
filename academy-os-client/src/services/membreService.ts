@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios';
-import type { Membre, CreateMembreDTO, UpdateMembreDTO } from '@/modules/programme/types/programme';
+import type { Membre, CreateMembreDTO, UpdateMembreDTO } from '@/types/programme';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',

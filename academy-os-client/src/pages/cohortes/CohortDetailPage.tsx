@@ -28,7 +28,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import type { Cohorte, Membre, Projet } from '@/types/cohorte';
-import { getCohortById, getCohortMembers, getCohortProjects } from '@/services/cohorteService';
+import { getCohortById, getCohortMembers, getCohortProjects } from '@/services/cohortes/cohorteService';
 import { CohorteStatusBadge, RoleBadge, ProjetStatusBadge, ProgressBar } from '@/components/cohortes/Badge';
 
 // ─── Utilitaires ──────────────────────────────────────────────────────────────
@@ -60,16 +60,14 @@ interface StatCardProps {
 function StatCard({ label, value, icon, sub, highlight }: StatCardProps) {
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
-        highlight
+      className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${highlight
           ? 'bg-primary/5 border-primary/20 dark:bg-primary/10'
           : 'bg-card border-border'
-      }`}
+        }`}
     >
       <div
-        className={`size-11 rounded-xl flex items-center justify-center shrink-0 ${
-          highlight ? 'bg-primary/15' : 'bg-muted'
-        }`}
+        className={`size-11 rounded-xl flex items-center justify-center shrink-0 ${highlight ? 'bg-primary/15' : 'bg-muted'
+          }`}
       >
         <span className={highlight ? 'text-primary' : 'text-muted-foreground'}>{icon}</span>
       </div>
@@ -528,20 +526,18 @@ export default function CohortDetailPage() {
               key={tabId}
               id={`tab-${tabId}`}
               onClick={() => setActiveTab(tabId)}
-              className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 transition-all ${
-                activeTab === tabId
+              className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 transition-all ${activeTab === tabId
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              }`}
+                }`}
             >
               <Icon className="size-4" />
               {label}
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  activeTab === tabId
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${activeTab === tabId
                     ? 'bg-primary/15 text-primary'
                     : 'bg-muted text-muted-foreground'
-                }`}
+                  }`}
               >
                 {count}
               </span>
