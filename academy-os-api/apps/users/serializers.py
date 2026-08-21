@@ -49,17 +49,39 @@ class AdminUserSerializer(serializers.ModelSerializer):
         ]
 
 
-class RegisterSerializer(serializers.ModelSerializer):
-    """Création d'un utilisateur par un admin (inscription privée).
+class CreateUserSerializer(serializers.ModelSerializer):
+    """Création directe d'un utilisateur par un administrateur (Admin only).
 
-    Réservé à l'admin, qui choisit le rôle. Le mot de passe n'est jamais
-    fourni ici : l'utilisateur le définit via le code reçu par email (reset-password).
-    L'unicité de l'email est validée automatiquement (400 si déjà existant).
+    Permet de créer un compte actif avec son mot de passe et son profil.
     """
+
+    password = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ["email", "role", "first_name", "last_name", "phone_number"]
+        fields = [
+            "id",
+            "email",
+            "password",
+            "role",
+            "status",
+            "first_name",
+            "last_name",
+            "phone_number",
+            "is_active",
+            "created_at",
+        ]
+        read_only_fields = ["id", "is_active", "created_at"]
+
+    def validate_password(self, value):
+        password_validation.validate_password(value)
+        return value
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        user = User.objects.create_user(password=password, **validated_data)
+        return user
+
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -128,7 +150,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    """Définition d'un nouveau mot de passe à partir du code reçu par email."""
+    """Définition d'un nouveau mot de passe à partir du code reçu par email (compte ACTIVE)."""
 
     email = serializers.EmailField()
     code = serializers.CharField(max_length=6)
@@ -137,3 +159,45 @@ class ResetPasswordSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         password_validation.validate_password(value)
         return value
+
+
+class ActivateAccountSerializer(serializers.Serializer):
+    """Activation d'un compte invité (compte PENDING) : mot de passe + profil complet."""
+
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(write_only=True)
+    first_name = serializers.CharField(max_length=150, allow_blank=False)
+    last_name = serializers.CharField(max_length=150, allow_blank=False)
+    phone_number = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    def validate_first_name(self, value):
+        val = value.strip()
+        if not val:
+            raise serializers.ValidationError("Le prénom ne peut pas être vide.")
+        return val
+
+    def validate_last_name(self, value):
+        val = value.strip()
+        if not val:
+            raise serializers.ValidationError("Le nom ne peut pas être vide.")
+        return val
+
+    def validate_phone_number(self, value):
+        if value:
+            import re
+            val = value.strip()
+            if not re.match(r"^\+?[0-9\s\-()]{7,20}$", val):
+                raise serializers.ValidationError("Format de numéro de téléphone invalide.")
+            return val
+        return None
+
+    def validate_new_password(self, value):
+        password_validation.validate_password(value)
+        return value
+

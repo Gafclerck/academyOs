@@ -16,10 +16,23 @@ class UserCRUDTests(AuthAPITestCase):
     def test_unauthenticated_cannot_access(self):
         assert self.client.get(USERS_URL).status_code == 401
 
-    def test_non_admin_forbidden(self):
-        assert self.auth(self.organizer).get(USERS_URL).status_code == 403
+    def test_trainer_and_learner_forbidden(self):
         assert self.auth(self.trainer).get(USERS_URL).status_code == 403
         assert self.auth(self.learner).get(USERS_URL).status_code == 403
+
+    def test_organizer_can_list_and_retrieve_users(self):
+        response = self.auth(self.organizer).get(USERS_URL)
+        assert response.status_code == 200
+        assert response.data["count"] >= 4
+
+        detail_response = self.auth(self.organizer).get(f"{USERS_URL}{self.learner.id}/")
+        assert detail_response.status_code == 200
+        assert detail_response.data["email"] == self.learner.email
+
+    def test_organizer_cannot_modify_or_delete_user(self):
+        url = f"{USERS_URL}{self.learner.id}/"
+        assert self.auth(self.organizer).patch(url, {"status": "suspended"}, format="json").status_code == 403
+        assert self.auth(self.organizer).delete(url).status_code == 403
 
     def test_admin_can_list_users(self):
         response = self.auth(self.admin).get(USERS_URL)
@@ -95,3 +108,71 @@ class UserCRUDTests(AuthAPITestCase):
         response = self.auth(self.admin).delete(url)
         assert response.status_code == 204
         assert not User.objects.filter(pk=target.id).exists()
+
+    def test_admin_can_create_active_user_directly(self):
+        payload = {
+            "email": "direct@test.fr",
+            "password": "SecurePassword123!",
+            "role": "trainer",
+            "first_name": "Cheikh",
+            "last_name": "Anta",
+            "phone_number": "+221771234567",
+        }
+        response = self.auth(self.admin).post(USERS_URL, payload, format="json")
+        assert response.status_code == 201
+        assert response.data["email"] == "direct@test.fr"
+        assert response.data["role"] == "trainer"
+        assert response.data["status"] == "active"
+        assert response.data["first_name"] == "Cheikh"
+        assert response.data["last_name"] == "Anta"
+        assert response.data["phone_number"] == "+221771234567"
+        assert "password" not in response.data
+
+        user = User.objects.get(email="direct@test.fr")
+        assert user.status == User.Status.ACTIVE
+        assert user.is_active is True
+        assert user.check_password("SecurePassword123!")
+
+        # L'utilisateur peut se connecter immédiatement sans reset ni activation
+        login = self.post_json(
+            f"{API_PREFIX}/auth/login/",
+            {"email": "direct@test.fr", "password": "SecurePassword123!"},
+        )
+        assert login.status_code == 200
+        assert "access" in login.json()
+
+    def test_create_user_forbidden_for_non_admin(self):
+        payload = {
+            "email": "forbidden@test.fr",
+            "password": "SecurePassword123!",
+            "role": "learner",
+        }
+        # Non authentifié
+        assert self.client.post(USERS_URL, payload, format="json").status_code == 401
+        # Organisateur
+        assert self.auth(self.organizer).post(USERS_URL, payload, format="json").status_code == 403
+        # Formateur
+        assert self.auth(self.trainer).post(USERS_URL, payload, format="json").status_code == 403
+        # Apprenant
+        assert self.auth(self.learner).post(USERS_URL, payload, format="json").status_code == 403
+
+    def test_create_user_duplicate_email_rejected(self):
+        payload = {
+            "email": self.learner.email,
+            "password": "SecurePassword123!",
+            "role": "learner",
+        }
+        response = self.auth(self.admin).post(USERS_URL, payload, format="json")
+        assert response.status_code == 400
+        assert "email" in response.data
+
+    def test_create_user_weak_password_rejected(self):
+        payload = {
+            "email": "weak@test.fr",
+            "password": "123",
+            "role": "learner",
+        }
+        response = self.auth(self.admin).post(USERS_URL, payload, format="json")
+        assert response.status_code == 400
+        assert "password" in response.data
+

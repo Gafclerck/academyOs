@@ -31,6 +31,9 @@ class IsLearner(HasRole):
 class IsAdminOrOrganizer(HasRole):
     allowed_roles = ("admin", "organizer")
 
+class IsAdminOrTrainer(HasRole):
+    allowed_roles = ("admin", "trainer")
+
 class IsAdminOrOrganizerOrTrainer(HasRole):
     allowed_roles = ("admin", "organizer", "trainer")
 

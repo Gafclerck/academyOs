@@ -97,7 +97,7 @@ class PasswordResetTests(AuthAPITestCase):
         )
         assert response.status_code == 400
 
-    def test_full_journey_invite_reset_login(self):
+    def test_reset_on_pending_user_rejected(self):
         self.auth(self.organizer).post(
             f"{API_PREFIX}/auth/invite/", {"email": "etudiant@test.fr", "role": "learner"}, format="json"
         )
@@ -106,11 +106,9 @@ class PasswordResetTests(AuthAPITestCase):
             RESET_URL,
             {"email": "etudiant@test.fr", "code": code, "new_password": NEW_PASSWORD},
         )
-        assert reset.status_code == 200
-        login = self.post_json(
-            LOGIN_URL, {"email": "etudiant@test.fr", "password": NEW_PASSWORD}
-        )
-        assert login.status_code == 200
+        assert reset.status_code == 400
+        assert "pas encore activé" in str(reset.data)
+
 
     def test_forgot_pending_user_resends_invitation_email(self):
         pending_user = UserFactory(pending=True)
@@ -186,7 +184,7 @@ class PasswordResetTests(AuthAPITestCase):
         assert response.status_code == 400
         assert "désactivé" in str(response.data)
 
-    def test_reset_password_transitions_status_from_pending_to_active(self):
+    def test_reset_password_pending_user_rejected_with_explicit_message(self):
         pending_user = UserFactory(pending=True)
         assert pending_user.status == User.Status.PENDING
         assert pending_user.is_active is False
@@ -197,7 +195,5 @@ class PasswordResetTests(AuthAPITestCase):
             RESET_URL,
             {"email": pending_user.email, "code": code, "new_password": NEW_PASSWORD},
         )
-        assert response.status_code == 200
-        pending_user.refresh_from_db()
-        assert pending_user.status == User.Status.ACTIVE
-        assert pending_user.is_active is True
+        assert response.status_code == 400
+        assert "pas encore activé" in str(response.data)

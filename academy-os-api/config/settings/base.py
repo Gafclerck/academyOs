@@ -68,6 +68,7 @@ LOCAL_APPS = [
     'apps.users',
     'apps.programs',
     'apps.cohorts',
+    'apps.projects',
     'apps.certificates',
     'apps.pedagogy',
     'apps.evaluations',
@@ -209,10 +210,12 @@ REST_FRAMEWORK = {
         'enroll': '60/hour',
         'forgot': '5/hour',
         'reset': '5/hour',
+        'activate': '5/hour',
     },
+
 }
 
-# Réinitialisation de mot de passe / invitations
+# RÃ©initialisation de mot de passe / invitations
 PASSWORD_RESET_TOKEN_TTL_MINUTES = 30
 PASSWORD_RESET_INVITE_TTL_DAYS = 7
 
@@ -222,8 +225,12 @@ PASSWORD_RESET_INVITE_TTL_DAYS = 7
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Frontend URL
+# Frontend URL & Chemins de redirection configurables
 FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173')
+FRONTEND_RESET_PASSWORD_PATH = env('FRONTEND_RESET_PASSWORD_PATH', default='/reset-password')
+FRONTEND_ACTIVATE_ACCOUNT_PATH = env('FRONTEND_ACTIVATE_ACCOUNT_PATH', default='/invite-reset-password')
+FRONTEND_COHORTS_PATH = env('FRONTEND_COHORTS_PATH', default='/programmes')
+FRONTEND_LOGO_PATH = env('FRONTEND_LOGO_PATH', default='/logo-xarala.png')
 
 
 # Email

@@ -1,30 +1,21 @@
 import API from '@/api/api'
-import type { ResetPasswordRequest } from '@/types/auth'
 
-interface MessageResponse {
-  detail: string
+export interface ForgotPasswordRequest {
+  email: string
 }
 
-export const forgotPasswordService = async (
-  email: string,
-): Promise<MessageResponse> => {
-  const response = await API.post<MessageResponse>(
-    'auth/forgot-password/',
-    {
-      email,
-    },
+export interface ForgotPasswordResponse {
+  detail?: string
+}
+
+export const forgotPassword = async (
+  data: ForgotPasswordRequest,
+): Promise<ForgotPasswordResponse> => {
+  const response = await API.post<ForgotPasswordResponse>(
+    '/auth/forgot-password/',
+    data,
   )
 
   return response.data
 }
 
-export const resetPasswordService = async (
-  payload: ResetPasswordRequest,
-): Promise<MessageResponse> => {
-  const response = await API.post<MessageResponse>(
-    'auth/reset-password/',
-    payload,
-  )
-
-  return response.data
-}

@@ -18,26 +18,26 @@ const useRegister = () => {
     setLoading(true)
 
     try {
-      // On extrait explicitement les champs attendus par le backend.
-      // confirm_password ne doit jamais être envoyé à l'API.
       const payload: RegisterRequest = {
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
         password: data.password,
-        ...(data.phone_number
-          ? { phone_number: data.phone_number }
-          : {}),
+        phone_number: data.phone_number || undefined,
+        role: 'learner',
       }
 
       await registerService(payload)
 
       toast.success('Compte créé avec succès !', {
-        description: 'Vous pouvez maintenant vous connecter.',
+        description:
+          'Vous pouvez maintenant vous connecter.',
       })
 
-      navigate('/login', { replace: true })
-    } catch (error) {
+      navigate('/login', {
+        replace: true,
+      })
+    } catch (error: unknown) {
       const parsedError = parseApiError(error)
 
       toast.error('Inscription échouée', {
