@@ -92,9 +92,17 @@ const ROLE_CONFIG: Record<string, { label: string; className: string }> = {
     label: 'Étudiant',
     className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
   },
+  formateur: {
+    label: 'Formateur',
+    className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  },
   mentor: {
     label: 'Mentor',
     className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  },
+  lead: {
+    label: 'Team Lead',
+    className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   },
   admin: {
     label: 'Admin',

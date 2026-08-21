@@ -1,1 +1,1 @@
-# Package de tests pour l'application evaluations
+# Evaluations tests package

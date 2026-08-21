@@ -10,8 +10,7 @@ const useLogin = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const [loading, setLoading] =
-    useState(false)
+  const [loading, setLoading] = useState(false)
 
   const handleLogin = async (
     credentials: LoginCredentials,
@@ -26,12 +25,12 @@ const useLogin = () => {
           'Bienvenue sur votre espace Xarala.',
       })
 
-      navigate('/', {
+      // Après connexion → Dashboard
+      navigate('/admin/dashboard', {
         replace: true,
       })
     } catch (error) {
-      const parsedError =
-        parseApiError(error)
+      const parsedError = parseApiError(error)
 
       toast.error('Échec de la connexion', {
         description: parsedError.message,

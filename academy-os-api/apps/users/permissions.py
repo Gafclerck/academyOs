@@ -1,6 +1,5 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-
 class HasRole(BasePermission):
     """Permission de base : autorise si user.role est dans allowed_roles.
     Un superuser passe toujours (bypass admin explicite)."""

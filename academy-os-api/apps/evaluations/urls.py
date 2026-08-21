@@ -2,14 +2,18 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.evaluations.views import (
+    CohortStatsView,
+    DashboardStatsView,
     DeliverableDetailView,
     DeliverableListView,
     DeliverableReviewView,
     DeliverableSubmitView,
+    EvaluationCriterionViewSet,
     ProjectAssignmentViewSet,
 )
 
 router = DefaultRouter()
+router.register(r"criteria", EvaluationCriterionViewSet, basename="criterion")
 router.register(r"assignments", ProjectAssignmentViewSet, basename="assignment")
 
 urlpatterns = [
@@ -33,5 +37,7 @@ urlpatterns = [
         DeliverableDetailView.as_view(),
         name="deliverable-detail",
     ),
+    path("cohorts/<uuid:cohort_id>/stats/", CohortStatsView.as_view(), name="cohort-stats"),
+    path("dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
     path("", include(router.urls)),
 ]

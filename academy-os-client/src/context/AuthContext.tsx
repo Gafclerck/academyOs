@@ -44,6 +44,10 @@ export const AuthProvider = ({
   const [loading, setLoading] =
     useState<boolean>(true)
 
+  // ─────────────────────────────────────────────
+  // RÉCUPÉRER LE PROFIL
+  // ─────────────────────────────────────────────
+
   const refreshUserProfile =
     useCallback(async (): Promise<User | null> => {
       try {
@@ -60,6 +64,10 @@ export const AuthProvider = ({
       }
     }, [])
 
+  // ─────────────────────────────────────────────
+  // LOGIN
+  // ─────────────────────────────────────────────
+
   const login = useCallback(
     async (
       credentials: LoginCredentials,
@@ -67,9 +75,13 @@ export const AuthProvider = ({
       const newTokens =
         await loginService(credentials)
 
+      // Sauvegarde des tokens
       tokenStore.setTokens(newTokens)
+
+      // Mise à jour du contexte
       setTokens(newTokens)
 
+      // Récupération de l'utilisateur connecté
       const currentUser =
         await getCurrentUserService()
 
@@ -78,26 +90,53 @@ export const AuthProvider = ({
     [],
   )
 
+  // ─────────────────────────────────────────────
+  // LOGOUT
+  // ─────────────────────────────────────────────
+
   const logout = useCallback(
     async (): Promise<void> => {
+      // Récupération du refresh token
       const refresh =
         tokenStore.getRefreshToken()
 
       try {
+        // On informe le backend
         if (refresh) {
           await logoutService(refresh)
         }
-      } catch {
-        // Même si l'API refuse le logout,
-        // on doit supprimer la session locale.
+      } catch (error) {
+        /*
+         * Même si le backend renvoie une erreur,
+         * la session locale doit quand même être supprimée.
+         */
+        console.error(
+          'Erreur lors de la déconnexion :',
+          error,
+        )
       } finally {
+        // ─────────────────────────────────────
+        // IMPORTANT :
+        // suppression obligatoire côté frontend
+        // ─────────────────────────────────────
+
         tokenStore.clear()
+
         setTokens(null)
         setUser(null)
+
+        // Informe les autres composants
+        window.dispatchEvent(
+          new Event('auth:logout'),
+        )
       }
     },
     [],
   )
+
+  // ─────────────────────────────────────────────
+  // RESTAURATION DE SESSION
+  // ─────────────────────────────────────────────
 
   useEffect(() => {
     const access =
@@ -106,6 +145,7 @@ export const AuthProvider = ({
     const refresh =
       tokenStore.getRefreshToken()
 
+    // Aucun token
     if (!access || !refresh) {
       setLoading(false)
       return
@@ -120,14 +160,22 @@ export const AuthProvider = ({
 
         if (!cancelled) {
           setUser(currentUser)
+
           setTokens({
             access,
             refresh,
           })
         }
-      } catch {
+      } catch (error) {
+        console.error(
+          'Session invalide :',
+          error,
+        )
+
         if (!cancelled) {
+          // Session invalide
           tokenStore.clear()
+
           setUser(null)
           setTokens(null)
         }
@@ -145,9 +193,14 @@ export const AuthProvider = ({
     }
   }, [])
 
+  // ─────────────────────────────────────────────
+  // ÉCOUTE LOGOUT GLOBAL
+  // ─────────────────────────────────────────────
+
   useEffect(() => {
     const handleAuthLogout = () => {
       tokenStore.clear()
+
       setUser(null)
       setTokens(null)
     }
@@ -165,8 +218,13 @@ export const AuthProvider = ({
     }
   }, [])
 
+  // ─────────────────────────────────────────────
+  // AUTHENTIFICATION
+  // ─────────────────────────────────────────────
+
   const isAuthenticated =
-    user !== null && tokens !== null
+    user !== null &&
+    tokens !== null
 
   return (
     <AuthContext.Provider
@@ -185,8 +243,13 @@ export const AuthProvider = ({
   )
 }
 
+// ─────────────────────────────────────────────
+// HOOK useAuth
+// ─────────────────────────────────────────────
+
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext)
+  const context =
+    useContext(AuthContext)
 
   if (!context) {
     throw new Error(
