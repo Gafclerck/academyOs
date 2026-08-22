@@ -1,326 +1,357 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React from 'react'
+import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
+import {
+  useForm,
+  useWatch,
+} from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   ArrowLeft,
   Loader2,
   Check,
   AlertCircle,
-  Lock,
-  BookOpen,
-  ChevronRight,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { format, parse } from 'date-fns';
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { format, parse } from 'date-fns'
+
 import {
   createRentreeSchema,
   type CreateRentreeFormValues,
-} from '../../lib/programmeSchemas';
-import { useProgramme, useCreateRentree, useProgrammes } from '../../hooks/useProgrammes';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DatePicker } from '@/components/ui/date-picker';
-import { StatusBadge } from '../../components/ui/StatusBadge';
+} from '../../lib/rentreeSchemas'
+
+import { useCreateRentree } from '../../hooks/rentrees/useRentrees'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { DatePicker } from '@/components/ui/date-picker'
 
 export const RentreeCreatePage: React.FC = () => {
-  const { programmeId } = useParams<{ programmeId: string }>();
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
-  const { data: programmes = [] } = useProgrammes();
-  const createRentreeMutation = useCreateRentree();
-  const { data: programme, isLoading: progLoading } = useProgramme(programmeId);
+  const createRentreeMutation =
+    useCreateRentree()
 
-  const form = useForm<CreateRentreeFormValues>({
-    resolver: zodResolver(createRentreeSchema),
-    defaultValues: {
-      programme_id: programmeId || '',
-      nom: '',
-      description: '',
-      date_debut: '',
-      date_fin: '',
-    },
-  });
+  const form =
+    useForm<CreateRentreeFormValues>({
+      resolver: zodResolver(
+        createRentreeSchema,
+      ),
+      defaultValues: {
+        name: '',
+        start_date: '',
+        status: 'upcoming',
+      },
+    })
 
   const {
     register,
     handleSubmit,
     setValue,
     control,
-    formState: { errors, isSubmitting },
-  } = form;
+    formState: { errors },
+  } = form
 
-  const watchedDateDebut = useWatch({ control, name: 'date_debut' });
-  const watchedDateFin = useWatch({ control, name: 'date_fin' });
+  const watchedStartDate = useWatch({
+    control,
+    name: 'start_date',
+  })
 
-  const toDate = (str: string): Date | undefined => {
-    if (!str) return undefined;
-    const parsed = parse(str, 'yyyy-MM-dd', new Date());
-    return isNaN(parsed.getTime()) ? undefined : parsed;
-  };
+  const toDate = (
+    value: string,
+  ): Date | undefined => {
+    if (!value) return undefined
 
-  const onSubmit = async (values: CreateRentreeFormValues) => {
+    const parsed = parse(
+      value,
+      'yyyy-MM-dd',
+      new Date(),
+    )
+
+    return Number.isNaN(
+      parsed.getTime(),
+    )
+      ? undefined
+      : parsed
+  }
+
+  const onSubmit = async (
+    values: CreateRentreeFormValues,
+  ) => {
     try {
-      const created = await createRentreeMutation.mutateAsync({
-        programme_id: values.programme_id,
-        nom: values.nom,
-        description: values.description,
-        date_debut: values.date_debut,
-        date_fin: values.date_fin,
-      });
-      toast.success('Rentrée créée avec succès !', {
-        description: `La rentrée "${created.nom}" a été rattachée au programme.`,
-      });
-      navigate(`/rentrees/${created.id}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur lors de la création de la rentrée.';
-      toast.error('Erreur', { description: msg });
-    }
-  };
+      const payload = {
+        name: values.name.trim(),
+        start_date: values.start_date,
+        status: values.status,
+      }
 
-  const handleSelectProgramme = (id: string) => {
-    navigate(`/programmes/${id}/rentrees/new`);
-  };
+      console.log(
+        '[RentreeCreatePage] Payload:',
+        payload,
+      )
 
-  const activeProgrammes = programmes.filter((p) => p.statut === 'actif');
+      const created =
+        await createRentreeMutation.mutateAsync(
+          payload,
+        )
 
-  if (!programmeId) {
-    return (
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('/rentrees')}
-            className="size-9 rounded-xl border-slate-200 dark:border-white/10"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-              Nouvelle Rentrée
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Sélectionnez le programme parent, puis créez la promotion.
-            </p>
-          </div>
-        </div>
+      toast.success(
+        'Rentrée créée avec succès !',
+        {
+          description: `La rentrée "${created.name}" a été créée.`,
+        },
+      )
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {activeProgrammes.map((prog) => (
-            <button
-              key={prog.id}
-              onClick={() => handleSelectProgramme(prog.id)}
-              className="text-left p-5 rounded-2xl bg-white dark:bg-[#1f1f38] border border-slate-200/80 dark:border-white/10 shadow-sm hover:shadow-md hover:border-[#FF6B0B]/40 transition-all group"
+      navigate(
+        `/rentrees/${created.id}`,
+      )
+    } catch (error: unknown) {
+      console.error(
+        '[RentreeCreatePage] Erreur:',
+        error,
+      )
+
+      if (axios.isAxiosError(error)) {
+        const backendData =
+          error.response?.data
+
+        let message =
+          'Impossible de créer la rentrée.'
+
+        if (
+          backendData &&
+          typeof backendData === 'object'
+        ) {
+          const data =
+            backendData as Record<
+              string,
+              unknown
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="size-10 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
-                  <BookOpen className="size-5 text-[#FF6B0B]" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{prog.nom}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{prog.duree_mois} mois</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <StatusBadge status={prog.statut} />
-                <ChevronRight className="size-4 text-slate-400 group-hover:text-[#FF6B0B] transition-colors" />
-              </div>
-            </button>
-          ))}
-        </div>
 
-        {activeProgrammes.length === 0 && (
-          <div className="text-center py-12 text-sm text-slate-500 dark:text-slate-400">
-            Aucun programme actif disponible. Créez d'abord un programme.
-          </div>
-        )}
-      </div>
-    );
+          if (data.detail) {
+            message = String(
+              data.detail,
+            )
+          } else {
+            message =
+              Object.entries(data)
+                .map(
+                  ([field, value]) =>
+                    `${field}: ${
+                      Array.isArray(value)
+                        ? value.join(', ')
+                        : String(value)
+                    }`,
+                )
+                .join(' · ')
+          }
+        }
+
+        toast.error(
+          'Erreur lors de la création',
+          {
+            description: message,
+          },
+        )
+      } else {
+        toast.error('Erreur', {
+          description:
+            error instanceof Error
+              ? error.message
+              : 'Une erreur est survenue.',
+        })
+      }
+    }
   }
 
-  if (progLoading) {
-    return (
-      <div className="max-w-2xl mx-auto p-8 animate-pulse space-y-4">
-        <div className="h-6 bg-slate-200 dark:bg-white/10 rounded w-1/2" />
-        <div className="h-48 bg-slate-200 dark:bg-white/10 rounded-2xl" />
-      </div>
-    );
-  }
+  const onInvalid = (
+    invalidFields: typeof errors,
+  ) => {
+    console.error(
+      'Formulaire invalide:',
+      invalidFields,
+    )
 
-  if (!programme) {
-    return (
-      <div className="text-center py-16 space-y-4">
-        <p className="text-lg font-bold text-red-500">
-          Programme parent introuvable.
-        </p>
-        <p className="text-xs text-slate-400">
-          Une rentrée ne peut être créée sans programme parent existant.
-        </p>
-        <Button onClick={() => navigate('/programmes')} variant="outline">
-          <ArrowLeft className="size-4 mr-2" />
-          Retour aux programmes
-        </Button>
-      </div>
-    );
+    toast.error(
+      'Formulaire invalide',
+    )
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+
+      {/* HEADER */}
+
       <div className="flex items-center gap-3">
         <Button
           variant="outline"
           size="icon"
-          onClick={() => navigate(`/programmes/${programme.id}`)}
-          className="size-9 rounded-xl border-slate-200 dark:border-white/10"
+          onClick={() => navigate(-1)}
+          className="size-9 rounded-xl"
         >
           <ArrowLeft className="size-4" />
         </Button>
+
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
             Nouvelle Rentrée
           </h1>
+
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Créez une promotion planifiée pour le cursus sélectionné.
+            Créez une nouvelle rentrée académique.
           </p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] p-6 sm:p-8 shadow-sm space-y-5">
-        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
-              <BookOpen className="size-4.5 text-[#FF6B0B]" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Programme Parent
-              </p>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {programme.nom}
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-200/80 dark:bg-white/10 text-slate-600 dark:text-slate-300">
-            <Lock className="size-3 text-slate-500" />
-            Fixé
-          </span>
-        </div>
+      {/* FORMULAIRE */}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <input type="hidden" value={programme.id} {...register('programme_id')} />
+      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] p-6 sm:p-8 shadow-sm">
+
+        <form
+          onSubmit={handleSubmit(
+            onSubmit,
+            onInvalid,
+          )}
+          className="space-y-5"
+        >
+
+          {/* NOM */}
 
           <div className="space-y-1.5">
-            <Label htmlFor="nom" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Nom de la Rentrée <span className="text-[#FF6B0B]">*</span>
+            <Label
+              htmlFor="name"
+              className="text-xs font-bold uppercase tracking-wider"
+            >
+              Nom de la rentrée
+              <span className="text-[#FF6B0B]">
+                {' '}*
+              </span>
             </Label>
+
             <Input
-              id="nom"
-              placeholder="Ex: Rentrée Hiver 2025"
-              {...register('nom')}
-              className={`h-11 rounded-xl bg-slate-50 dark:bg-white/5 border ${errors.nom ? 'border-red-500 focus-visible:ring-red-500' : 'border-slate-200 dark:border-white/10'
-                }`}
+              id="name"
+              placeholder="Ex : Rentrée Octobre 2026"
+              {...register('name')}
+              className={`h-11 rounded-xl bg-slate-50 dark:bg-white/5 border ${
+                errors.name
+                  ? 'border-red-500'
+                  : 'border-slate-200 dark:border-white/10'
+              }`}
             />
-            {errors.nom && (
-              <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
+
+            {errors.name && (
+              <p className="text-xs font-semibold text-red-500 flex items-center gap-1">
                 <AlertCircle className="size-3.5" />
-                {errors.nom.message}
+                {errors.name.message}
               </p>
             )}
           </div>
 
+          {/* DATE */}
+
           <div className="space-y-1.5">
-            <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Description
+            <Label
+              htmlFor="start_date"
+              className="text-xs font-bold uppercase tracking-wider"
+            >
+              Date de début
+              <span className="text-[#FF6B0B]">
+                {' '}*
+              </span>
             </Label>
-            <textarea
-              id="description"
-              rows={3}
-              placeholder="Objectifs, modalités, prérequis..."
-              {...register('description')}
-              className={`w-full p-3.5 text-sm rounded-xl bg-slate-50 dark:bg-white/5 border outline-none transition-all ${errors.description
-                ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                : 'border-slate-200 dark:border-white/10 focus:ring-1 focus:ring-[#FF6B0B]'
-                }`}
+
+            <DatePicker
+              date={toDate(
+                watchedStartDate,
+              )}
+              onDateChange={(date) => {
+                setValue(
+                  'start_date',
+                  date
+                    ? format(
+                        date,
+                        'yyyy-MM-dd',
+                      )
+                    : '',
+                  {
+                    shouldValidate: true,
+                  },
+                )
+              }}
+              placeholder="JJ/MM/AAAA"
+              error={
+                !!errors.start_date
+              }
             />
-            {errors.description && (
-              <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
+
+            {errors.start_date && (
+              <p className="text-xs font-semibold text-red-500 flex items-center gap-1">
                 <AlertCircle className="size-3.5" />
-                {errors.description.message}
+                {errors.start_date.message}
               </p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="date_debut" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Date de début <span className="text-[#FF6B0B]">*</span>
-              </Label>
-              <DatePicker
-                date={toDate(watchedDateDebut)}
-                onDateChange={(d) => {
-                  if (d) setValue('date_debut', format(d, 'yyyy-MM-dd'), { shouldValidate: true });
-                }}
-                placeholder="JJ/MM/AAAA"
-                error={!!errors.date_debut}
-              />
-              {errors.date_debut && (
-                <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="size-3.5" />
-                  {errors.date_debut.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="date_fin" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Date de fin <span className="text-[#FF6B0B]">*</span>
-              </Label>
-              <DatePicker
-                date={toDate(watchedDateFin)}
-                onDateChange={(d) => {
-                  if (d) setValue('date_fin', format(d, 'yyyy-MM-dd'), { shouldValidate: true });
-                }}
-                placeholder="JJ/MM/AAAA"
-                error={!!errors.date_fin}
-              />
-              {errors.date_fin && (
-                <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="size-3.5" />
-                  {errors.date_fin.message}
-                </p>
-              )}
-            </div>
-          </div>
+          {/* STATUT */}
 
           <div className="space-y-1.5">
-            <Label htmlFor="programme_parent" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Programme Parent
+            <Label
+              htmlFor="status"
+              className="text-xs font-bold uppercase tracking-wider"
+            >
+              Statut
             </Label>
-            <Input
-              id="programme_parent"
-              value={programme.nom}
-              disabled
-              className="h-11 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 cursor-not-allowed"
-            />
+
+            <select
+              id="status"
+              {...register('status')}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:ring-1 focus:ring-[#FF6B0B] dark:border-white/10 dark:bg-white/5 dark:text-white"
+            >
+              <option value="upcoming">
+                À venir
+              </option>
+
+              <option value="ongoing">
+                En cours
+              </option>
+
+              <option value="completed">
+                Terminée
+              </option>
+            </select>
+
+            {errors.status && (
+              <p className="text-xs font-semibold text-red-500 flex items-center gap-1">
+                <AlertCircle className="size-3.5" />
+                {errors.status.message}
+              </p>
+            )}
           </div>
+
+          {/* ACTIONS */}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
+
             <Button
               type="button"
               variant="outline"
               onClick={() => navigate(-1)}
-              className="h-11 px-5 rounded-xl border-slate-200 dark:border-white/10 font-semibold"
+              className="h-11 px-5 rounded-xl"
             >
               Annuler
             </Button>
+
             <Button
               type="submit"
-              disabled={isSubmitting || createRentreeMutation.isPending}
-              className="h-11 px-6 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 transition-all"
+              disabled={
+                form.formState.isSubmitting ||
+                createRentreeMutation.isPending
+              }
+              className="h-11 px-6 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold"
             >
-              {isSubmitting || createRentreeMutation.isPending ? (
+              {form.formState.isSubmitting ||
+              createRentreeMutation.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin mr-2" />
                   Création...
@@ -328,13 +359,16 @@ export const RentreeCreatePage: React.FC = () => {
               ) : (
                 <>
                   <Check className="size-4 mr-2" />
-                  Créer la Rentrée
+                  Créer la rentrée
                 </>
               )}
             </Button>
+
           </div>
         </form>
       </div>
     </div>
-  );
-};
+  )
+}
+
+export default RentreeCreatePage
