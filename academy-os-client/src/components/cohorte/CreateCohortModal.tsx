@@ -10,12 +10,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, AlertCircle, CalendarDays, Users, ChevronDown, Sparkles } from 'lucide-react';
 import type { Session, CreateCohortePayload } from '@/types/cohorte';
-import { getSessions, createCohorte } from '@/services/cohorteService';
+import { getSessions, createCohorte } from '@/services/cohortes/cohorteService';
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 
 interface Props {
-  isOpen: boolean;
+  isOpen: boolean;  
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -40,12 +40,12 @@ const EMPTY_FORM: FormState = { nom: '', rentree_id: '', date_debut: '', date_fi
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function CreateCohortModal({ isOpen, onClose, onSuccess }: Props) {
-  const [form, setForm]               = useState<FormState>(EMPTY_FORM);
-  const [errors, setErrors]           = useState<FormErrors>({});
-  const [sessions, setSessions]       = useState<Session[]>([]);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSess, setLoadingSess] = useState(false);
-  const [sessError, setSessError]     = useState<string | null>(null);
-  const [submitting, setSubmitting]   = useState(false);
+  const [sessError, setSessError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // ─── Chargement des sessions ────────────────────────────────────────────
 

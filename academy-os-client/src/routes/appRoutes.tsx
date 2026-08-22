@@ -6,25 +6,27 @@ import ForgotPassword from '@/pages/auth/ForgotPassword';
 import PrivateRoutes from '@/routes/privateRoutes';
 
 
-import { ProgrammeLayout } from '@/modules/programme/components/layout/ProgrammeLayout';
-import { ProgrammeListPage } from '@/modules/programme/pages/ProgrammeListPage';
-import { ProgrammeCreatePage } from '@/modules/programme/pages/ProgrammeCreatePage';
-import { ProgrammeDetailPage } from '@/modules/programme/pages/ProgrammeDetailPage';
-import { RentreeCreatePage } from '@/modules/programme/pages/RentreeCreatePage';
-import { RentreeDetailPage } from '@/modules/programme/pages/RentreeDetailPage';
-import { RentreeListPage } from '@/modules/programme/pages/RentreeListPage';
-import { CohorteCreatePage } from '@/modules/programme/pages/CohorteCreatePage';
-import { CohorteDetailPage } from '@/modules/programme/pages/CohorteDetailPage';
-import InviterApprenant from '@/modules/programme/pages/InviterApprenant';
-import InviterFormateur from '@/modules/programme/pages/InviterFormateur';
-import UsersPage from '@/modules/programme/pages/UsersPage';
-import { ProjetListPage } from '@/modules/programme/pages/ProjetListPage';
-import AddUserPage from '@/modules/programme/pages/AddUserPage'
+import { ProgrammeLayout } from '@/components/layouts/ProgrammeLayout';
+import { ProgrammeListPage } from '@/pages/programme/ProgrammeListPage';
+import { ProgrammeCreatePage } from '@/pages/programme/ProgrammeCreatePage';
+import { ProgrammeDetailPage } from '@/pages/programme/ProgrammeDetailPage';
+import { RentreeCreatePage } from '@/pages/rentrees/RentreeCreatePage';
+import { RentreeDetailPage } from '@/pages/rentrees/RentreeDetailPage';
+import { RentreeListPage } from '@/pages/rentrees/RentreeListPage';
+import { CohorteCreatePage } from '@/pages/cohortes/CohorteCreatePage';
+import { CohorteDetailPage } from '@/pages/cohortes/CohorteDetailPage';
+import InviterApprenant from '@/pages/cohortes/InviterApprenant';
+import InviterFormateur from '@/pages/cohortes/InviterFormateur';
+import UsersPage from '@/pages/users/UsersPage';
+import AddUserPage from '@/pages/users/AddUserPage'
 import ResetPassword from '@/pages/auth/ResetPassword'
-import CohortListPage from '@/pages/CohortListPage';
+import CohortListPage from '@/pages/cohortes/CohortListPage';
 import InviteResetPassword from '@/pages/auth/InviteResetPassword'
-import Profile from '@/pages/Profile'
-import AdminDashboard from '@/pages/AdminDashboard'
+import Profile from '@/pages/users/Profile'
+import AdminDashboard from '@/pages/dashboard/AdminDashboard'
+import EditUserPage from '@/pages/users/EditUserPage';
+import { ProjetListPage } from '@/pages/projets/ProjetListPage';
+
 
 const AppRoutes = () => {
   return (
@@ -33,17 +35,17 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/invite-reset-password"element={<InviteResetPassword />}/>
+      <Route path="/invite-reset-password" element={<InviteResetPassword />} />
 
       {/* ── MODULE PROGRAMME & HIERARCHIE COMPLETE (PROTÉGÉ) ── */}
       <Route element={<PrivateRoutes />}>
-      
+
         <Route element={<ProgrammeLayout />}>
 
-          <Route path="/admin/dashboard" element={<AdminDashboard />}/>
+          <Route path="/dashboard" element={<AdminDashboard />} />
 
           {/* 1. Programmes */}
-          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/programmes" element={<ProgrammeListPage />} />
           <Route path="/programmes/new" element={<ProgrammeCreatePage />} />
           <Route path="/programmes/:id" element={<ProgrammeDetailPage />} />
@@ -70,10 +72,11 @@ const AppRoutes = () => {
           {/* 5. Projets */}
           <Route path="/projets" element={<ProjetListPage />} />
 
-            {/* 6. Utilisateurs */}
-           <Route path="/users" element={<UsersPage />} />
-           <Route path="/users/new" element={<AddUserPage />} />
+          {/* 6. Utilisateurs */}
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/users/new" element={<AddUserPage />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/users/:id/edit" element={<EditUserPage />} />
 
 
         </Route>
