@@ -219,7 +219,63 @@ export interface CreateReviewDTO {
   feedback: string;
 }
 
-// ─── 9. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
+// ─── 9. TYPES BACKEND (COHORTS / USERS) ────────────────────────────────────────
+
+export interface BackendUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  role: 'admin' | 'organizer' | 'trainer' | 'learner';
+  status: 'pending' | 'active' | 'suspended' | 'archived';
+  phone_number?: string;
+  created_at: string;
+}
+
+export interface BackendMentor {
+  id: string;
+  user: BackendUser;
+  status: 'active' | 'completed' | 'suspended';
+  assigned_at: string;
+}
+
+export interface BackendEnrollment {
+  id: string;
+  user: BackendUser;
+  cohort: string;
+  status: 'active' | 'completed' | 'dropped' | 'suspended';
+  enrolled_at: string;
+  mentor: BackendMentor | null;
+}
+
+export interface BackendTrainerAssignment {
+  id: string;
+  user: BackendUser;
+  cohort: string;
+  status: 'active' | 'completed' | 'suspended';
+  assigned_at: string;
+}
+
+export interface MemberBatchResultItem {
+  email: string;
+  status: string;
+  detail: string;
+}
+
+export interface MemberBatchResult {
+  results: MemberBatchResultItem[];
+}
+
+export interface AssignMentorPayload {
+  mentor: string | null;
+}
+
+export interface AddMembersPayload {
+  emails: string[];
+}
+
+// ─── 10. ALIASES DE COMPATIBILITÉ (legacy) ────────────────────────────────────
 // À supprimer progressivement
 
 /** @deprecated Utiliser RentreeProgramme */

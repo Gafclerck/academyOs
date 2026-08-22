@@ -8,7 +8,7 @@ export const loginService = async (
   credentials: LoginCredentials,
 ): Promise<JwtAuthTokens> => {
   const response = await API.post<JwtAuthTokens>(
-    '/auth/login/',
+    'auth/login/',
     credentials,
   )
 

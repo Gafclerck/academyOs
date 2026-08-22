@@ -116,6 +116,32 @@ L'invitation crée un compte **sans mot de passe utilisable** (`set_unusable_pas
 | GET | `attachments/<id>/` | Auteur ou admin | — | Détail + URL de téléchargement (signée en S3) |
 | DELETE | `attachments/<id>/` | Auteur ou admin | — | Supprimer le fichier |
 
+### Endpoints critères d'évaluation (`/api/v1/criteria/`)
+
+| Méthode | Route | Accès | Filtres / Corps | Description |
+|---|---|---|---|---|
+| GET | `criteria/` | Authentifié | `?project=`, `?competency_name=` | Liste des critères d'évaluation et compétences d'un projet |
+| POST | `criteria/` | Admin / Organizer | `project, title, description, competency_name, max_score, weight, order` | Créer un critère d'évaluation |
+| GET | `criteria/<id>/` | Authentifié | — | Détail d'un critère |
+| PATCH | `criteria/<id>/` | Admin / Organizer | champs partiels | Modifier un critère |
+| DELETE | `criteria/<id>/` | Admin / Organizer | — | Supprimer un critère |
+
+### Endpoints d'évaluations et notation (`/api/v1/evaluations/`)
+
+| Méthode | Route | Accès | Filtres / Corps | Description |
+|---|---|---|---|---|
+| GET | `evaluations/` | Authentifié (selon rôle) | `?cohort=`, `?project=`, `?enrollment=`, `?learner=`, `?status=` | Liste filtrée des évaluations (Admin: tout, Formateur: cohortes affectées, Apprenant: ses évaluations) |
+| GET | `evaluations/<id>/` | Authentifié (selon rôle) | — | Détail complet d'une évaluation avec notes par compétence / critère |
+| POST | `evaluations/grade/` | Formateur (affecté) / Admin / Organizer | `{enrollment, project, status, score, general_feedback, criterion_scores: [{criterion, score, level, feedback}]}` | Enregistrer ou mettre à jour la notation d'un apprenant avec calcul auto de moyenne |
+| DELETE | `evaluations/<id>/` | Admin | — | Supprimer une évaluation |
+
+### Endpoints de Statistiques / KPIs (`/api/v1/`)
+
+| Méthode | Route | Accès | Description |
+|---|---|---|---|
+| GET | `dashboard/stats/` | Admin / Organizer | Métriques globales complètes : cohortes actives, total apprenants, formateurs, taux de complétion global, taux de validation, distributions de statuts et compétences, récentes évaluations |
+| GET | `cohorts/<id>/stats/` | Formateur affecté / Admin / Organizer | Statistiques détaillées de la cohorte : progression moyenne, taux de validation, taux de complétion, métriques par projet (taux et moyenne), synthèse par compétence et progression individuelle des apprenants |
+
 **Lien polymorphe (GenericForeignKey)** : `Attachment` se rattache à n'importe quelle entité métier (`Projet`, `Livrable`, `Session`, `Certificat`…) via `content_type`/`object_id` nullables. Pour la **création d'un parent avec fichiers**, on n'utilise pas cet endpoint : la vue de création du parent reçoit une requête **multipart unique** (champs + fichiers `file` répétés) et appelle le service `create_attachments(user, files, parent=...)` (`apps/attachments/services.py`) dans la même requête transactionnelle — pas de manipulation d'ids côté front. Chaque parent porte `attachments = GenericRelation(...)` et renvoie ses fichiers imbriqués.
 
 Règle d'accès actuelle (Attachment non lié) : seul l'auteur de l'upload ou un admin consulte/supprime. La matrice RBAC complète (mentor/organizer de la cohorte concernée) sera appliquée quand `Attachment` sera lié à une entité métier.

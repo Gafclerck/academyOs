@@ -15,7 +15,7 @@ import { getSessions, createCohorte } from '@/services/cohortes/cohorteService';
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 
 interface Props {
-  isOpen: boolean;
+  isOpen: boolean;  
   onClose: () => void;
   onSuccess: () => void;
 }

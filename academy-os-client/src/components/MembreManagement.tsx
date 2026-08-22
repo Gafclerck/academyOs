@@ -1,227 +1,637 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
-import { getMembresByCohorte, addMembreToCohorte, removeMembreFromCohorte, updateMembreRole } from '@/services/membreService';
-import type { Membre } from '@/types/programme';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import React, { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { GraduationCap, UserPlus } from 'lucide-react'
+
+import {
+  getEnrollments,
+  getTrainerAssignments,
+  addLearners,
+  addTrainers,
+  assignMentor,
+} from '@/services/membreService'
+
+import type {
+  BackendEnrollment,
+  BackendTrainerAssignment,
+} from '@/types/programme'
+
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@/components/ui/dialog'
+
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { toast } from 'sonner';
+} from '@/components/ui/select'
+
+import { Textarea } from '@/components/ui/textarea'
+import { RoleBadge } from '@/components/cohortes/Badge'
+import { toast } from 'sonner'
 
 interface MembreManagementProps {
-  cohorteId: string;
-  rentreeId: string;
+  cohorteId: string
+  rentreeId: string
 }
 
-export const MembreManagement: React.FC<MembreManagementProps> = ({ cohorteId, rentreeId }) => {
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nom: '', prenom: '', email: '', role: 'etudiant' as 'etudiant' | 'mentor' | 'lead' | 'admin' });
+type MemberRow =
+  | {
+      kind: 'learner'
+      enrollment: BackendEnrollment
+    }
+  | {
+      kind: 'trainer'
+      assignment: BackendTrainerAssignment
+    }
 
-  const { data: membres = [] } = useQuery({
-    queryKey: ['membres', cohorteId],
-    queryFn: () => getMembresByCohorte(cohorteId),
+export const MembreManagement: React.FC<MembreManagementProps> = ({
+  cohorteId,
+  rentreeId: _rentreeId,
+}) => {
+  const queryClient = useQueryClient()
+
+  const [addType, setAddType] = useState<
+    'learner' | 'trainer' | null
+  >(null)
+
+  const [emails, setEmails] = useState('')
+
+  const [results, setResults] = useState<
+    {
+      email: string
+      status: string
+      detail: string
+    }[]
+  >([])
+
+  // ============================================================
+  // RÉCUPÉRER LES APPRENANTS
+  // ============================================================
+
+  const { data: enrollments = [] } = useQuery({
+    queryKey: ['enrollments', cohorteId],
+    queryFn: () => getEnrollments(cohorteId),
     enabled: !!cohorteId,
-  });
+  })
+
+  // ============================================================
+  // RÉCUPÉRER LES FORMATEURS
+  // ============================================================
+
+  const { data: trainers = [] } = useQuery({
+    queryKey: ['trainer-assignments', cohorteId],
+    queryFn: () => getTrainerAssignments(cohorteId),
+    enabled: !!cohorteId,
+  })
+
+  // ============================================================
+  // CONSTRUIRE LA LISTE DES MEMBRES
+  // ============================================================
+
+  const members: MemberRow[] = [
+    ...enrollments.map((enrollment) => ({
+      kind: 'learner' as const,
+      enrollment,
+    })),
+
+    ...trainers.map((assignment) => ({
+      kind: 'trainer' as const,
+      assignment,
+    })),
+  ]
+
+  // ============================================================
+  // AJOUTER APPRENANT / FORMATEUR
+  // ============================================================
 
   const addMutation = useMutation({
-    mutationFn: () => addMembreToCohorte(cohorteId, { cohorte_id: cohorteId, rentree_id: rentreeId, ...form }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membres', cohorteId] });
-      toast.success('Membre ajoute');
-      setOpen(false);
-      setForm({ nom: '', prenom: '', email: '', role: 'etudiant' });
-    },
-    onError: (err) => toast.error(err.message),
-  });
+    mutationFn: async () => {
+      const lines = emails
+        .split(/[\n,]+/)
+        .map((email) => email.trim())
+        .filter((email) => email.length > 0)
 
-  const removeMutation = useMutation({
-    mutationFn: (membreId: string) => removeMembreFromCohorte(cohorteId, membreId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membres', cohorteId] });
-      toast.success('Membre retire');
-    },
-    onError: (err) => toast.error(err.message),
-  });
+      if (lines.length === 0) {
+        throw new Error('Veuillez saisir au moins un email.')
+      }
 
-  const roleMutation = useMutation({
-    mutationFn: ({ membreId, role }: { membreId: string; role: 'etudiant' | 'mentor' | 'lead' | 'admin' }) =>
-      updateMembreRole(cohorteId, membreId, { role }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membres', cohorteId] });
-      toast.success('Role mis a jour');
-    },
-    onError: (err) => toast.error(err.message),
-  });
+      if (addType === 'learner') {
+        return addLearners(cohorteId, lines)
+      }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.nom || !form.prenom || !form.email) {
-      toast.error('Veuillez remplir tous les champs');
-      return;
+      return addTrainers(cohorteId, lines)
+    },
+
+    onSuccess: (data) => {
+      setResults(data.results)
+
+      queryClient.invalidateQueries({
+        queryKey: ['enrollments', cohorteId],
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: ['trainer-assignments', cohorteId],
+      })
+
+      const failed = data.results.filter(
+        (result: { status: string }) =>
+          !['enrolled', 'assigned'].includes(result.status),
+      )
+
+      if (failed.length === 0) {
+        toast.success('Membres ajoutés avec succès')
+      } else {
+        toast.error(`${failed.length} email(s) en erreur`)
+      }
+    },
+
+    onError: (err) => {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Une erreur est survenue.',
+      )
+    },
+  })
+
+  // ============================================================
+  // ASSIGNER UN MENTOR
+  // ============================================================
+
+  const mentorMutation = useMutation({
+    mutationFn: ({
+      enrollmentId,
+      mentorId,
+    }: {
+      enrollmentId: string
+      mentorId: string | null
+    }) => assignMentor(cohorteId, enrollmentId, mentorId),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['enrollments', cohorteId],
+      })
+
+      toast.success('Mentor assigné')
+    },
+
+    onError: (err) => {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Impossible d’assigner le mentor.',
+      )
+    },
+  })
+
+  // ============================================================
+  // FERMER LA MODALE
+  // ============================================================
+
+  const closeDialog = () => {
+    setAddType(null)
+    setEmails('')
+    setResults([])
+  }
+
+  // ============================================================
+  // NOM DU MEMBRE
+  // ============================================================
+
+  const getMemberName = (row: MemberRow) => {
+    if (row.kind === 'learner') {
+      return `${row.enrollment.user.first_name} ${row.enrollment.user.last_name}`
     }
-    addMutation.mutate();
-  };
 
-  const roleLabels: Record<string, string> = {
-    etudiant: 'Etudiant',
-    mentor: 'Mentor',
-    lead: 'Team Lead',
-    admin: 'Admin',
-  };
+    return `${row.assignment.user.first_name} ${row.assignment.user.last_name}`
+  }
+
+  // ============================================================
+  // EMAIL DU MEMBRE
+  // ============================================================
+
+  const getMemberEmail = (row: MemberRow) => {
+    if (row.kind === 'learner') {
+      return row.enrollment.user.email
+    }
+
+    return row.assignment.user.email
+  }
+
+  // ============================================================
+  // RÔLE DU MEMBRE
+  // ============================================================
+
+  const getMemberRole = (
+    row: MemberRow,
+  ): 'etudiant' | 'formateur' | 'admin' | 'lead' => {
+    if (row.kind === 'learner') {
+      return 'etudiant'
+    }
+
+    if (row.assignment.user.role === 'admin') {
+      return 'admin'
+    }
+
+    if (row.assignment.user.role === 'organizer') {
+      return 'lead'
+    }
+
+    return 'formateur'
+  }
+
+  // ============================================================
+  // ID DU MEMBRE
+  // ============================================================
+
+  const getMemberId = (row: MemberRow) => {
+    if (row.kind === 'learner') {
+      return row.enrollment.id
+    }
+
+    return row.assignment.id
+  }
+
+  // ============================================================
+  // INITIALES
+  // ============================================================
+
+  const getInitials = (row: MemberRow) => {
+    const name = getMemberName(row)
+
+    const parts = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+
+    return parts
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  // ============================================================
+  // AFFICHAGE
+  // ============================================================
 
   return (
     <div className="space-y-4">
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Membres ({membres.length})</h3>
-        <Button
-          onClick={() => setOpen(true)}
-          className="h-9 px-4 rounded-lg bg-[#FF6B0B] hover:bg-[#ff7a24] text-white text-sm font-semibold"
-        >
-          <Plus className="size-4 mr-1.5" />
-          Ajouter
-        </Button>
+
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          Membres ({members.length})
+        </h3>
+
+        <div className="flex items-center gap-2">
+
+          {/* AJOUTER FORMATEUR */}
+
+          <Button
+            onClick={() => {
+              setAddType('trainer')
+              setResults([])
+            }}
+            className="h-9 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            <GraduationCap className="mr-1.5 size-4" />
+            Ajouter formateur
+          </Button>
+
+          {/* AJOUTER APPRENANT */}
+
+          <Button
+            onClick={() => {
+              setAddType('learner')
+              setResults([])
+            }}
+            className="h-9 rounded-lg bg-[#FF6B0B] px-4 text-sm font-semibold text-white hover:bg-[#ff7a24]"
+          >
+            <UserPlus className="mr-1.5 size-4" />
+            Ajouter apprenant
+          </Button>
+
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden">
+      {/* ======================================================
+          TABLEAU
+      ====================================================== */}
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/10">
+
         <table className="w-full text-left text-sm">
+
           <thead>
-            <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/10">
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Membre</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Email</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Role</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Actions</th>
+            <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
+                Membre
+              </th>
+
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
+                Email
+              </th>
+
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
+                Rôle
+              </th>
+
+              {enrollments.length > 0 &&
+                trainers.length > 0 && (
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
+                    Mentor
+                  </th>
+                )}
+
             </tr>
           </thead>
+
           <tbody className="divide-y divide-slate-200 dark:divide-white/10">
-            {membres.length === 0 ? (
+
+            {/* AUCUN MEMBRE */}
+
+            {members.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                <td
+                  colSpan={
+                    enrollments.length > 0 && trainers.length > 0
+                      ? 4
+                      : 3
+                  }
+                  className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                >
                   Aucun membre dans cette cohorte
                 </td>
               </tr>
             ) : (
-              membres.map((membre: Membre) => (
-                <tr key={membre.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="size-8 rounded-full bg-gradient-to-br from-[#FF6B0B] to-[#FF8C38] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                        {membre.avatar || `${membre.prenom[0]}${membre.nom[0]}`}
+
+              members.map((row) => {
+
+                const role = getMemberRole(row)
+
+                const memberId = getMemberId(row)
+
+                const isLearner = row.kind === 'learner'
+
+                const enrollment = isLearner
+                  ? row.enrollment
+                  : null
+
+                const currentMentor = enrollment?.mentor
+
+                return (
+                  <tr
+                    key={memberId}
+                    className="transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+                  >
+
+                    {/* MEMBRE */}
+
+                    <td className="px-4 py-3">
+
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B0B] to-[#FF8C38] text-xs font-bold text-white">
+                          {getInitials(row)}
+                        </div>
+
+                        <span className="font-semibold text-slate-900 dark:text-white">
+                          {getMemberName(row)}
+                        </span>
+
                       </div>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {membre.prenom} {membre.nom}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{membre.email}</td>
-                  <td className="px-4 py-3">
-                    <Select
-                      value={membre.role}
-                      onValueChange={(role: 'etudiant' | 'mentor' | 'lead' | 'admin') => roleMutation.mutate({ membreId: membre.id, role })}
-                    >
-                      <SelectTrigger className="h-8 w-32 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(roleLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key} className="text-xs">
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeMutation.mutate(membre.id)}
-                      disabled={removeMutation.isPending}
-                      className="size-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))
+
+                    </td>
+
+                    {/* EMAIL */}
+
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                      {getMemberEmail(row)}
+                    </td>
+
+                    {/* RÔLE */}
+
+                    <td className="px-4 py-3">
+                      <RoleBadge role={role} />
+                    </td>
+
+                    {/* MENTOR */}
+
+                    {enrollments.length > 0 &&
+                      trainers.length > 0 && (
+                        <td className="px-4 py-3">
+
+                          {isLearner ? (
+
+                            <Select
+                              value={currentMentor?.id || 'none'}
+                              onValueChange={(value) =>
+                                mentorMutation.mutate({
+                                  enrollmentId:
+                                    enrollment!.id,
+                                  mentorId:
+                                    value === 'none'
+                                      ? null
+                                      : value,
+                                })
+                              }
+                            >
+
+                              <SelectTrigger className="h-8 w-40 text-xs">
+                                <SelectValue placeholder="Assigner un mentor" />
+                              </SelectTrigger>
+
+                              <SelectContent>
+
+                                <SelectItem
+                                  value="none"
+                                  className="text-xs"
+                                >
+                                  Aucun mentor
+                                </SelectItem>
+
+                                {trainers.map((trainer) => (
+                                  <SelectItem
+                                    key={trainer.id}
+                                    value={trainer.id}
+                                    className="text-xs"
+                                  >
+                                    {trainer.user.first_name}{' '}
+                                    {trainer.user.last_name}
+                                  </SelectItem>
+                                ))}
+
+                              </SelectContent>
+
+                            </Select>
+
+                          ) : (
+
+                            <span className="text-xs text-slate-400">
+                              -
+                            </span>
+
+                          )}
+
+                        </td>
+                      )}
+
+                  </tr>
+                )
+              })
             )}
+
           </tbody>
+
         </table>
+
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ======================================================
+          MODALE AJOUT
+      ====================================================== */}
+
+      <Dialog
+        open={addType !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDialog()
+          }
+        }}
+      >
+
         <DialogContent>
+
           <DialogHeader>
-            <DialogTitle>Ajouter un membre</DialogTitle>
+
+            <DialogTitle>
+              {addType === 'learner'
+                ? 'Ajouter des apprenants'
+                : 'Ajouter des formateurs'}
+            </DialogTitle>
+
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          <div className="space-y-4">
+
+            {/* EMAILS */}
+
             <div className="space-y-2">
-              <Label htmlFor="prenom">Prenom</Label>
-              <Input
-                id="prenom"
-                value={form.prenom}
-                onChange={(e) => setForm({ ...form, prenom: e.target.value })}
-                placeholder="Prenom"
+
+              <Label htmlFor="emails">
+                Emails{' '}
+                {addType === 'learner'
+                  ? 'des apprenants'
+                  : 'des formateurs'}
+              </Label>
+
+              <Textarea
+                id="emails"
+                value={emails}
+                onChange={(event) =>
+                  setEmails(event.target.value)
+                }
+                placeholder={`email1@exemple.com
+email2@exemple.com
+...`}
+                rows={6}
+                className="rounded-xl"
               />
+
+              <p className="text-xs text-slate-500">
+                Un email par ligne. Les comptes doivent déjà
+                exister et avoir le rôle approprié.
+              </p>
+
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nom">Nom</Label>
-              <Input
-                id="nom"
-                value={form.nom}
-                onChange={(e) => setForm({ ...form, nom: e.target.value })}
-                placeholder="Nom"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="email@exemple.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={form.role} onValueChange={(role: 'etudiant' | 'mentor' | 'lead' | 'admin') => setForm({ ...form, role })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="etudiant">Etudiant</SelectItem>
-                  <SelectItem value="mentor">Mentor</SelectItem>
-                  <SelectItem value="lead">Team Lead</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={addMutation.isPending} className="bg-[#FF6B0B] hover:bg-[#ff7a24]">
-                Ajouter
-              </Button>
-            </DialogFooter>
-          </form>
+
+            {/* RÉSULTATS */}
+
+            {results.length > 0 && (
+
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-3 dark:border-white/10">
+
+                {results.map((result, index) => (
+
+                  <div
+                    key={index}
+                    className="flex items-center justify-between text-xs"
+                  >
+
+                    <span className="font-mono text-slate-700 dark:text-slate-300">
+                      {result.email}
+                    </span>
+
+                    <span
+                      className={
+                        ['enrolled', 'assigned'].includes(
+                          result.status,
+                        )
+                          ? 'font-semibold text-emerald-600'
+                          : 'font-semibold text-red-600'
+                      }
+                    >
+                      {result.detail}
+                    </span>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+          {/* FOOTER */}
+
+          <DialogFooter>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeDialog}
+            >
+              Fermer
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => addMutation.mutate()}
+              disabled={addMutation.isPending}
+              className={
+                addType === 'learner'
+                  ? 'bg-[#FF6B0B] hover:bg-[#ff7a24]'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }
+            >
+              {addMutation.isPending
+                ? 'Ajout en cours...'
+                : 'Ajouter'}
+            </Button>
+
+          </DialogFooter>
+
         </DialogContent>
+
       </Dialog>
+
     </div>
-  );
-};
+  )
+}

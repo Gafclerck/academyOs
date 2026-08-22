@@ -1,12 +1,17 @@
 /**
- * Service API - Gestion des Certificats (mock)
+ * Service API - Gestion des Certificats
+ *
+ * ATTENTION : le backend n'a pas encore de views/serializers/URLs pour les certificats
+ * (model-only pour l'instant, cf. apps/certificates/views.py).
+ *
+ * Ce service reste en mode mock jusqu'à ce que le backend expose les endpoints.
  */
 
 import axios from 'axios';
 import type { Certificat, CreateCertificatDTO } from '@/types/programme';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 });
@@ -72,7 +77,7 @@ export async function getCertificatsByCohorte(cohorteId: string): Promise<Certif
       await delay(500);
       return MOCK_CERTIFICATS.filter((c) => c.cohorte_id === cohorteId);
     }
-    const { data } = await api.get<Certificat[]>(`/cohortes/${cohorteId}/certificats`);
+    const { data } = await api.get<Certificat[]>(`cohortes/${cohorteId}/certificats`);
     return data;
   } catch (err) {
     throw new Error(extractMessage(err, 'Impossible de charger les certificats.'));
@@ -110,7 +115,7 @@ export async function downloadCertificat(certificatId: string): Promise<Blob> {
       await delay(600);
       return new Blob(['Certificat PDF simulé'], { type: 'application/pdf' });
     }
-    const response = await api.get(`/certificats/${certificatId}/download`, { responseType: 'blob' });
+    const response = await api.get(`certificats/${certificatId}/download`, { responseType: 'blob' });
     return response.data;
   } catch (err) {
     throw new Error(extractMessage(err, 'Impossible de telecharger le certificat.'));
