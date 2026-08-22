@@ -1,10 +1,16 @@
 from decimal import Decimal
+
 import factory
 from django.utils import timezone
 
 from apps.cohorts.tests.factories import EnrollmentFactory
 from apps.core.tests.factories import UserFactory
-from apps.evaluations.models import CriterionScore, Evaluation, EvaluationCriterion
+from apps.evaluations.models import (
+    CriterionScore,
+    Deliverable,
+    EvaluationCriterion,
+    ProjectAssignment,
+)
 from apps.projects.tests.factories import ProjectFactory
 
 
@@ -21,24 +27,35 @@ class EvaluationCriterionFactory(factory.django.DjangoModelFactory):
     order = factory.Sequence(lambda n: n + 1)
 
 
-class EvaluationFactory(factory.django.DjangoModelFactory):
+class ProjectAssignmentFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = Evaluation
+        model = ProjectAssignment
 
     enrollment = factory.SubFactory(EnrollmentFactory)
-    project = factory.LazyAttribute(lambda o: o.enrollment.cohort.program.projects.first() or ProjectFactory(program=o.enrollment.cohort.program))
-    evaluated_by = factory.SubFactory(UserFactory, trainer=True)
-    status = Evaluation.StatusEnum.VALIDATED
-    score = Decimal("16.00")
-    general_feedback = "Bon travail général sur le projet."
-    evaluated_at = factory.LazyFunction(timezone.now)
+    project = factory.SubFactory(ProjectFactory)
+    status = ProjectAssignment.StatusEnum.PENDING
+    assigned_at = factory.LazyFunction(timezone.now)
+
+
+class DeliverableFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Deliverable
+
+    assignment = factory.SubFactory(ProjectAssignmentFactory)
+    version = 1
+    submitted_by = factory.LazyAttribute(lambda o: o.assignment.enrollment.user)
+    submitted_at = factory.LazyFunction(timezone.now)
+    repo_url = "https://github.com/student/mon-projet"
+    live_url = "https://mon-projet.vercel.app"
+    comments = "Version initiale du livrable."
+    status = Deliverable.StatusEnum.SUBMITTED
 
 
 class CriterionScoreFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = CriterionScore
 
-    evaluation = factory.SubFactory(EvaluationFactory)
+    deliverable = factory.SubFactory(DeliverableFactory)
     criterion = factory.SubFactory(EvaluationCriterionFactory)
     score = Decimal("16.00")
     level = CriterionScore.LevelEnum.ACQUIRED

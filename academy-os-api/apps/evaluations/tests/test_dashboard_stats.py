@@ -6,7 +6,7 @@ from apps.cohorts.models import Cohort, Enrollment
 from apps.cohorts.tests.factories import CohortFactory, EnrollmentFactory
 from apps.core.tests.base import AuthAPITestCase
 from apps.core.tests.factories import UserFactory
-from apps.evaluations.models import Evaluation
+from apps.evaluations.models import Deliverable, ProjectAssignment
 from apps.programs.tests.factories import ProgramFactory
 from apps.projects.models import Project
 from apps.projects.tests.factories import ProjectFactory
@@ -42,18 +42,35 @@ class DashboardStatsAPITests(AuthAPITestCase):
             status=Certificate.StatusCertificateEnum.SENT,
         )
 
-        # Évaluations
-        Evaluation.objects.create(
+        # Assignations & Livrables
+        a1 = ProjectAssignment.objects.create(
             enrollment=self.enr1,
             project=self.project,
-            status=Evaluation.StatusEnum.VALIDATED,
-            score=Decimal("18.00"),
+            status=ProjectAssignment.StatusEnum.VALIDATED,
+            final_score=Decimal("18.00"),
         )
-        Evaluation.objects.create(
+        Deliverable.objects.create(
+            assignment=a1,
+            version=1,
+            submitted_by=self.enr1.user,
+            status=Deliverable.StatusEnum.VALIDATED,
+            score=Decimal("18.00"),
+            reviewed_by=self.trainer,
+        )
+
+        a2 = ProjectAssignment.objects.create(
             enrollment=self.enr2,
             project=self.project,
-            status=Evaluation.StatusEnum.REJECTED,
+            status=ProjectAssignment.StatusEnum.IN_PROGRESS,
+            final_score=None,
+        )
+        Deliverable.objects.create(
+            assignment=a2,
+            version=1,
+            submitted_by=self.enr2.user,
+            status=Deliverable.StatusEnum.REJECTED,
             score=Decimal("8.00"),
+            reviewed_by=self.trainer,
         )
 
     def test_admin_get_dashboard_stats_success(self):
@@ -70,8 +87,7 @@ class DashboardStatsAPITests(AuthAPITestCase):
         self.assertEqual(data["total_rejected_evaluations"], 1)
         self.assertEqual(data["issued_certificates"], 1)
         self.assertEqual(data["global_validation_rate"], 50.0)
-        # Moyenne globale (18 + 8) / 2 = 13.0
-        self.assertEqual(data["average_score"], 13.0)
+        self.assertEqual(data["average_score"], 18.0)
 
         # Vérification des distributions
         self.assertIn("cohorts_by_status", data)

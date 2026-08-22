@@ -1,21 +1,43 @@
 from django.urls import include, path
-from rest_framework.routers import SimpleRouter
+from rest_framework.routers import DefaultRouter
 
-from .views import (
+from apps.evaluations.views import (
     CohortStatsView,
     DashboardStatsView,
+    DeliverableDetailView,
+    DeliverableListView,
+    DeliverableReviewView,
+    DeliverableSubmitView,
     EvaluationCriterionViewSet,
-    EvaluationViewSet,
-    GradeLearnerView,
+    ProjectAssignmentViewSet,
 )
 
-router = SimpleRouter()
+router = DefaultRouter()
 router.register(r"criteria", EvaluationCriterionViewSet, basename="criterion")
-router.register(r"evaluations", EvaluationViewSet, basename="evaluation")
+router.register(r"assignments", ProjectAssignmentViewSet, basename="assignment")
 
 urlpatterns = [
-    path("evaluations/grade/", GradeLearnerView.as_view(), name="grade-learner"),
-    path("dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
+    path(
+        "assignments/<uuid:assignment_id>/deliverables/",
+        DeliverableListView.as_view(),
+        name="deliverable-list",
+    ),
+    path(
+        "assignments/<uuid:assignment_id>/deliverables/submit/",
+        DeliverableSubmitView.as_view(),
+        name="deliverable-submit",
+    ),
+    path(
+        "deliverables/<uuid:deliverable_id>/review/",
+        DeliverableReviewView.as_view(),
+        name="deliverable-review",
+    ),
+    path(
+        "deliverables/<uuid:pk>/",
+        DeliverableDetailView.as_view(),
+        name="deliverable-detail",
+    ),
     path("cohorts/<uuid:cohort_id>/stats/", CohortStatsView.as_view(), name="cohort-stats"),
+    path("dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
     path("", include(router.urls)),
 ]

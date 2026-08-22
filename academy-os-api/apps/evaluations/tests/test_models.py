@@ -4,10 +4,13 @@ from django.db import IntegrityError
 from django.test import TestCase
 
 from apps.cohorts.tests.factories import EnrollmentFactory
-from apps.evaluations.models import CriterionScore, Evaluation, EvaluationCriterion
+from apps.evaluations.models import (
+    CriterionScore,
+    Deliverable,
+    EvaluationCriterion,
+    ProjectAssignment,
+)
 from apps.projects.tests.factories import ProjectFactory
-
-from .factories import EvaluationCriterionFactory, EvaluationFactory
 
 
 class EvaluationModelTests(TestCase):
@@ -41,13 +44,17 @@ class EvaluationModelTests(TestCase):
                 order=1,
             )
 
-    def test_create_evaluation_and_calculate_weighted_score(self):
-        evaluation = Evaluation.objects.create(
+    def test_create_deliverable_and_calculate_weighted_score(self):
+        assignment = ProjectAssignment.objects.create(
             enrollment=self.enrollment,
             project=self.project,
-            status=Evaluation.StatusEnum.VALIDATED,
+            status=ProjectAssignment.StatusEnum.SUBMITTED,
         )
-        self.assertEqual(evaluation.status, Evaluation.StatusEnum.VALIDATED)
+        deliverable = Deliverable.objects.create(
+            assignment=assignment,
+            version=1,
+            submitted_by=self.enrollment.user,
+        )
 
         crit1 = EvaluationCriterion.objects.create(
             project=self.project,
@@ -65,37 +72,42 @@ class EvaluationModelTests(TestCase):
         )
 
         CriterionScore.objects.create(
-            evaluation=evaluation,
+            deliverable=deliverable,
             criterion=crit1,
             score=Decimal("10.00"),
             level=CriterionScore.LevelEnum.IN_PROGRESS,
         )
         CriterionScore.objects.create(
-            evaluation=evaluation,
+            deliverable=deliverable,
             criterion=crit2,
             score=Decimal("18.00"),
             level=CriterionScore.LevelEnum.MASTERED,
         )
 
         # Weighted calculation: (10*1 + 18*3) / (1+3) = (10 + 54) / 4 = 64 / 4 = 16.00
-        calculated = evaluation.calculate_score()
-        self.assertEqual(calculated, 16.0)
+        calculated = deliverable.calculate_score()
+        self.assertEqual(calculated, Decimal("16.00"))
 
-    def test_unique_evaluation_per_enrollment_and_project(self):
-        Evaluation.objects.create(
+    def test_unique_assignment_per_enrollment_and_project(self):
+        ProjectAssignment.objects.create(
             enrollment=self.enrollment,
             project=self.project,
         )
         with self.assertRaises(IntegrityError):
-            Evaluation.objects.create(
+            ProjectAssignment.objects.create(
                 enrollment=self.enrollment,
                 project=self.project,
             )
 
-    def test_unique_criterion_score_per_evaluation_and_criterion(self):
-        evaluation = Evaluation.objects.create(
+    def test_unique_criterion_score_per_deliverable_and_criterion(self):
+        assignment = ProjectAssignment.objects.create(
             enrollment=self.enrollment,
             project=self.project,
+        )
+        deliverable = Deliverable.objects.create(
+            assignment=assignment,
+            version=1,
+            submitted_by=self.enrollment.user,
         )
         crit = EvaluationCriterion.objects.create(
             project=self.project,
@@ -103,13 +115,13 @@ class EvaluationModelTests(TestCase):
             order=1,
         )
         CriterionScore.objects.create(
-            evaluation=evaluation,
+            deliverable=deliverable,
             criterion=crit,
             score=Decimal("15.00"),
         )
         with self.assertRaises(IntegrityError):
             CriterionScore.objects.create(
-                evaluation=evaluation,
+                deliverable=deliverable,
                 criterion=crit,
                 score=Decimal("12.00"),
             )

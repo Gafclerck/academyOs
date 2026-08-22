@@ -3,28 +3,37 @@ from uuid import UUID
 from django.db import models
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
-from rest_framework import permissions, status, viewsets
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.cohorts.models import Cohort, TrainerAssignment
-from apps.projects.models import Project
-from apps.users.models import User
-from apps.users.permissions import IsAdmin, IsAdminOrOrganizer
-
-from .models import CriterionScore, Evaluation, EvaluationCriterion
-from .permissions import CanGradeEvaluation, CanViewEvaluation
-from .serializers import (
+from apps.evaluations.models import Deliverable, EvaluationCriterion, ProjectAssignment
+from apps.evaluations.permissions import CanGradeEvaluation, CanViewEvaluation
+from apps.evaluations.serializers import (
     CohortStatsSerializer,
-    CriterionScoreSerializer,
     DashboardStatsSerializer,
+    DeliverableReviewSerializer,
+    DeliverableSerializer,
+    DeliverableSubmitSerializer,
     EvaluationCriterionSerializer,
-    EvaluationDetailSerializer,
-    EvaluationListSerializer,
-    GradeLearnerInputSerializer,
+    ProjectAssignmentCreateSerializer,
+    ProjectAssignmentSerializer,
 )
-from .services import get_cohort_stats, get_dashboard_stats, grade_learner
+from apps.evaluations.services import (
+    get_cohort_stats,
+    get_dashboard_stats,
+    review_deliverable,
+    submit_deliverable,
+)
+from apps.users.models import User
+from apps.users.permissions import (
+    IsAdmin,
+    IsAdminOrOrganizer,
+    IsAdminOrOrganizerOrTrainer,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -86,102 +95,104 @@ class EvaluationCriterionViewSet(viewsets.ModelViewSet):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# VUES ÉVALUATIONS & NOTATIONS
+# VUES ASSIGNATIONS DE PROJET
 # ─────────────────────────────────────────────────────────────────────────────
 
 @extend_schema_view(
     list=extend_schema(
-        summary="Lister les évaluations",
-        description="Liste des évaluations. Filtrable par `cohort`, `project`, `enrollment`, `learner`, `status`.",
+        summary="Lister les assignations de projet",
+        description="Liste paginée des assignations de projet. Filtrable par cohorte, projet, utilisateur et statut.",
         parameters=[
-            OpenApiParameter(name="cohort", type=str, location=OpenApiParameter.QUERY, description="UUID de la cohorte"),
-            OpenApiParameter(name="project", type=str, location=OpenApiParameter.QUERY, description="UUID du projet"),
-            OpenApiParameter(name="enrollment", type=str, location=OpenApiParameter.QUERY, description="UUID de l'inscription"),
-            OpenApiParameter(name="learner", type=str, location=OpenApiParameter.QUERY, description="UUID de l'apprenant"),
-            OpenApiParameter(name="status", type=str, location=OpenApiParameter.QUERY, description="Statut de l'évaluation"),
+            OpenApiParameter("cohort", str, OpenApiParameter.QUERY, description="Filtrer par UUID de cohorte."),
+            OpenApiParameter("project", str, OpenApiParameter.QUERY, description="Filtrer par UUID de projet."),
+            OpenApiParameter("user", str, OpenApiParameter.QUERY, description="Filtrer par UUID d'apprenant."),
+            OpenApiParameter("status", str, OpenApiParameter.QUERY, description="Filtrer par statut ('pending', 'in_progress', 'submitted', 'validated')."),
         ],
         tags=["Evaluations"],
     ),
-    retrieve=extend_schema(
-        summary="Détail d'une évaluation avec notes par compétence",
-        responses={200: EvaluationDetailSerializer},
-        tags=["Evaluations"],
-    ),
-    destroy=extend_schema(
-        summary="Supprimer une évaluation",
-        tags=["Evaluations"],
-    ),
+    create=extend_schema(summary="Créer une assignation de projet", tags=["Evaluations"]),
+    retrieve=extend_schema(summary="Détail d'une assignation de projet", tags=["Evaluations"]),
+    update=extend_schema(summary="Modifier une assignation de projet (admin uniquement)", tags=["Evaluations"]),
+    partial_update=extend_schema(summary="Modifier partiellement une assignation (admin uniquement)", tags=["Evaluations"]),
+    destroy=extend_schema(summary="Supprimer une assignation de projet (admin uniquement)", tags=["Evaluations"]),
 )
-class EvaluationViewSet(viewsets.ModelViewSet):
-    """ViewSet de consultation et gestion des évaluations."""
+class ProjectAssignmentViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des assignations de projets aux apprenants."""
 
     queryset = (
-        Evaluation.objects.select_related(
+        ProjectAssignment.objects.select_related(
             "enrollment__user",
             "enrollment__cohort",
             "project",
-            "evaluated_by",
         )
-        .prefetch_related("criterion_scores__criterion")
+        .prefetch_related(
+            "deliverables__attachments",
+            "deliverables__submitted_by",
+            "deliverables__reviewed_by",
+            "deliverables__criterion_scores__criterion",
+        )
         .all()
     )
-    http_method_names = ["get", "delete", "head", "options"]
-
-    def get_serializer_class(self):
-        if self.action == "retrieve":
-            return EvaluationDetailSerializer
-        return EvaluationListSerializer
 
     def get_permissions(self):
-        if self.action == "destroy":
-            return [IsAdmin()]
-        return [CanViewEvaluation()]
+        if self.action in ("list", "retrieve"):
+            return [permissions.IsAuthenticated()]
+        if self.action == "create":
+            return [IsAdminOrOrganizerOrTrainer()]
+        return [IsAdmin()]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ProjectAssignmentCreateSerializer
+        return ProjectAssignmentSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        assignment = serializer.save()
+        output = ProjectAssignmentSerializer(assignment, context={"request": request})
+        return Response(output.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
-        user = self.request.user
         queryset = super().get_queryset()
+        user = self.request.user
 
-        # Filtrage de sécurité selon le rôle
-        if not (user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
-            if user.role == User.Role.TRAINER:
+        # Filtrage selon le rôle
+        if not (user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
+            if user.role == User.Role.LEARNER:
+                queryset = queryset.filter(enrollment__user_id=user.id)
+            elif user.role == User.Role.TRAINER:
                 assigned_cohort_ids = TrainerAssignment.objects.filter(
                     user=user,
                     status=TrainerAssignment.StatusEnum.ACTIVE,
                 ).values_list("cohort_id", flat=True)
                 queryset = queryset.filter(enrollment__cohort_id__in=assigned_cohort_ids)
-            elif user.role == User.Role.LEARNER:
-                queryset = queryset.filter(enrollment__user=user)
             else:
                 return queryset.none()
 
-        # Filtres URL optionnels
         cohort_param = self.request.query_params.get("cohort")
         if cohort_param:
             try:
-                queryset = queryset.filter(enrollment__cohort_id=UUID(cohort_param))
+                cohort_uuid = UUID(cohort_param)
             except ValueError:
                 raise ValidationError({"cohort": ["UUID invalide."]})
+            queryset = queryset.filter(enrollment__cohort_id=cohort_uuid)
 
         project_param = self.request.query_params.get("project")
         if project_param:
             try:
-                queryset = queryset.filter(project_id=UUID(project_param))
+                project_uuid = UUID(project_param)
             except ValueError:
                 raise ValidationError({"project": ["UUID invalide."]})
+            queryset = queryset.filter(project_id=project_uuid)
 
-        enrollment_param = self.request.query_params.get("enrollment")
-        if enrollment_param:
+        user_param = self.request.query_params.get("user")
+        if user_param:
             try:
-                queryset = queryset.filter(enrollment_id=UUID(enrollment_param))
+                user_uuid = UUID(user_param)
             except ValueError:
-                raise ValidationError({"enrollment": ["UUID invalide."]})
-
-        learner_param = self.request.query_params.get("learner")
-        if learner_param:
-            try:
-                queryset = queryset.filter(enrollment__user_id=UUID(learner_param))
-            except ValueError:
-                raise ValidationError({"learner": ["UUID invalide."]})
+                raise ValidationError({"user": ["UUID invalide."]})
+            queryset = queryset.filter(enrollment__user_id=user_uuid)
 
         status_param = self.request.query_params.get("status")
         if status_param:
@@ -190,27 +201,155 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class GradeLearnerView(APIView):
-    """Endpoint de notation pour les formateurs et mentors."""
+# ─────────────────────────────────────────────────────────────────────────────
+# VUES SOUMISSION ET LISTE DES LIVRABLES
+# ─────────────────────────────────────────────────────────────────────────────
 
-    permission_classes = [CanGradeEvaluation]
+class DeliverableSubmitView(APIView):
+    """POST /api/v1/assignments/<assignment_id>/deliverables/submit/ - Soumettre un livrable (apprenant)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
-        summary="Noter / Évaluer un apprenant sur un projet",
-        description="Permet à un formateur, mentor ou admin d'enregistrer la grille d'évaluation et les notes par compétence d'un apprenant.",
-        request=GradeLearnerInputSerializer,
-        responses={
-            201: EvaluationDetailSerializer,
+        summary="Soumettre un livrable pour un projet",
+        description="Permet à l'apprenant assigné de déposer un livrable (liens repo/demo, commentaires, fichiers joints).",
+        request={
+            "application/json": DeliverableSubmitSerializer,
+            "multipart/form-data": DeliverableSubmitSerializer,
         },
+        responses={201: DeliverableSerializer},
         tags=["Evaluations"],
     )
-    def post(self, request):
-        serializer = GradeLearnerInputSerializer(data=request.data)
+    def post(self, request, assignment_id):
+        assignment = get_object_or_404(ProjectAssignment, pk=assignment_id)
+        serializer = DeliverableSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        evaluation = grade_learner(request.user, serializer.validated_data)
-        output_serializer = EvaluationDetailSerializer(evaluation, context={"request": request})
-        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+        files = request.FILES.getlist("files") or request.FILES.getlist("file")
+        deliverable = submit_deliverable(
+            assignment=assignment,
+            user=request.user,
+            data=serializer.validated_data,
+            files=files,
+        )
+
+        output = DeliverableSerializer(deliverable, context={"request": request})
+        return Response(output.data, status=status.HTTP_201_CREATED)
+
+
+class DeliverableListView(generics.ListAPIView):
+    """GET /api/v1/assignments/<assignment_id>/deliverables/ - Lister les livrables d'une assignation."""
+
+    serializer_class = DeliverableSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        assignment = get_object_or_404(ProjectAssignment, pk=self.kwargs["assignment_id"])
+        user = self.request.user
+        if not (user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
+            if user.role == User.Role.LEARNER:
+                if assignment.enrollment.user_id != user.id:
+                    raise PermissionDenied("Vous n'avez pas accès aux livrables de cette assignation.")
+            elif user.role == User.Role.TRAINER:
+                if not TrainerAssignment.objects.filter(
+                    cohort=assignment.enrollment.cohort, user=user, status=TrainerAssignment.StatusEnum.ACTIVE
+                ).exists():
+                    raise PermissionDenied(
+                        "Vous n'êtes pas formateur affecté à la cohorte de cette assignation."
+                    )
+            else:
+                raise PermissionDenied("Accès refusé.")
+
+        return Deliverable.objects.filter(assignment=assignment).select_related(
+            "assignment__project",
+            "assignment__enrollment__user",
+            "assignment__enrollment__cohort",
+            "submitted_by",
+            "reviewed_by",
+        ).prefetch_related("attachments", "criterion_scores__criterion")
+
+    @extend_schema(
+        summary="Lister les livrables d'une assignation",
+        description="Retourne la liste versionnée des livrables soumis pour une assignation donnée.",
+        responses={200: DeliverableSerializer(many=True)},
+        tags=["Evaluations"],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class DeliverableDetailView(generics.RetrieveAPIView):
+    """GET /api/v1/deliverables/<pk>/ - Détail d'un livrable."""
+
+    queryset = Deliverable.objects.select_related(
+        "assignment__project",
+        "assignment__enrollment__user",
+        "assignment__enrollment__cohort",
+        "submitted_by",
+        "reviewed_by",
+    ).prefetch_related("attachments", "criterion_scores__criterion")
+    serializer_class = DeliverableSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(summary="Détail d'un livrable", tags=["Evaluations"])
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_object(self):
+        obj = super().get_object()
+        user = self.request.user
+        if user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+            return obj
+        if user.role == User.Role.LEARNER:
+            if obj.assignment.enrollment.user_id != user.id:
+                raise PermissionDenied("Vous n'avez pas accès à ce livrable.")
+        elif user.role == User.Role.TRAINER:
+            cohort = obj.assignment.enrollment.cohort
+            if not TrainerAssignment.objects.filter(
+                cohort=cohort, user=user, status=TrainerAssignment.StatusEnum.ACTIVE
+            ).exists():
+                raise PermissionDenied(
+                    "Vous n'êtes pas formateur affecté à la cohorte de ce livrable."
+                )
+        return obj
+
+
+class DeliverableReviewView(APIView):
+    """POST /api/v1/deliverables/<deliverable_id>/review/ - Corriger et noter un livrable (formateur/admin)."""
+
+    permission_classes = [CanGradeEvaluation]
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        summary="Corriger et évaluer un livrable",
+        description="Permet à un formateur ou administrateur de valider/rejeter un livrable, d'attribuer une note et un feedback ou une grille critériée.",
+        request=DeliverableReviewSerializer,
+        responses={200: DeliverableSerializer},
+        tags=["Evaluations"],
+    )
+    def post(self, request, deliverable_id):
+        deliverable = get_object_or_404(Deliverable, pk=deliverable_id)
+
+        serializer = DeliverableReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        status_decision = serializer.validated_data["status"]
+        score = serializer.validated_data.get("score")
+        feedback = serializer.validated_data.get("feedback", "")
+        criterion_scores = serializer.validated_data.get("criterion_scores")
+
+        reviewed = review_deliverable(
+            deliverable=deliverable,
+            trainer=request.user,
+            status_decision=status_decision,
+            score=score,
+            feedback=feedback,
+            criterion_scores_data=criterion_scores,
+        )
+
+        output = DeliverableSerializer(reviewed, context={"request": request})
+        return Response(output.data, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -245,7 +384,6 @@ class CohortStatsView(APIView):
     def get(self, request, cohort_id):
         cohort = get_object_or_404(Cohort.objects.select_related("program"), pk=cohort_id)
 
-        # Vérification des droits d'accès
         user = request.user
         if not (user and user.is_authenticated):
             return Response(status=status.HTTP_401_UNAUTHORIZED)

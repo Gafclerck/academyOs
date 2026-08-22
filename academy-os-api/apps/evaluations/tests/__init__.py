@@ -1,1 +1,1 @@
-# Package tests pour apps.evaluations
+# Evaluations tests package

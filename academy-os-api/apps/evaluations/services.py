@@ -1,136 +1,381 @@
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 
+from apps.attachments.services import create_attachments
 from apps.certificates.models import Certificate
 from apps.cohorts.models import Cohort, Enrollment, TrainerAssignment
+from apps.evaluations.models import (
+    CriterionScore,
+    Deliverable,
+    EvaluationCriterion,
+    ProjectAssignment,
+)
 from apps.programs.models import Program
 from apps.projects.models import Project
 from apps.users.models import User
 
-from .models import CriterionScore, Evaluation, EvaluationCriterion
-
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SERVICE DE NOTATION & ÉVALUATION
+# SOUMISSION DE LIVRABLE
 # ─────────────────────────────────────────────────────────────────────────────
 
-def grade_learner(evaluator_user: User, data: Dict[str, Any]) -> Evaluation:
-    """Enregistre ou met à jour l'évaluation d'un apprenant sur un projet.
+@transaction.atomic
+def submit_deliverable(
+    assignment: ProjectAssignment,
+    user: User,
+    data: dict,
+    files=None,
+) -> Deliverable:
+    """Crée une nouvelle version de livrable pour une assignation de projet.
 
-    Règles métier :
-    - L'inscription et le projet doivent exister.
-    - Le projet doit appartenir au programme de la cohorte de l'apprenant.
-    - L'évaluateur doit être un administrateur, un gestionnaire ou un formateur
-      affecté à la cohorte concernée.
+    - Seul l'apprenant concerné par l'inscription (ou un admin) peut soumettre.
+    - Bloque si l'inscription est inactive (DROPPED/SUSPENDED).
+    - Bloque si le livrable précédent est en attente de review (SUBMITTED)
+      ou si l'assignation est déjà validée (VALIDATED).
+    - Incrémente automatiquement le numéro de version.
+    - Rattache les fichiers joints via create_attachments si présents.
+    - Met à jour le statut de l'assignation en 'submitted'.
     """
-    enrollment_id = data.get("enrollment")
-    project_id = data.get("project")
-    status = data.get("status", Evaluation.StatusEnum.VALIDATED)
-    general_feedback = data.get("general_feedback", "")
-    explicit_score = data.get("score")
-    criterion_scores_data = data.get("criterion_scores", [])
+    if not (user.is_staff or user.is_superuser) and assignment.enrollment.user_id != user.id:
+        raise PermissionDenied("Vous n'êtes pas autorisé à soumettre un livrable pour cette inscription.")
 
-    try:
-        enrollment = Enrollment.objects.select_related("cohort", "cohort__program", "user").get(pk=enrollment_id)
-    except Enrollment.DoesNotExist:
-        raise ValidationError({"enrollment": ["Inscription introuvable."]})
+    if assignment.enrollment.status in (
+        Enrollment.StatusEnum.DROPPED,
+        Enrollment.StatusEnum.SUSPENDED,
+    ):
+        raise ValidationError(
+            {"detail": "Votre inscription est inactive. Impossible de soumettre un livrable."}
+        )
 
-    try:
-        project = Project.objects.select_related("program").get(pk=project_id)
-    except Project.DoesNotExist:
-        raise ValidationError({"project": ["Projet introuvable."]})
+    if assignment.status in (
+        ProjectAssignment.StatusEnum.SUBMITTED,
+        ProjectAssignment.StatusEnum.VALIDATED,
+    ):
+        raise ValidationError(
+            {"detail": "Impossible de soumettre un livrable pour le moment."}
+        )
 
-    # Vérifie que le projet appartient bien au programme de la cohorte
-    if project.program_id != enrollment.cohort.program_id:
-        raise ValidationError({
-            "project": ["Ce projet n'appartient pas au programme de la cohorte de l'apprenant."]
-        })
+    latest_version = (
+        assignment.deliverables.order_by("-version").values_list("version", flat=True).first() or 0
+    )
+    new_version = latest_version + 1
 
-    # Vérification des permissions de notation
-    if not (evaluator_user.is_superuser or evaluator_user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
-        if evaluator_user.role == User.Role.TRAINER:
+    deliverable = Deliverable.objects.create(
+        assignment=assignment,
+        version=new_version,
+        submitted_by=user,
+        submitted_at=timezone.now(),
+        repo_url=data.get("repo_url", "").strip(),
+        live_url=data.get("live_url", "").strip(),
+        comments=data.get("comments", "").strip(),
+        status=Deliverable.StatusEnum.SUBMITTED,
+    )
+
+    if files:
+        create_attachments(user, files, parent=deliverable)
+
+    assignment.status = ProjectAssignment.StatusEnum.SUBMITTED
+    assignment.save(update_fields=["status", "updated_at"])
+
+    return deliverable
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CORRECTION & ÉVALUATION CRITÉRIÉE
+# ─────────────────────────────────────────────────────────────────────────────
+
+@transaction.atomic
+def review_deliverable(
+    deliverable: Deliverable,
+    trainer: User,
+    status_decision: str,
+    score: Optional[Decimal] = None,
+    feedback: str = "",
+    criterion_scores_data: Optional[List[Dict[str, Any]]] = None,
+) -> Deliverable:
+    """Enregistre l'évaluation / correction d'un livrable par un formateur.
+
+    - Met à jour le statut, le score, le feedback et l'auteur de la correction.
+    - Si criterion_scores_data est fourni, crée/met à jour les CriterionScore et
+      calcule automatiquement la moyenne pondérée si score n'est pas explicite.
+    - Propage la validation et le score final sur le ProjectAssignment parent.
+    - En cas de rejet, remet l'assignation en IN_PROGRESS (resoumission possible).
+    - En cas de validation, passe l'assignation suivante en IN_PROGRESS.
+    - Si tous les projets sont validés, clôture l'inscription (COMPLETED) et prépare le certificat.
+    - Bloque si l'assignation est déjà VALIDATED (double validation impossible).
+    - Bloque si le livrable n'est pas dans un état reviewable (SUBMITTED).
+    """
+    if status_decision not in (Deliverable.StatusEnum.VALIDATED, Deliverable.StatusEnum.REJECTED):
+        raise ValidationError({"status": "La décision doit être 'validated' ou 'rejected'."})
+
+    assignment = deliverable.assignment
+
+    # 1. Bloquer double validation
+    if assignment.status == ProjectAssignment.StatusEnum.VALIDATED:
+        raise ValidationError({"detail": "Cette assignation est déjà validée."})
+
+    # 2. Refuser de reviewer un livrable qui n'est pas SUBMITTED
+    if deliverable.status != Deliverable.StatusEnum.SUBMITTED:
+        raise ValidationError({"detail": "Seuls les livrables en attente peuvent être évalués."})
+
+    # 3. Vérification des permissions du formateur
+    if not (trainer.is_superuser or trainer.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
+        if trainer.role == User.Role.TRAINER:
             has_assignment = TrainerAssignment.objects.filter(
-                cohort=enrollment.cohort,
-                user=evaluator_user,
+                cohort=assignment.enrollment.cohort,
+                user=trainer,
                 status=TrainerAssignment.StatusEnum.ACTIVE,
             ).exists()
             if not has_assignment:
-                raise PermissionDenied("Vous n'êtes pas affecté à la cohorte de cet apprenant.")
+                raise PermissionDenied("Vous n'êtes pas formateur affecté à la cohorte de ce livrable.")
         else:
-            raise PermissionDenied("Seuls les formateurs et administrateurs peuvent évaluer un apprenant.")
+            raise PermissionDenied("Seuls les formateurs et administrateurs peuvent évaluer un livrable.")
 
-    with transaction.atomic():
-        evaluation, _ = Evaluation.objects.get_or_create(
+    # 4. Traitement des critères détaillés si fournis
+    if criterion_scores_data:
+        project_criteria = {
+            c.id: c
+            for c in EvaluationCriterion.objects.filter(project=assignment.project)
+        }
+
+        for item in criterion_scores_data:
+            crit_id = item.get("criterion")
+            if isinstance(crit_id, str):
+                try:
+                    crit_id = UUID(crit_id)
+                except ValueError:
+                    raise ValidationError({"criterion": [f"UUID de critère invalide: {crit_id}"]})
+
+            criterion = project_criteria.get(crit_id)
+            if not criterion:
+                raise ValidationError({
+                    "criterion": [f"Le critère {crit_id} n'appartient pas au projet de cette assignation."]
+                })
+
+            score_val = Decimal(str(item.get("score", 0)))
+            level_val = item.get("level", CriterionScore.LevelEnum.IN_PROGRESS)
+            feedback_val = item.get("feedback", "")
+
+            CriterionScore.objects.update_or_create(
+                deliverable=deliverable,
+                criterion=criterion,
+                defaults={
+                    "score": score_val,
+                    "level": level_val,
+                    "feedback": feedback_val,
+                },
+            )
+
+        if score is None:
+            score = deliverable.calculate_score()
+        else:
+            score = Decimal(str(score))
+    elif score is not None:
+        score = Decimal(str(score))
+
+    # 5. Enregistrement du livrable
+    deliverable.status = status_decision
+    deliverable.reviewed_by = trainer
+    deliverable.reviewed_at = timezone.now()
+    deliverable.score = score
+    deliverable.feedback = feedback.strip()
+    deliverable.save(
+        update_fields=[
+            "status",
+            "reviewed_by",
+            "reviewed_at",
+            "score",
+            "feedback",
+            "updated_at",
+        ]
+    )
+
+    # 6. Propagation sur l'assignation
+    if status_decision == Deliverable.StatusEnum.VALIDATED:
+        assignment.status = ProjectAssignment.StatusEnum.VALIDATED
+        assignment.final_score = score
+        assignment.save(update_fields=["status", "final_score", "updated_at"])
+        _advance_next_assignment(assignment.enrollment, assignment.project.order)
+        _check_and_complete_enrollment(assignment.enrollment)
+    else:
+        assignment.status = ProjectAssignment.StatusEnum.IN_PROGRESS
+        assignment.final_score = None
+        assignment.save(update_fields=["status", "final_score", "updated_at"])
+
+    return deliverable
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROGRESSION SÉQUENTIELLE & COMPLÉTION DU PARCOURS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _advance_next_assignment(enrollment: Enrollment, current_order: int) -> None:
+    """Passe la prochaine assignation PENDING en IN_PROGRESS (après validation)."""
+    next_a = (
+        ProjectAssignment.objects.filter(
             enrollment=enrollment,
-            project=project,
-            defaults={
-                "status": status,
-                "general_feedback": general_feedback,
-                "evaluated_by": evaluator_user,
-                "evaluated_at": timezone.now(),
-            },
+            project__order__gt=current_order,
+            status=ProjectAssignment.StatusEnum.PENDING,
+        )
+        .order_by("project__order")
+        .first()
+    )
+    if next_a:
+        next_a.status = ProjectAssignment.StatusEnum.IN_PROGRESS
+        next_a.save(update_fields=["status", "updated_at"])
+
+
+def _check_and_complete_enrollment(enrollment: Enrollment) -> None:
+    """Vérifie si tous les projets publiés du programme sont validés.
+
+    Si oui : passe l'inscription en COMPLETED et crée un certificat EN_ATTENTE.
+    """
+    total_published = Project.objects.filter(
+        program=enrollment.cohort.program,
+        status=Project.StatusProjectEnum.PUBLISHED,
+    ).count()
+
+    if total_published == 0:
+        return
+
+    validated_count = ProjectAssignment.objects.filter(
+        enrollment=enrollment,
+        status=ProjectAssignment.StatusEnum.VALIDATED,
+        project__status=Project.StatusProjectEnum.PUBLISHED,
+    ).count()
+
+    if validated_count >= total_published:
+        if enrollment.status != Enrollment.StatusEnum.COMPLETED:
+            enrollment.status = Enrollment.StatusEnum.COMPLETED
+            enrollment.save(update_fields=["status", "updated_at"])
+
+        Certificate.objects.get_or_create(
+            inscription=enrollment,
+            defaults={"status": Certificate.StatusCertificateEnum.PENDING},
         )
 
-        evaluation.status = status
-        evaluation.general_feedback = general_feedback
-        evaluation.evaluated_by = evaluator_user
-        evaluation.evaluated_at = timezone.now()
 
-        # Enregistrement des notes par critère si fournies
-        if criterion_scores_data:
-            # Récupérer tous les critères du projet
-            project_criteria = {
-                c.id: c
-                for c in EvaluationCriterion.objects.filter(project=project)
-            }
+# ─────────────────────────────────────────────────────────────────────────────
+# DÉTERMINATION DU STATUT INITIAL & AUTO-ASSIGNATION
+# ─────────────────────────────────────────────────────────────────────────────
 
-            for item in criterion_scores_data:
-                crit_id = item.get("criterion")
-                if isinstance(crit_id, str):
-                    try:
-                        crit_id = UUID(crit_id)
-                    except ValueError:
-                        raise ValidationError({"criterion": [f"UUID de critère invalide: {crit_id}"]})
+def _get_validated_orders(enrollment: Enrollment) -> set:
+    """Retourne l'ensemble des orders des projets déjà validés pour une inscription."""
+    return set(
+        ProjectAssignment.objects.filter(
+            enrollment=enrollment,
+            status=ProjectAssignment.StatusEnum.VALIDATED,
+        ).values_list("project__order", flat=True)
+    )
 
-                criterion = project_criteria.get(crit_id)
-                if not criterion:
-                    raise ValidationError({
-                        "criterion": [f"Le critère {crit_id} n'appartient pas à ce projet."]
-                    })
 
-                score_val = Decimal(str(item.get("score", 0)))
-                level_val = item.get("level", CriterionScore.LevelEnum.IN_PROGRESS)
-                feedback_val = item.get("feedback", "")
+def _determine_initial_status(
+    enrollment: Enrollment,
+    project: Project,
+    validated_orders: Optional[set] = None,
+) -> str:
+    """IN_PROGRESS si c'est le premier projet (order <= 1) ou si tous les
+    projets d'ordre inférieur sont validés, sinon PENDING.
+    """
+    if project.order <= 1:
+        return ProjectAssignment.StatusEnum.IN_PROGRESS
 
-                CriterionScore.objects.update_or_create(
-                    evaluation=evaluation,
-                    criterion=criterion,
-                    defaults={
-                        "score": score_val,
-                        "level": level_val,
-                        "feedback": feedback_val,
-                    },
-                )
+    if validated_orders is not None:
+        earlier_orders = Project.objects.filter(
+            program=project.program,
+            status=Project.StatusProjectEnum.PUBLISHED,
+            order__lt=project.order,
+        ).values_list("order", flat=True)
+        all_prev_validated = all(o in validated_orders for o in earlier_orders)
+    else:
+        earlier_projects_count = Project.objects.filter(
+            program=project.program,
+            status=Project.StatusProjectEnum.PUBLISHED,
+            order__lt=project.order,
+        ).count()
+        validated_prev_count = ProjectAssignment.objects.filter(
+            enrollment=enrollment,
+            project__order__lt=project.order,
+            status=ProjectAssignment.StatusEnum.VALIDATED,
+        ).count()
+        all_prev_validated = (validated_prev_count >= earlier_projects_count)
 
-            # Calcul automatique du score global si non fourni explicitement
-            if explicit_score is not None:
-                evaluation.score = Decimal(str(explicit_score))
-            else:
-                calculated = evaluation.calculate_score()
-                evaluation.score = Decimal(str(calculated)) if calculated is not None else None
-        else:
-            if explicit_score is not None:
-                evaluation.score = Decimal(str(explicit_score))
+    if all_prev_validated:
+        return ProjectAssignment.StatusEnum.IN_PROGRESS
+    return ProjectAssignment.StatusEnum.PENDING
 
-        evaluation.save()
 
-    return evaluation
+@transaction.atomic
+def create_assignments_for_enrollment(enrollment: Enrollment) -> List[ProjectAssignment]:
+    """Crée une assignation par projet PUBLISHED du programme pour une inscription."""
+    projects = list(
+        Project.objects.filter(
+            program=enrollment.cohort.program,
+            status=Project.StatusProjectEnum.PUBLISHED,
+        ).order_by("order")
+    )
+
+    if not projects:
+        return []
+
+    validated_orders = _get_validated_orders(enrollment)
+
+    assignments = []
+    for project in projects:
+        assignment, _ = ProjectAssignment.objects.get_or_create(
+            enrollment=enrollment,
+            project=project,
+            defaults={"status": _determine_initial_status(enrollment, project, validated_orders)},
+        )
+        assignments.append(assignment)
+    return assignments
+
+
+def create_assignments_for_project(project: Project) -> int:
+    """Assigne un projet PUBLISHED à toutes les inscriptions actives du programme."""
+    if project.status != Project.StatusProjectEnum.PUBLISHED:
+        return 0
+
+    enrollments = list(
+        Enrollment.objects.filter(
+            cohort__program=project.program,
+            status=Enrollment.StatusEnum.ACTIVE,
+        )
+    )
+
+    if not enrollments:
+        return 0
+
+    existing = set(
+        ProjectAssignment.objects.filter(
+            enrollment__in=enrollments,
+            project=project,
+        ).values_list("enrollment_id", flat=True)
+    )
+
+    to_create = []
+    for enrollment in enrollments:
+        if enrollment.id in existing:
+            continue
+        status = _determine_initial_status(enrollment, project)
+        to_create.append(
+            ProjectAssignment(
+                enrollment=enrollment,
+                project=project,
+                status=status,
+            )
+        )
+
+    if to_create:
+        ProjectAssignment.objects.bulk_create(to_create, ignore_conflicts=True)
+    return len(to_create)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -178,20 +423,22 @@ def get_dashboard_stats() -> Dict[str, Any]:
         for status, _ in Enrollment.StatusEnum.choices
     }
 
-    # 6. Évaluations
-    evaluations_qs = Evaluation.objects.all()
-    total_evaluations = evaluations_qs.count()
-    validated_evals = evaluations_qs.filter(status=Evaluation.StatusEnum.VALIDATED).count()
-    rejected_evals = evaluations_qs.filter(
-        status__in=[Evaluation.StatusEnum.REJECTED, Evaluation.StatusEnum.REVISION_REQUIRED]
-    ).count()
-    pending_evals = evaluations_qs.filter(
-        status__in=[Evaluation.StatusEnum.PENDING, Evaluation.StatusEnum.IN_REVIEW]
+    # 6. Évaluations / Assignations
+    assignments_qs = ProjectAssignment.objects.all()
+    total_evaluations = assignments_qs.count()
+    validated_evals = assignments_qs.filter(status=ProjectAssignment.StatusEnum.VALIDATED).count()
+    rejected_evals = Deliverable.objects.filter(status=Deliverable.StatusEnum.REJECTED).count()
+    pending_evals = assignments_qs.filter(
+        status__in=[
+            ProjectAssignment.StatusEnum.PENDING,
+            ProjectAssignment.StatusEnum.IN_PROGRESS,
+            ProjectAssignment.StatusEnum.SUBMITTED,
+        ]
     ).count()
 
     evaluations_by_status = {
-        status: evaluations_qs.filter(status=status).count()
-        for status, _ in Evaluation.StatusEnum.choices
+        status: assignments_qs.filter(status=status).count()
+        for status, _ in ProjectAssignment.StatusEnum.choices
     }
 
     # 7. Certificats
@@ -214,7 +461,7 @@ def get_dashboard_stats() -> Dict[str, Any]:
         else 0.0
     )
 
-    avg_score_res = evaluations_qs.filter(score__isnull=False).aggregate(avg=Avg("score"))
+    avg_score_res = assignments_qs.filter(final_score__isnull=False).aggregate(avg=Avg("final_score"))
     average_score = round(float(avg_score_res["avg"]), 2) if avg_score_res["avg"] is not None else 0.0
 
     learners_per_cohort_avg = (
@@ -229,28 +476,30 @@ def get_dashboard_stats() -> Dict[str, Any]:
         for level, _ in CriterionScore.LevelEnum.choices
     }
 
-    # 10. Dernières évaluations
-    recent_evals = (
-        Evaluation.objects.select_related(
-            "enrollment__user",
-            "enrollment__cohort",
-            "project",
-            "evaluated_by",
+    # 10. Dernières évaluations / corrections
+    recent_delivs = (
+        Deliverable.objects.filter(status__in=[Deliverable.StatusEnum.VALIDATED, Deliverable.StatusEnum.REJECTED])
+        .select_related(
+            "assignment__enrollment__user",
+            "assignment__enrollment__cohort",
+            "assignment__project",
+            "reviewed_by",
         )
-        .order_by("-updated_at")[:5]
+        .order_by("-reviewed_at")[:5]
     )
 
     recent_evaluations_data = []
-    for ev in recent_evals:
+    for d in recent_delivs:
+        user_obj = d.assignment.enrollment.user
         recent_evaluations_data.append({
-            "id": str(ev.id),
-            "learner_name": ev.enrollment.user.full_name or ev.enrollment.user.email,
-            "cohort_name": ev.enrollment.cohort.name,
-            "project_title": ev.project.title,
-            "status": ev.status,
-            "score": float(ev.score) if ev.score is not None else None,
-            "evaluated_by": ev.evaluated_by.full_name if ev.evaluated_by else None,
-            "updated_at": ev.updated_at.isoformat(),
+            "id": str(d.id),
+            "learner_name": f"{user_obj.first_name} {user_obj.last_name}".strip() or user_obj.email,
+            "cohort_name": d.assignment.enrollment.cohort.name,
+            "project_title": d.assignment.project.title,
+            "status": d.status,
+            "score": float(d.score) if d.score is not None else None,
+            "evaluated_by": f"{d.reviewed_by.first_name} {d.reviewed_by.last_name}".strip() or d.reviewed_by.email if d.reviewed_by else None,
+            "updated_at": d.updated_at.isoformat(),
         })
 
     return {
@@ -290,7 +539,6 @@ def get_dashboard_stats() -> Dict[str, Any]:
 
 def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
     """Calcule les statistiques complètes, progression et validation pour une cohorte."""
-
     program = cohort.program
     projects = list(Project.objects.filter(program=program).order_by("order"))
     total_projects = len(projects)
@@ -314,16 +562,15 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
     assigned_mentors_count = sum(1 for e in enrollments if e.mentor_id is not None)
     unassigned_mentors_count = total_learners - assigned_mentors_count
 
-    # Toutes les évaluations de la cohorte
-    evaluations = list(
-        Evaluation.objects.filter(enrollment__cohort=cohort)
-        .select_related("enrollment", "project", "evaluated_by")
-        .prefetch_related("criterion_scores__criterion")
+    # Toutes les assignations de la cohorte
+    assignments = list(
+        ProjectAssignment.objects.filter(enrollment__cohort=cohort)
+        .select_related("enrollment", "project")
+        .prefetch_related("deliverables__criterion_scores__criterion")
     )
 
-    # Indexation des évaluations par (enrollment_id, project_id)
-    eval_map: Dict[tuple, Evaluation] = {
-        (ev.enrollment_id, ev.project_id): ev for ev in evaluations
+    assign_map: Dict[tuple, ProjectAssignment] = {
+        (a.enrollment_id, a.project_id): a for a in assignments
     }
 
     # 1. Statistiques par projet
@@ -332,22 +579,24 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
 
     for proj in projects:
         proj_criteria_count = EvaluationCriterion.objects.filter(project=proj).count()
-        proj_evals = [ev for ev in evaluations if ev.project_id == proj.id]
+        proj_assignments = [a for a in assignments if a.project_id == proj.id]
 
-        validated_count = sum(1 for ev in proj_evals if ev.status == Evaluation.StatusEnum.VALIDATED)
-        revision_count = sum(
-            1 for ev in proj_evals
-            if ev.status in (Evaluation.StatusEnum.REVISION_REQUIRED, Evaluation.StatusEnum.REJECTED)
-        )
-        in_review_count = sum(
-            1 for ev in proj_evals
-            if ev.status in (Evaluation.StatusEnum.PENDING, Evaluation.StatusEnum.IN_REVIEW)
-        )
-        # Pending learners = learners sans évaluation ou avec statut pending
-        evaluated_count = len(proj_evals)
-        pending_count = (total_learners - evaluated_count) + in_review_count
+        validated_count = sum(1 for a in proj_assignments if a.status == ProjectAssignment.StatusEnum.VALIDATED)
+        submitted_count = sum(1 for a in proj_assignments if a.status == ProjectAssignment.StatusEnum.SUBMITTED)
+        in_progress_count = sum(1 for a in proj_assignments if a.status == ProjectAssignment.StatusEnum.IN_PROGRESS)
+        pending_count = sum(1 for a in proj_assignments if a.status == ProjectAssignment.StatusEnum.PENDING)
 
-        scores_list = [float(ev.score) for ev in proj_evals if ev.score is not None]
+        # Révisions demandées / rejets sur ce projet
+        revision_count = 0
+        for a in proj_assignments:
+            latest_d = a.deliverables.order_by("-version").first()
+            if latest_d and latest_d.status == Deliverable.StatusEnum.REJECTED:
+                revision_count += 1
+
+        evaluated_count = validated_count + revision_count
+        pending_total = (total_learners - len(proj_assignments)) + pending_count + in_progress_count + submitted_count
+
+        scores_list = [float(a.final_score) for a in proj_assignments if a.final_score is not None]
         cohort_scores.extend(scores_list)
         proj_avg_score = round(sum(scores_list) / len(scores_list), 2) if scores_list else None
 
@@ -366,7 +615,7 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
             "evaluated_count": evaluated_count,
             "validated_count": validated_count,
             "revision_count": revision_count,
-            "pending_count": pending_count,
+            "pending_count": pending_total,
             "validation_percentage": validation_pct,
             "average_score": proj_avg_score,
         })
@@ -381,12 +630,12 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
         learner_scores = []
 
         for proj in projects:
-            ev = eval_map.get((enr.id, proj.id))
-            if ev:
-                if ev.status == Evaluation.StatusEnum.VALIDATED:
+            a = assign_map.get((enr.id, proj.id))
+            if a:
+                if a.status == ProjectAssignment.StatusEnum.VALIDATED:
                     validated_p_count += 1
-                if ev.score is not None:
-                    learner_scores.append(float(ev.score))
+                if a.final_score is not None:
+                    learner_scores.append(float(a.final_score))
 
         progress_pct = (
             round((validated_p_count / total_projects) * 100, 2)
@@ -406,13 +655,15 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
 
         mentor_name = None
         if enr.mentor and enr.mentor.user:
-            mentor_name = enr.mentor.user.full_name or enr.mentor.user.email
+            m_user = enr.mentor.user
+            mentor_name = f"{m_user.first_name} {m_user.last_name}".strip() or m_user.email
 
+        u = enr.user
         learners_progress.append({
             "enrollment_id": str(enr.id),
-            "user_id": str(enr.user.id),
-            "full_name": enr.user.full_name or enr.user.email,
-            "email": enr.user.email,
+            "user_id": str(u.id),
+            "full_name": f"{u.first_name} {u.last_name}".strip() or u.email,
+            "email": u.email,
             "mentor_name": mentor_name,
             "validated_projects_count": validated_p_count,
             "total_projects_count": total_projects,
@@ -433,11 +684,13 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
         else 0.0
     )
 
-    total_evals_cohort = len(evaluations)
-    total_validated_cohort = sum(1 for ev in evaluations if ev.status == Evaluation.StatusEnum.VALIDATED)
+    total_validated_cohort = sum(1 for a in assignments if a.status == ProjectAssignment.StatusEnum.VALIDATED)
+    evaluated_total = total_validated_cohort + sum(
+        1 for a in assignments if a.deliverables.filter(status=Deliverable.StatusEnum.REJECTED).exists()
+    )
     validation_rate = (
-        round((total_validated_cohort / total_evals_cohort) * 100, 2)
-        if total_evals_cohort > 0
+        round((total_validated_cohort / evaluated_total) * 100, 2)
+        if evaluated_total > 0
         else 0.0
     )
 
@@ -449,27 +702,28 @@ def get_cohort_stats(cohort: Cohort) -> Dict[str, Any]:
 
     # 3. Statistiques par domaine de compétence
     competency_groups: Dict[str, Dict[str, Any]] = {}
-    for ev in evaluations:
-        for cs in ev.criterion_scores.all():
-            comp_name = cs.criterion.competency_name or "Général"
-            if comp_name not in competency_groups:
-                competency_groups[comp_name] = {
-                    "scores": [],
-                    "mastered_count": 0,
-                    "acquired_count": 0,
-                    "in_progress_count": 0,
-                    "not_acquired_count": 0,
-                }
-            group = competency_groups[comp_name]
-            group["scores"].append(float(cs.score))
-            if cs.level == CriterionScore.LevelEnum.MASTERED:
-                group["mastered_count"] += 1
-            elif cs.level == CriterionScore.LevelEnum.ACQUIRED:
-                group["acquired_count"] += 1
-            elif cs.level == CriterionScore.LevelEnum.IN_PROGRESS:
-                group["in_progress_count"] += 1
-            elif cs.level == CriterionScore.LevelEnum.NOT_ACQUIRED:
-                group["not_acquired_count"] += 1
+    for a in assignments:
+        for d in a.deliverables.all():
+            for cs in d.criterion_scores.all():
+                comp_name = cs.criterion.competency_name or "Général"
+                if comp_name not in competency_groups:
+                    competency_groups[comp_name] = {
+                        "scores": [],
+                        "mastered_count": 0,
+                        "acquired_count": 0,
+                        "in_progress_count": 0,
+                        "not_acquired_count": 0,
+                    }
+                group = competency_groups[comp_name]
+                group["scores"].append(float(cs.score))
+                if cs.level == CriterionScore.LevelEnum.MASTERED:
+                    group["mastered_count"] += 1
+                elif cs.level == CriterionScore.LevelEnum.ACQUIRED:
+                    group["acquired_count"] += 1
+                elif cs.level == CriterionScore.LevelEnum.IN_PROGRESS:
+                    group["in_progress_count"] += 1
+                elif cs.level == CriterionScore.LevelEnum.NOT_ACQUIRED:
+                    group["not_acquired_count"] += 1
 
     competency_stats = []
     for comp_name, data_group in competency_groups.items():
