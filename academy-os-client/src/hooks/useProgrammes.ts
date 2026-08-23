@@ -1,9 +1,13 @@
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { programmeService } from '../services/programmes/programmeService';
+import { getCohorteMembers } from '../services/membreService';
 import type {
   CreateProgrammeDTO,
   CreateRentreeDTO,
   CreateCohorteDTO,
+  BackendEnrollment,
+  BackendTrainerAssignment,
 } from '../types/programme';
 
 // ─── KEYS ────────────────────────────────────────────────────────────────────
@@ -162,9 +166,44 @@ export function useProjetsByCohorte(cohorteId: string | undefined) {
 export function useMembresByCohorte(cohorteId: string | undefined) {
   return useQuery({
     queryKey: programmeKeys.membresByCohorte(cohorteId || ''),
-    queryFn: () => (cohorteId ? programmeService.getMembresByCohorte(cohorteId) : []),
+    queryFn: async () => {
+      if (!cohorteId) return [];
+      const { students, trainers } = await getCohorteMembers(cohorteId);
+      return [...students, ...trainers];
+    },
     enabled: !!cohorteId,
   });
+}
+
+export function useCohorteMembers(cohorteId: string | undefined) {
+  const [students, setStudents] = useState<BackendEnrollment[]>([]);
+  const [trainers, setTrainers] = useState<BackendTrainerAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      if (!cohorteId) return;
+      const data = await getCohorteMembers(cohorteId);
+      setStudents(data.students);
+      setTrainers(data.trainers);
+    } catch (err) {
+      const message = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : undefined;
+      setError(message || "Erreur chargement membres");
+    } finally {
+      setLoading(false);
+    }
+  }, [cohorteId]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { students, trainers, loading, error, refetch };
 }
 
 // ─── ALIASES DE COMPATIBILITÉ (legacy) ───────────────────────────────────────

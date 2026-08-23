@@ -12,19 +12,20 @@
  */
 
 import axios, { AxiosError } from 'axios';
+import { getCohorteMembers } from '@/services/membreService';
 import type {
   Cohorte,
   Rentree,
   MembreCohorte,
-  ProjetCohorte,
   CreateCohortePayload,
   CohorteFilters,
 } from '@/types/cohorte';
+import type { BackendProject } from '@/types/projet';
 
 // --- Client Axios -------------------------------------------------------------
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 });
@@ -78,19 +79,7 @@ const MOCK_COHORTES: Cohorte[] = [
   { id: 'coh-5', nom: 'Cohorte Epsilon',rentree_id: 'rent-3', rentree_nom: 'Rentree Hiver 2025',    date_debut: '2025-06-01', date_fin: '2025-11-30', nb_membres: 18, nb_projets: 4, statut: 'active'   },
 ];
 
-export const mockEtudiants: MembreCohorte[] = [
-  { id: 'm-1', nom: 'Diallo',  prenom: 'Mamadou', email: 'mamadou.diallo@xarala.sn',  role: 'etudiant', avatar: 'MD' },
-  { id: 'm-2', nom: 'Ndiaye',  prenom: 'Fatou',   email: 'fatou.ndiaye@xarala.sn',    role: 'etudiant', avatar: 'FN' },
-  { id: 'm-3', nom: 'Traore',  prenom: 'Mariam',  email: 'mariam.traore@xarala.sn',   role: 'mentor',   avatar: 'MT' },
-  { id: 'm-4', nom: 'Mbaye',   prenom: 'Omar',    email: 'omar.mbaye@xarala.sn',      role: 'etudiant', avatar: 'OM' },
-  { id: 'm-5', nom: 'Sarr',    prenom: 'Rokhaya', email: 'rokhaya.sarr@xarala.sn',    role: 'etudiant', avatar: 'RS' },
-];
-
-export const mockProjets: ProjetCohorte[] = [
-  { id: 'p-1', nom: 'Marketplace Artisans',     description: 'Plateforme de mise en relation avec les artisans locaux.', progression: 85,  statut: 'en_cours', nb_membres: 5, date_debut: '2025-01-10', date_fin_prevue: '2025-06-30' },
-  { id: 'p-2', nom: 'App Gestion Scolaire',      description: 'Suivi des notes et absences pour les écoles coraniques.',   progression: 100, statut: 'termine',   nb_membres: 4, date_debut: '2025-02-01', date_fin_prevue: '2025-05-15' },
-  { id: 'p-3', nom: 'Dashboard RH Analytics',    description: 'Tableau de bord RH pour les PME dakaroises.',             progression: 60,  statut: 'en_cours', nb_membres: 3, date_debut: '2025-03-01', date_fin_prevue: '2025-08-01' },
-];
+// mockProjets supprimé — les projets viennent du vrai backend via getProjetsByCohorte
 
 // --- API : Rentrees ----------------------------------------------------------------
 
@@ -194,36 +183,50 @@ export async function createCohorte(payload: CreateCohortePayload): Promise<Coho
 }
 
 /**
- * Recupere les membres d'une cohorte.
- * GET /cohortes/:id/membres
+ * Recupere les membres d'une cohorte via le vrai backend.
+ * GET /api/v1/cohorts/:id/enrollments/ + /trainer-assignments/
  */
 export async function getMembresByCohorte(cohortId: string): Promise<MembreCohorte[]> {
   try {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockEtudiants;
-    }
-    const { data } = await api.get<MembreCohorte[]>(`/cohortes/${cohortId}/membres`);
-    return data;
+    const { students, trainers } = await getCohorteMembers(cohortId);
+
+    const mapEnrollment = (enrollment: {
+      id: number;
+      user: { first_name: string; last_name: string; email: string };
+      role: string;
+    }): MembreCohorte => ({
+      id: String(enrollment.id),
+      nom: enrollment.user.last_name,
+      prenom: enrollment.user.first_name,
+      email: enrollment.user.email,
+      role: enrollment.role === 'student' ? 'etudiant' : enrollment.role === 'mentor' ? 'mentor' : enrollment.role,
+    });
+
+    const mapTrainer = (trainer: {
+      id: number;
+      user: { first_name: string; last_name: string; email: string };
+    }): MembreCohorte => ({
+      id: String(trainer.id),
+      nom: trainer.user.last_name,
+      prenom: trainer.user.first_name,
+      email: trainer.user.email,
+      role: 'formateur',
+    });
+
+    return [...students.map(mapEnrollment), ...trainers.map(mapTrainer)];
   } catch (err) {
     throw new Error(extractMessage(err, 'Impossible de charger les membres.'));
   }
 }
 
-// --- API : Projets ------------------------------------------------------------
-
 /**
- * Recupere les projets d'une cohorte.
- * GET /cohortes/:id/projets
+ * Recupere les projets d'une cohorte via le vrai backend.
+ * GET /api/v1/projects/?cohorte={cohorteId}
  */
-export async function getProjetsByCohorte(cohortId: string): Promise<ProjetCohorte[]> {
+export async function getProjetsByCohorte(cohortId: string): Promise<BackendProject[]> {
   try {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockProjets;
-    }
-    const { data } = await api.get<ProjetCohorte[]>(`/cohortes/${cohortId}/projets`);
-    return data;
+    const { getProjets } = await import('@/services/projets/projetService');
+    return await getProjets({ cohorte: cohortId });
   } catch (err) {
     throw new Error(extractMessage(err, 'Impossible de charger les projets.'));
   }

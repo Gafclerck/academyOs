@@ -26,6 +26,7 @@ import Profile from '@/pages/users/Profile'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import EditUserPage from '@/pages/users/EditUserPage';
 import { ProjetListPage } from '@/pages/projets/ProjetListPage';
+import { ProjetDetailPage } from '@/pages/projets/ProjetDetailPage';
 
 
 const AppRoutes = () => {
@@ -71,6 +72,7 @@ const AppRoutes = () => {
 
           {/* 5. Projets */}
           <Route path="/projets" element={<ProjetListPage />} />
+          <Route path="/projets/:id" element={<ProjetDetailPage />} />
 
           {/* 6. Utilisateurs */}
           <Route path="/users" element={<UsersPage />} />

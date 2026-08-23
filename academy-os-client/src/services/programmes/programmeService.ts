@@ -7,7 +7,6 @@ import type {
   CreateRentreeDTO,
   CohorteRentree,
   CreateCohorteDTO,
-  ProjetCohorte,
   Membre,
   ProgrammeKPIs,
   ProgrammeDetailKPIs,
@@ -16,6 +15,7 @@ import type {
   StatutRentree,
   StatutCohorte,
 } from '../../types/programme';
+import type { BackendProject } from '@/types/projet';
 
 import { tokenStore } from '@/lib/tokenStore';
 

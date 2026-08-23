@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { addTrainers } from '@/services/membreService'
+import { inviteTrainers } from '@/services/membreService'
 
 const InviterFormateur: React.FC = () => {
   const navigate = useNavigate()
@@ -18,7 +18,7 @@ const InviterFormateur: React.FC = () => {
 
   const [emails, setEmails] = useState('')
   const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState<{ email: string; status: string; detail: string }[]>([])
+  const [results, setResults] = useState<{ email: string; status: string; message: string }[]>([])
   const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,20 +34,20 @@ const InviterFormateur: React.FC = () => {
 
     setLoading(true)
     try {
-      const data = await addTrainers(id || '', lines)
-      setResults(data.results)
+      const data = await inviteTrainers(Number(id || ''), lines)
+      setResults(data)
       setSubmitted(true)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de l\'envoi des invitations.'
-      setResults(lines.map((email) => ({ email, status: 'error', detail: message })))
+      const message = err instanceof Error ? err.message : "Erreur lors de l'envoi des invitations."
+      setResults(lines.map((email) => ({ email, status: 'error', message })))
       setSubmitted(true)
     } finally {
       setLoading(false)
     }
   }
 
-  const successCount = results.filter((r) => r.status === 'assigned').length
-  const hasErrors = results.some((r) => r.status !== 'assigned')
+  const successCount = results.filter((r) => r.status === 'success').length
+  const hasErrors = results.some((r) => r.status !== 'success')
 
   return (
     <div className="space-y-6">
@@ -145,8 +145,8 @@ const InviterFormateur: React.FC = () => {
             {results.map((r, idx) => (
               <div key={idx} className="flex items-center justify-between p-4">
                 <span className="text-sm font-mono text-slate-700 dark:text-slate-300">{r.email}</span>
-                <span className={`text-xs font-semibold ${['assigned'].includes(r.status) ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {r.detail}
+                <span className={`text-xs font-semibold ${r.status === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {r.message}
                 </span>
               </div>
             ))}

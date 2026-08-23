@@ -28,7 +28,8 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import type { Cohorte, Membre, Projet } from '@/types/cohorte';
-import { getCohortById, getCohortMembers, getCohortProjects } from '@/services/cohortes/cohorteService';
+import { getCohortById, getCohortProjects } from '@/services/cohortes/cohorteService';
+import { getCohorteMembers } from '@/services/membreService';
 import { CohorteStatusBadge, RoleBadge, ProjetStatusBadge, ProgressBar } from '@/components/cohortes/Badge';
 
 // ─── Utilitaires ──────────────────────────────────────────────────────────────
@@ -97,8 +98,26 @@ function MembersTab({ cohortId }: MembersTabProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getCohortMembers(cohortId);
-      setMembres(data);
+      const { students, trainers } = await getCohorteMembers(cohortId);
+      const mapped: Membre[] = [
+        ...students.map((enrollment) => ({
+          id: String(enrollment.id),
+          cohorte_id: cohortId,
+          nom: enrollment.user.last_name,
+          prenom: enrollment.user.first_name,
+          email: enrollment.user.email,
+          role: enrollment.role === 'student' ? 'etudiant' : enrollment.role === 'mentor' ? 'mentor' : enrollment.role,
+        })),
+        ...trainers.map((trainer) => ({
+          id: String(trainer.id),
+          cohorte_id: cohortId,
+          nom: trainer.user.last_name,
+          prenom: trainer.user.first_name,
+          email: trainer.user.email,
+          role: 'formateur',
+        })),
+      ];
+      setMembres(mapped);
     } catch {
       setError('Impossible de charger les membres.');
     } finally {

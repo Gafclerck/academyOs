@@ -7,7 +7,7 @@ import { tokenStore } from '@/lib/tokenStore'
 import type { JwtAuthTokens } from '@/types/auth'
 
 const API_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+  import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 const API = axios.create({
   baseURL: API_URL,
