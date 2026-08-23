@@ -9,7 +9,6 @@ import {
   Eye,
   BarChart3,
   Layers,
-  Clock,
   CheckCircle2,
   FolderGit2,
 } from 'lucide-react';
@@ -147,12 +146,7 @@ export const ProgrammeDetailPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-3xl">
             {programme.description}
           </p>
-          <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400 pt-1">
-            <span className="flex items-center gap-1">
-              <Clock className="size-3.5 text-[#FF6B0B]" />
-              Durée : {programme.duree_mois} mois
-            </span>
-          </div>
+          
         </div>
 
         <Button
