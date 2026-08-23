@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCohorteMembers } from '@/services/membreService';
 import type {
   Programme,
   CreateProgrammeDTO,
@@ -6,16 +7,16 @@ import type {
   CreateRentreeDTO,
   CohorteRentree,
   CreateCohorteDTO,
-  ProjetCohorte,
   Membre,
   ProgrammeKPIs,
   ProgrammeDetailKPIs,
   RentreeDetailKPIs,
   CohorteDetailKPIs,
 } from '../../types/programme';
+import type { BackendProject } from '@/types/projet';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 });
@@ -190,65 +191,6 @@ const INITIAL_COHORTES: CohorteRentree[] = [
   },
 ];
 
-const INITIAL_PROJETS: Record<string, ProjetCohorte[]> = {
-  'coh-1': [
-    {
-      id: 'proj-1',
-      cohorte_id: 'coh-1',
-      nom: 'Plateforme E-learning Xarala',
-      description: 'Developpement d\'une plateforme SaaS complete de cours en ligne avec video et quiz.',
-      progression: 85,
-      statut: 'en_cours',
-      nb_membres: 6,
-      date_debut: '2026-02-01',
-      date_fin_prevue: '2026-06-30',
-    },
-    {
-      id: 'proj-2',
-      cohorte_id: 'coh-1',
-      nom: 'Systeme de Facturation & Paiement Wave / OM',
-      description: 'API et dashboard pour integrer les paiements mobiles locaux au Senegal.',
-      progression: 100,
-      statut: 'termine',
-      nb_membres: 5,
-      date_debut: '2026-01-20',
-      date_fin_prevue: '2026-04-15',
-    },
-    {
-      id: 'proj-3',
-      cohorte_id: 'coh-1',
-      nom: 'Application Mobile de Gestion Agricole',
-      description: 'Application React Native pour le suivi des recoltes et des stocks dans la region de Diourbel.',
-      progression: 60,
-      statut: 'en_cours',
-      nb_membres: 7,
-      date_debut: '2026-03-01',
-      date_fin_prevue: '2026-07-10',
-    },
-    {
-      id: 'proj-4',
-      cohorte_id: 'coh-1',
-      nom: 'Hub Communautaire & Forum Tech',
-      description: 'Espace d\'echange et entraide pour les developpeurs de l\'academie.',
-      progression: 40,
-      statut: 'en_cours',
-      nb_membres: 6,
-      date_debut: '2026-03-15',
-      date_fin_prevue: '2026-07-01',
-    },
-  ],
-};
-
-const INITIAL_MEMBRES: Record<string, Membre[]> = {
-  'coh-1': [
-    { id: 'm-1', cohorte_id: 'coh-1', nom: 'Diop', prenom: 'Moussa', email: 'moussa.diop@xarala.co', role: 'etudiant', avatar: 'MD' },
-    { id: 'm-2', cohorte_id: 'coh-1', nom: 'Sow', prenom: 'Awa', email: 'awa.sow@xarala.co', role: 'lead', avatar: 'AS' },
-    { id: 'm-3', cohorte_id: 'coh-1', nom: 'Fall', prenom: 'Cheikh', email: 'cheikh.fall@xarala.co', role: 'etudiant', avatar: 'CF' },
-    { id: 'm-4', cohorte_id: 'coh-1', nom: 'Ndiaye', prenom: 'Fatou', email: 'fatou.ndiaye@xarala.co', role: 'mentor', avatar: 'FN' },
-    { id: 'm-5', cohorte_id: 'coh-1', nom: 'Gueye', prenom: 'Ibrahima', email: 'ibrahima.gueye@xarala.co', role: 'etudiant', avatar: 'IG' },
-    { id: 'm-6', cohorte_id: 'coh-1', nom: 'Ba', prenom: 'Mariama', email: 'mariama.ba@xarala.co', role: 'etudiant', avatar: 'MB' },
-  ],
-};
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
 
@@ -453,15 +395,51 @@ export const programmeService = {
   },
 
   // ── 4. PROJETS & MEMBRES ──
-  async getProjetsByCohorte(cohorteId: string): Promise<ProjetCohorte[]> {
-    await delay();
-    const stored = getStored<Record<string, ProjetCohorte[]>>('projets', INITIAL_PROJETS);
-    return stored[cohorteId] || [];
+  async getProjetsByCohorte(cohorteId: string): Promise<BackendProject[]> {
+    try {
+      const { getProjets } = await import('@/services/projets/projetService');
+      return await getProjets({ cohorte: cohorteId });
+    } catch (err) {
+      throw new Error(
+        err instanceof Error ? err.message : 'Impossible de charger les projets.',
+      );
+    }
   },
 
   async getMembresByCohorte(cohorteId: string): Promise<Membre[]> {
-    await delay();
-    const stored = getStored<Record<string, Membre[]>>('membres', INITIAL_MEMBRES);
-    return stored[cohorteId] || [];
+    try {
+      const { students, trainers } = await getCohorteMembers(cohorteId);
+
+      const mapEnrollment = (enrollment: {
+        id: string;
+        user: { first_name: string; last_name: string; email: string };
+        role: string;
+      }): Membre => ({
+        id: String(enrollment.id),
+        cohorte_id: cohorteId,
+        nom: enrollment.user.last_name,
+        prenom: enrollment.user.first_name,
+        email: enrollment.user.email,
+        role: enrollment.role === 'student' ? 'etudiant' : enrollment.role === 'mentor' ? 'mentor' : enrollment.role,
+      });
+
+      const mapTrainer = (trainer: {
+        id: number;
+        user: { first_name: string; last_name: string; email: string };
+      }): Membre => ({
+        id: String(trainer.id),
+        cohorte_id: cohorteId,
+        nom: trainer.user.last_name,
+        prenom: trainer.user.first_name,
+        email: trainer.user.email,
+        role: 'lead',
+      });
+
+      return [...students.map(mapEnrollment), ...trainers.map(mapTrainer)];
+    } catch (err) {
+      throw new Error(
+        err instanceof Error ? err.message : 'Impossible de charger les membres.',
+      );
+    }
   },
 };

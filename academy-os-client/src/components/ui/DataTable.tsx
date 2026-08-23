@@ -46,17 +46,19 @@ export function DataTable<T extends object>({
   const [pageIndex, setPageIndex] = useState(0);
   const pageSize = 8;
 
+  const safeData = useMemo(() => Array.isArray(data) ? data : [], [data]);
+
   // ── 1. FILTRAGE GLOBAL ──
   const filteredData = useMemo(() => {
-    if (!globalFilter.trim()) return data;
+    if (!globalFilter.trim()) return safeData;
     const query = globalFilter.toLowerCase();
-    return data.filter((item) => {
+    return safeData.filter((item) => {
       return Object.values(item as Record<string, unknown>).some((val) => {
         if (val === null || val === undefined) return false;
         return String(val).toLowerCase().includes(query);
       });
     });
-  }, [data, globalFilter]);
+  }, [safeData, globalFilter]);
 
   // ── 2. TRI ──
   const sortedData = useMemo(() => {

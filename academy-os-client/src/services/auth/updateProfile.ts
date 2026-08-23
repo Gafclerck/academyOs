@@ -20,7 +20,7 @@ export const updateProfile = async (
   data: UpdateProfileRequest,
 ): Promise<UpdateProfileResponse> => {
   const response = await API.patch(
-    '/v1/auth/me/',
+    '/auth/me/',
     data,
   )
 

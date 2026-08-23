@@ -3,10 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GraduationCap, UserPlus } from 'lucide-react'
 
 import {
-  getEnrollments,
-  getTrainerAssignments,
-  addLearners,
-  addTrainers,
+  getCohorteMembers,
+  inviteStudents,
+  inviteTrainers,
   assignMentor,
 } from '@/services/membreService'
 
@@ -69,49 +68,29 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
     {
       email: string
       status: string
-      detail: string
+      message: string
     }[]
   >([])
 
-  // ============================================================
-  // RÉCUPÉRER LES APPRENANTS
-  // ============================================================
-
-  const { data: enrollments = [] } = useQuery({
-    queryKey: ['enrollments', cohorteId],
-    queryFn: () => getEnrollments(cohorteId),
+  const { data: membersData } = useQuery({
+    queryKey: ['cohorte-members', cohorteId],
+    queryFn: () => getCohorteMembers(cohorteId),
     enabled: !!cohorteId,
   })
 
-  // ============================================================
-  // RÉCUPÉRER LES FORMATEURS
-  // ============================================================
-
-  const { data: trainers = [] } = useQuery({
-    queryKey: ['trainer-assignments', cohorteId],
-    queryFn: () => getTrainerAssignments(cohorteId),
-    enabled: !!cohorteId,
-  })
-
-  // ============================================================
-  // CONSTRUIRE LA LISTE DES MEMBRES
-  // ============================================================
+  const enrollments: BackendEnrollment[] = membersData?.students ?? []
+  const trainers: BackendTrainerAssignment[] = membersData?.trainers ?? []
 
   const members: MemberRow[] = [
     ...enrollments.map((enrollment) => ({
       kind: 'learner' as const,
       enrollment,
     })),
-
     ...trainers.map((assignment) => ({
       kind: 'trainer' as const,
       assignment,
     })),
   ]
-
-  // ============================================================
-  // AJOUTER APPRENANT / FORMATEUR
-  // ============================================================
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -125,26 +104,22 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
       }
 
       if (addType === 'learner') {
-        return addLearners(cohorteId, lines)
+        return inviteStudents(cohorteId, lines)
       }
 
-      return addTrainers(cohorteId, lines)
+      return inviteTrainers(cohorteId, lines)
     },
 
     onSuccess: (data) => {
-      setResults(data.results)
+      setResults(data)
 
       queryClient.invalidateQueries({
-        queryKey: ['enrollments', cohorteId],
+        queryKey: ['cohorte-members', cohorteId],
       })
 
-      queryClient.invalidateQueries({
-        queryKey: ['trainer-assignments', cohorteId],
-      })
-
-      const failed = data.results.filter(
+      const failed = data.filter(
         (result: { status: string }) =>
-          !['enrolled', 'assigned'].includes(result.status),
+          result.status !== 'success',
       )
 
       if (failed.length === 0) {
@@ -163,10 +138,6 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
     },
   })
 
-  // ============================================================
-  // ASSIGNER UN MENTOR
-  // ============================================================
-
   const mentorMutation = useMutation({
     mutationFn: ({
       enrollmentId,
@@ -174,11 +145,11 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
     }: {
       enrollmentId: string
       mentorId: string | null
-    }) => assignMentor(cohorteId, enrollmentId, mentorId),
+    }) => assignMentor(enrollmentId, mentorId),
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['enrollments', cohorteId],
+        queryKey: ['cohorte-members', cohorteId],
       })
 
       toast.success('Mentor assigné')
@@ -188,24 +159,16 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
       toast.error(
         err instanceof Error
           ? err.message
-          : 'Impossible d’assigner le mentor.',
+          : "Impossible d'assigner le mentor.",
       )
     },
   })
-
-  // ============================================================
-  // FERMER LA MODALE
-  // ============================================================
 
   const closeDialog = () => {
     setAddType(null)
     setEmails('')
     setResults([])
   }
-
-  // ============================================================
-  // NOM DU MEMBRE
-  // ============================================================
 
   const getMemberName = (row: MemberRow) => {
     if (row.kind === 'learner') {
@@ -215,10 +178,6 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
     return `${row.assignment.user.first_name} ${row.assignment.user.last_name}`
   }
 
-  // ============================================================
-  // EMAIL DU MEMBRE
-  // ============================================================
-
   const getMemberEmail = (row: MemberRow) => {
     if (row.kind === 'learner') {
       return row.enrollment.user.email
@@ -226,10 +185,6 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
 
     return row.assignment.user.email
   }
-
-  // ============================================================
-  // RÔLE DU MEMBRE
-  // ============================================================
 
   const getMemberRole = (
     row: MemberRow,
@@ -242,16 +197,12 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
       return 'admin'
     }
 
-    if (row.assignment.user.role === 'organizer') {
+    if (row.assignment.user.role === 'team_lead') {
       return 'lead'
     }
 
     return 'formateur'
   }
-
-  // ============================================================
-  // ID DU MEMBRE
-  // ============================================================
 
   const getMemberId = (row: MemberRow) => {
     if (row.kind === 'learner') {
@@ -260,10 +211,6 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
 
     return row.assignment.id
   }
-
-  // ============================================================
-  // INITIALES
-  // ============================================================
 
   const getInitials = (row: MemberRow) => {
     const name = getMemberName(row)
@@ -279,10 +226,6 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
       .toUpperCase()
       .slice(0, 2)
   }
-
-  // ============================================================
-  // AFFICHAGE
-  // ============================================================
 
   return (
     <div className="space-y-4">
@@ -439,11 +382,11 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
                           {isLearner ? (
 
                             <Select
-                              value={currentMentor?.id || 'none'}
+                              value={currentMentor?.id?.toString() || 'none'}
                               onValueChange={(value) =>
                                 mentorMutation.mutate({
                                   enrollmentId:
-                                    enrollment!.id,
+                                    enrollment!.id.toString(),
                                   mentorId:
                                     value === 'none'
                                       ? null
@@ -468,7 +411,7 @@ export const MembreManagement: React.FC<MembreManagementProps> = ({
                                 {trainers.map((trainer) => (
                                   <SelectItem
                                     key={trainer.id}
-                                    value={trainer.id}
+                                    value={trainer.id.toString()}
                                     className="text-xs"
                                   >
                                     {trainer.user.first_name}{' '}
@@ -579,14 +522,12 @@ email2@exemple.com
 
                     <span
                       className={
-                        ['enrolled', 'assigned'].includes(
-                          result.status,
-                        )
+                        result.status === 'success'
                           ? 'font-semibold text-emerald-600'
                           : 'font-semibold text-red-600'
                       }
                     >
-                      {result.detail}
+                      {result.message}
                     </span>
 
                   </div>

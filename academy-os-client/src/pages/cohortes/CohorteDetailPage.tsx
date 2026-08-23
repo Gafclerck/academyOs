@@ -15,12 +15,28 @@ import {
   useMembresByCohorte,
   useProjetsByCohorte,
 } from '../../hooks/useProgrammes';
-import type { ProjetCohorte } from '../../types/programme';
+import type { BackendProject } from '@/types/projet';
 import { StatCard } from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { Badge } from '@/components/ui/badge';
 import { MembreManagement } from '../../components/MembreManagement';
 import { DataTable, type ColumnDef } from '../../components/ui/DataTable';
 import { Button } from '@/components/ui/button';
+
+const projetStatusConfig: Record<string, { label: string; cls: string }> = {
+  draft: {
+    label: 'Brouillon',
+    cls: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+  },
+  active: {
+    label: 'Actif',
+    cls: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  },
+  done: {
+    label: 'Terminé',
+    cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  },
+};
 
 export const CohorteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,10 +49,10 @@ export const CohorteDetailPage: React.FC = () => {
   const { data: projets = [], isLoading: projLoading } = useProjetsByCohorte(id);
 
   /* ================= PROJETS ================= */
-  const projetsColumns = useMemo<ColumnDef<ProjetCohorte>[]>(
+  const projetsColumns = useMemo<ColumnDef<BackendProject>[]>(
     () => [
       {
-        accessorKey: 'nom',
+        accessorKey: 'name',
         header: 'Nom du Projet',
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -45,7 +61,7 @@ export const CohorteDetailPage: React.FC = () => {
             </div>
             <div>
               <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {row.original.nom}
+                {row.original.name}
               </p>
               <p className="text-xs text-slate-400 line-clamp-1 max-w-sm">
                 {row.original.description}
@@ -55,49 +71,40 @@ export const CohorteDetailPage: React.FC = () => {
         ),
       },
       {
-        accessorKey: 'progression',
-        header: 'Avancement',
+        accessorKey: 'tasks',
+        header: 'Tâches',
         cell: ({ row }) => {
-          const val = row.original.progression ?? 0;
+          const tasks = row.original.tasks ?? [];
+          const done = tasks.filter((t) => t.status === 'done').length;
           return (
-            <div className="w-36 space-y-1">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-500">Progression</span>
-                <span className="text-slate-900 dark:text-white">{val}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${val === 100 ? 'bg-emerald-500' : 'bg-[#FF6B0B]'
-                    }`}
-                  style={{ width: `${val}%` }}
-                />
-              </div>
-            </div>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              {done}/{tasks.length} terminées
+            </span>
           );
         },
       },
       {
-        accessorKey: 'nb_membres',
-        header: 'Équipe',
-        cell: ({ row }) => (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            <Users className="size-3.5 text-[#FF6B0B]" />
-            {row.original.nb_membres} membres
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'statut',
+        accessorKey: 'status',
         header: 'Statut',
-        cell: ({ row }) => <StatusBadge status={row.original.statut} />,
+        cell: ({ row }) => {
+          const cfg = projetStatusConfig[row.original.status] ?? {
+            label: row.original.status,
+            cls: 'bg-slate-100 text-slate-600',
+          };
+          return (
+            <Badge variant="outline" className={`${cfg.cls} border`}>
+              {cfg.label}
+            </Badge>
+          );
+        },
       },
       {
-        accessorKey: 'date_fin_prevue',
+        accessorKey: 'deadline',
         header: 'Date rendu',
         cell: ({ row }) => (
           <span className="text-sm text-slate-600 dark:text-slate-300">
-            {row.original.date_fin_prevue
-              ? new Date(row.original.date_fin_prevue).toLocaleDateString('fr-FR')
+            {row.original.deadline
+              ? new Date(row.original.deadline).toLocaleDateString('fr-FR')
               : '-'}
           </span>
         ),
