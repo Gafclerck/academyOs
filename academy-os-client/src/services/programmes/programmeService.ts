@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getCohorteMembers } from '@/services/membreService';
+
 import type {
   Programme,
   CreateProgrammeDTO,
@@ -12,434 +12,953 @@ import type {
   ProgrammeDetailKPIs,
   RentreeDetailKPIs,
   CohorteDetailKPIs,
+  StatutRentree,
+  StatutCohorte,
 } from '../../types/programme';
 import type { BackendProject } from '@/types/projet';
 
+import { tokenStore } from '@/lib/tokenStore';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 10_000,
+  baseURL:
+    import.meta.env.VITE_API_URL ??
+    'http://localhost:8000/api/v1',
+
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  },
+
+  timeout: 10000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+/* ============================================================
+   AUTH
+============================================================ */
+
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenStore.getAccessToken();
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error)) {
+      console.error('API ERROR', {
+        status: error.response?.status,
+        url: error.config?.url,
+        method: error.config?.method,
+        payload: error.config?.data,
+        response: error.response?.data,
+      });
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+const extractList = <T>(data: unknown): T[] => {
+  if (Array.isArray(data)) {
+    return data as T[];
+  }
+
+  if (
+    data &&
+    typeof data === 'object' &&
+    'results' in data &&
+    Array.isArray(
+      (data as { results: unknown }).results,
+    )
+  ) {
+    return (data as { results: T[] }).results;
+  }
+
+  if (
+    data &&
+    typeof data === 'object' &&
+    'data' in data &&
+    Array.isArray(
+      (data as { data: unknown }).data,
+    )
+  ) {
+    return (data as { data: T[] }).data;
+  }
+
+  return [];
+};
+
+/* ============================================================
+   PROGRAMMES
+============================================================ */
+
+const mapProgrammeFromApi = (
+  raw: any,
+): Programme => ({
+  id: String(raw.id),
+
+  nom:
+    raw.name ??
+    raw.title ??
+    raw.nom ??
+    '',
+
+  description:
+    raw.description ??
+    '',
+
+
+  statut:
+    raw.status === 'active' ||
+    raw.statut === 'actif'
+      ? 'actif'
+      : 'inactif',
+
+  nb_rentrees:
+    raw.nb_rentrees ??
+    raw.intakes_count ??
+    0,
+
+  created_at:
+    raw.created_at,
+
+  updated_at:
+    raw.updated_at,
 });
 
-// ─── LOCAL / MOCK STORE AVEC PERSISTANCE ─────────────────────────────────────
+const mapProgrammeToApi = (
+  dto: CreateProgrammeDTO,
+) => ({
+  title: dto.nom,
 
-const INITIAL_PROGRAMMES: Programme[] = [
-  {
-    id: 'prog-1',
-    nom: 'Developpement Web Fullstack',
-    description: 'Formation intensive React, Node.js, TypeScript, PostgreSQL et DevOps moderne.',
-    duree_mois: 6,
-    statut: 'actif',
-    nb_rentrees: 3,
-    created_at: '2026-01-10',
-  },
-  {
-    id: 'prog-2',
-    nom: 'Data Science & Intelligence Artificielle',
-    description: 'Maitrisez Python, Machine Learning, Deep Learning et Data Engineering.',
-    duree_mois: 9,
-    statut: 'actif',
-    nb_rentrees: 2,
-    created_at: '2026-02-15',
-  },
-  {
-    id: 'prog-3',
-    nom: 'UI/UX Product Design',
-    description: 'Conception d\'interfaces modernes, Design Systems, Figma et recherche utilisateur.',
-    duree_mois: 4,
-    statut: 'actif',
-    nb_rentrees: 2,
-    created_at: '2026-03-01',
-  },
-  {
-    id: 'prog-4',
-    nom: 'Cybersecurite & Reseaux',
-    description: 'Audit de securite, pentesting, securisation cloud et gouvernance informatique.',
-    duree_mois: 6,
-    statut: 'inactif',
-    nb_rentrees: 1,
-    created_at: '2025-11-20',
-  },
-];
+  description:
+    dto.description,
 
-const INITIAL_RENTREES: RentreeProgramme[] = [
-  {
-    id: 'rent-1',
-    programme_id: 'prog-1',
-    programme_nom: 'Developpement Web Fullstack',
-    nom: 'Rentree Hiver 2026',
-    date_debut: '2026-01-15',
-    date_fin: '2026-07-15',
-    statut: 'en_cours',
-    nb_cohortes: 2,
-    nb_membres: 48,
-    nb_projets: 8,
-    created_at: '2026-01-05',
-  },
-  {
-    id: 'rent-2',
-    programme_id: 'prog-1',
-    programme_nom: 'Developpement Web Fullstack',
-    nom: 'Rentree Printemps 2026',
-    date_debut: '2026-04-01',
-    date_fin: '2026-10-01',
-    statut: 'en_cours',
-    nb_cohortes: 1,
-    nb_membres: 25,
-    nb_projets: 4,
-    created_at: '2026-03-10',
-  },
-  {
-    id: 'rent-3',
-    programme_id: 'prog-1',
-    programme_nom: 'Developpement Web Fullstack',
-    nom: 'Rentree Automne 2026',
-    date_debut: '2026-09-15',
-    date_fin: '2027-03-15',
-    statut: 'a_venir',
-    nb_cohortes: 0,
-    nb_membres: 0,
-    nb_projets: 0,
-    created_at: '2026-06-01',
-  },
-  {
-    id: 'rent-4',
-    programme_id: 'prog-2',
-    programme_nom: 'Data Science & Intelligence Artificielle',
-    nom: 'Rentree Printemps 2026',
-    date_debut: '2026-03-01',
-    date_fin: '2026-12-01',
-    statut: 'en_cours',
-    nb_cohortes: 2,
-    nb_membres: 36,
-    nb_projets: 6,
-    created_at: '2026-02-20',
-  },
-  {
-    id: 'rent-5',
-    programme_id: 'prog-3',
-    programme_nom: 'UI/UX Product Design',
-    nom: 'Rentree Ete 2026',
-    date_debut: '2026-06-01',
-    date_fin: '2026-10-01',
-    statut: 'a_venir',
-    nb_cohortes: 1,
-    nb_membres: 18,
-    nb_projets: 3,
-    created_at: '2026-05-10',
-  },
-];
-
-const INITIAL_COHORTES: CohorteRentree[] = [
-  {
-    id: 'coh-1',
-    rentree_id: 'rent-1',
-    rentree_nom: 'Rentree Hiver 2026',
-    programme_id: 'prog-1',
-    programme_nom: 'Developpement Web Fullstack',
-    nom: 'Cohorte Baol Tech 1',
-    date_debut: '2026-01-15',
-    date_fin: '2026-07-15',
-    statut: 'active',
-    nb_membres: 24,
-    nb_projets: 4,
-  },
-  {
-    id: 'coh-2',
-    rentree_id: 'rent-1',
-    rentree_nom: 'Rentree Hiver 2026',
-    programme_id: 'prog-1',
-    programme_nom: 'Developpement Web Fullstack',
-    nom: 'Cohorte Dakar Alpha',
-    date_debut: '2026-01-15',
-    date_fin: '2026-07-15',
-    statut: 'active',
-    nb_membres: 24,
-    nb_projets: 4,
-  },
-  {
-    id: 'coh-3',
-    rentree_id: 'rent-2',
-    rentree_nom: 'Rentree Printemps 2026',
-    programme_id: 'prog-1',
-    programme_nom: 'Developpement Web Fullstack',
-    nom: 'Cohorte Saloum Dev',
-    date_debut: '2026-04-01',
-    date_fin: '2026-10-01',
-    statut: 'active',
-    nb_membres: 25,
-    nb_projets: 4,
-  },
-  {
-    id: 'coh-4',
-    rentree_id: 'rent-4',
-    rentree_nom: 'Rentree Printemps 2026',
-    programme_id: 'prog-2',
-    programme_nom: 'Data Science & Intelligence Artificielle',
-    nom: 'Cohorte IA Xarala 1',
-    date_debut: '2026-03-01',
-    date_fin: '2026-12-01',
-    statut: 'active',
-    nb_membres: 18,
-    nb_projets: 3,
-  },
-];
+  status:
+    dto.statut === 'actif'
+      ? 'active'
+      : 'inactive',
 
 
-// ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
+});
 
-const getStored = <T>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(`academyos_${key}`);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
+/* ============================================================
+   RENTREES
+============================================================ */
+
+const mapStatutRentreeFromApi = (
+  status: unknown,
+): StatutRentree => {
+  const value = String(
+    status ?? '',
+  ).toLowerCase();
+
+  if (
+    [
+      'upcoming',
+      'a_venir',
+      'planned',
+      'draft',
+    ].includes(value)
+  ) {
+    return 'a_venir';
   }
+
+  if (
+    [
+      'ongoing',
+      'in_progress',
+      'en_cours',
+      'active',
+    ].includes(value)
+  ) {
+    return 'en_cours';
+  }
+
+  if (
+    [
+      'completed',
+      'terminee',
+      'closed',
+      'done',
+    ].includes(value)
+  ) {
+    return 'terminee';
+  }
+
+  return 'a_venir';
 };
 
-const setStored = <T>(key: string, value: T): void => {
-  try {
-    localStorage.setItem(`academyos_${key}`, JSON.stringify(value));
-  } catch (e) {
-    console.error('Erreur localStorage', e);
+/**
+ * Récupère l'ID du programme depuis l'API.
+ */
+const getProgramIdFromApi = (
+  raw: any,
+): string => {
+  if (
+    raw.program !== undefined &&
+    raw.program !== null
+  ) {
+    if (
+      typeof raw.program === 'object'
+    ) {
+      return String(
+        raw.program.id ?? '',
+      );
+    }
+
+    return String(
+      raw.program,
+    );
   }
+
+  if (
+    raw.program_id !== undefined &&
+    raw.program_id !== null
+  ) {
+    return String(
+      raw.program_id,
+    );
+  }
+
+  if (
+    raw.programme_id !== undefined &&
+    raw.programme_id !== null
+  ) {
+    return String(
+      raw.programme_id,
+    );
+  }
+
+  return '';
 };
 
-const delay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Mapping API -> Frontend
+ */
+const mapRentreeFromApi = (
+  raw: any,
+): RentreeProgramme => {
+  const programmeId =
+    getProgramIdFromApi(raw);
 
-// ─── SERVICE PROGRAMME ────────────────────────────────────────────────────────
+  let programmeNom = '';
+
+  if (
+    raw.program &&
+    typeof raw.program === 'object'
+  ) {
+    programmeNom =
+      raw.program.name ??
+      raw.program.title ??
+      '';
+  }
+
+  if (!programmeNom) {
+    programmeNom =
+      raw.program_name ??
+      raw.program_title ??
+      raw.programme_nom ??
+      '';
+  }
+
+  return {
+    id: String(raw.id),
+
+    // IMPORTANT
+    programme_id:
+      programmeId,
+
+    programme_nom:
+      programmeNom,
+
+    nom:
+      raw.name ??
+      raw.title ??
+      raw.nom ??
+      '',
+
+    description:
+      raw.description ??
+      '',
+
+    date_debut:
+      raw.start_date ??
+      raw.date_debut ??
+      '',
+
+    date_fin:
+      raw.end_date ??
+      raw.date_fin ??
+      '',
+
+    statut:
+      mapStatutRentreeFromApi(
+        raw.status ??
+        raw.statut,
+      ),
+
+    nb_cohortes:
+      raw.nb_cohortes ??
+      raw.cohorts_count ??
+      raw.cohortes_count ??
+      0,
+
+    nb_membres:
+      raw.nb_membres ??
+      raw.members_count ??
+      0,
+
+    nb_projets:
+      raw.nb_projets ??
+      raw.projects_count ??
+      0,
+
+    created_at:
+      raw.created_at,
+  };
+};
+
+/**
+ * Mapping Frontend -> API
+ *
+ * Backend attendu :
+ *
+ * {
+ *   program: UUID,
+ *   name: string,
+ *   description: string,
+ *   start_date: string,
+ *   end_date: string
+ * }
+ */
+const mapRentreeToApi = (
+  dto: CreateRentreeDTO,
+) => {
+  const programId =
+    String(
+      dto.programme_id ?? '',
+    ).trim();
+
+  if (!programId) {
+    throw new Error(
+      'Impossible de créer la rentrée : le programme est obligatoire.',
+    );
+  }
+
+  const payload = {
+    program: programId,
+
+    name:
+      dto.nom.trim(),
+
+    description:
+      dto.description?.trim() ?? '',
+
+    start_date:
+      dto.date_debut,
+
+    end_date:
+      dto.date_fin,
+  };
+
+  console.log(
+    '[programmeService] POST /intakes/ payload:',
+    payload,
+  );
+
+  return payload;
+};
+
+/* ============================================================
+   COHORTES
+============================================================ */
+
+const mapStatutCohorteFromApi = (
+  status: unknown,
+): StatutCohorte => {
+  const value = String(
+    status ?? '',
+  ).toLowerCase();
+
+  if (
+    [
+      'completed',
+      'terminee',
+      'closed',
+    ].includes(value)
+  ) {
+    return 'terminee';
+  }
+
+  return 'active';
+};
+
+const mapCohorteFromApi = (
+  raw: any,
+): CohorteRentree => ({
+  id: String(raw.id),
+
+  rentree_id: String(
+    raw.intake ??
+    raw.intake_id ??
+    raw.rentree_id ??
+    '',
+  ),
+
+  rentree_nom:
+    raw.intake_name ??
+    raw.rentree_nom ??
+    (
+      typeof raw.intake === 'object'
+        ? (
+            raw.intake?.name ??
+            raw.intake?.title
+          )
+        : undefined
+    ),
+
+  programme_id:
+    raw.program ??
+    raw.program_id ??
+    raw.programme_id
+      ? String(
+          raw.program ??
+          raw.program_id ??
+          raw.programme_id,
+        )
+      : undefined,
+
+  programme_nom:
+    raw.program_name ??
+    raw.programme_nom ??
+    (
+      typeof raw.program === 'object'
+        ? (
+            raw.program?.name ??
+            raw.program?.title
+          )
+        : undefined
+    ),
+
+  nom:
+    raw.name ??
+    raw.title ??
+    raw.nom ??
+    '',
+
+  description:
+    raw.description ??
+    '',
+
+  date_debut:
+    raw.start_date ??
+    raw.date_debut ??
+    '',
+
+  date_fin:
+    raw.end_date ??
+    raw.date_fin ??
+    '',
+
+  statut:
+    mapStatutCohorteFromApi(
+      raw.status ??
+      raw.statut,
+    ),
+
+  nb_membres:
+    raw.nb_membres ??
+    raw.members_count ??
+    raw.enrollments_count ??
+    0,
+
+  nb_projets:
+    raw.nb_projets ??
+    raw.projects_count ??
+    0,
+
+  created_at:
+    raw.created_at,
+});
+
+/* ============================================================
+   SERVICE
+============================================================ */
 
 export const programmeService = {
-  // ── 1. PROGRAMMES ──
+
+  /* ==========================================================
+     PROGRAMMES
+  ========================================================== */
+
   async getProgrammes(): Promise<Programme[]> {
-    await delay();
-    const stored = getStored<Programme[]>('programmes', INITIAL_PROGRAMMES);
-    const rentrees = getStored<RentreeProgramme[]>('rentrees', INITIAL_RENTREES);
+    const response =
+      await api.get('/programs/');
 
-    // Enrichir avec le compte reel de rentrees
-    return stored.map((prog) => ({
-      ...prog,
-      nb_rentrees: rentrees.filter((r) => r.programme_id === prog.id).length,
-    }));
+    return extractList<any>(
+      response.data,
+    ).map(
+      mapProgrammeFromApi,
+    );
   },
 
-  async getProgrammeById(id: string): Promise<Programme | null> {
-    await delay();
-    const programmes = await this.getProgrammes();
-    return programmes.find((p) => p.id === id) ?? null;
+  async getProgrammeById(
+    id: string,
+  ): Promise<Programme | null> {
+    try {
+      const response =
+        await api.get(
+          `/programs/${id}/`,
+        );
+
+      return mapProgrammeFromApi(
+        response.data,
+      );
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 404
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
   },
 
-  async createProgramme(dto: CreateProgrammeDTO): Promise<Programme> {
-    await delay(350);
-    const programmes = getStored<Programme[]>('programmes', INITIAL_PROGRAMMES);
-    const newProg: Programme = {
-      id: `prog-${Date.now()}`,
-      nom: dto.nom,
-      description: dto.description,
-      duree_mois: dto.duree_mois,
-      statut: dto.statut,
-      nb_rentrees: 0,
-      created_at: new Date().toISOString().split('T')[0],
-      updated_at: new Date().toISOString().split('T')[0],
-    };
-    programmes.unshift(newProg);
-    setStored('programmes', programmes);
-    return newProg;
+  async createProgramme(
+    dto: CreateProgrammeDTO,
+  ): Promise<Programme> {
+    const response =
+      await api.post(
+        '/programs/',
+        mapProgrammeToApi(dto),
+      );
+
+    return mapProgrammeFromApi(
+      response.data,
+    );
   },
+
+  async updateProgramme(
+    id: string,
+    dto: CreateProgrammeDTO,
+  ): Promise<Programme> {
+    const response =
+      await api.put(
+        `/programs/${id}/`,
+        mapProgrammeToApi(dto),
+      );
+
+    return mapProgrammeFromApi(
+      response.data,
+    );
+  },
+
+  async patchProgramme(
+    id: string,
+    data: Partial<CreateProgrammeDTO>,
+  ): Promise<Programme> {
+    const payload: Record<
+      string,
+      unknown
+    > = {};
+
+    if (data.nom !== undefined) {
+      payload.title = data.nom;
+    }
+
+    if (
+      data.description !==
+      undefined
+    ) {
+      payload.description =
+        data.description;
+    }
+
+ 
+
+    if (data.statut !== undefined) {
+      payload.status =
+        data.statut === 'actif'
+          ? 'active'
+          : 'inactive';
+    }
+
+    const response =
+      await api.patch(
+        `/programs/${id}/`,
+        payload,
+      );
+
+    return mapProgrammeFromApi(
+      response.data,
+    );
+  },
+
+  async deleteProgramme(
+    id: string,
+  ): Promise<void> {
+    await api.delete(
+      `/programs/${id}/`,
+    );
+  },
+
+  /* ==========================================================
+     KPI PROGRAMMES
+  ========================================================== */
 
   async getProgrammeKPIs(): Promise<ProgrammeKPIs> {
-    const programmes = await this.getProgrammes();
-    const rentrees = await this.getAllRentrees();
-    const cohortes = await this.getAllCohortes();
+    const programmes =
+      await this.getProgrammes();
 
-    const totalStudents = cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0);
-
-    return {
-      total_programmes: programmes.length,
-      programmes_actifs: programmes.filter((p) => p.statut === 'actif').length,
-      total_rentrees: rentrees.length,
-      total_etudiants: totalStudents,
-    };
-  },
-
-  async getProgrammeDetailKPIs(programmeId: string): Promise<ProgrammeDetailKPIs> {
-    const rentrees = await this.getRentreesByProgramme(programmeId);
-    const rentreeIds = rentrees.map((r) => r.id);
-    const cohortes = (await this.getAllCohortes()).filter((c) => rentreeIds.includes(c.rentree_id));
-    const totalStudents = cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0);
+    const rentrees =
+      await this.getAllRentrees();
 
     return {
-      nb_rentrees: rentrees.length,
-      nb_cohortes_totales: cohortes.length,
-      nb_etudiants: totalStudents,
+      total_programmes:
+        programmes.length,
+
+      programmes_actifs:
+        programmes.filter(
+          (p) =>
+            p.statut === 'actif',
+        ).length,
+
+      total_rentrees:
+        rentrees.length,
+
+      total_etudiants:
+        0,
     };
   },
 
-  // ── 2. RENTREES ──
-  async getAllRentrees(): Promise<RentreeProgramme[]> {
-    await delay();
-    const rentrees = getStored<RentreeProgramme[]>('rentrees', INITIAL_RENTREES);
-    const cohortes = getStored<CohorteRentree[]>('cohortes', INITIAL_COHORTES);
-
-    return rentrees.map((rent) => {
-      const rentCohortes = cohortes.filter((c) => c.rentree_id === rent.id);
-      return {
-        ...rent,
-        nb_cohortes: rentCohortes.length,
-        nb_membres: rentCohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0),
-        nb_projets: rentCohortes.reduce((acc, c) => acc + (c.nb_projets || 0), 0),
-      };
-    });
-  },
-
-  async getRentreesByProgramme(programmeId: string): Promise<RentreeProgramme[]> {
-    const all = await this.getAllRentrees();
-    return all.filter((r) => r.programme_id === programmeId);
-  },
-
-  async getRentreeById(id: string): Promise<RentreeProgramme | null> {
-    const all = await this.getAllRentrees();
-    return all.find((r) => r.id === id) ?? null;
-  },
-
-  async createRentree(dto: CreateRentreeDTO): Promise<RentreeProgramme> {
-    await delay(350);
-    const programme = await this.getProgrammeById(dto.programme_id);
-    if (!programme) throw new Error('Programme parent introuvable.');
-
-    const rentrees = getStored<RentreeProgramme[]>('rentrees', INITIAL_RENTREES);
-    const newRentree: RentreeProgramme = {
-      id: `rent-${Date.now()}`,
-      programme_id: dto.programme_id,
-      programme_nom: programme.nom,
-      nom: dto.nom,
-      description: dto.description,
-      date_debut: dto.date_debut,
-      date_fin: dto.date_fin,
-      statut: 'en_cours',
-      nb_cohortes: 0,
-      nb_membres: 0,
-      nb_projets: 0,
-      created_at: new Date().toISOString().split('T')[0],
-    };
-    rentrees.unshift(newRentree);
-    setStored('rentrees', rentrees);
-    return newRentree;
-  },
-
-  async getRentreeDetailKPIs(rentreeId: string): Promise<RentreeDetailKPIs> {
-    const cohortes = await this.getCohortesByRentree(rentreeId);
-    return {
-      nb_cohortes: cohortes.length,
-      nb_membres: cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0),
-      nb_projets: cohortes.reduce((acc, c) => acc + (c.nb_projets || 0), 0),
-    };
-  },
-
-  // ── 3. COHORTES ──
-  async getAllCohortes(): Promise<CohorteRentree[]> {
-    await delay();
-    return getStored<CohorteRentree[]>('cohortes', INITIAL_COHORTES);
-  },
-
-  async getCohortesByRentree(rentreeId: string): Promise<CohorteRentree[]> {
-    const all = await this.getAllCohortes();
-    return all.filter((c) => c.rentree_id === rentreeId);
-  },
-
-  async getCohorteById(id: string): Promise<CohorteRentree | null> {
-    const all = await this.getAllCohortes();
-    return all.find((c) => c.id === id) ?? null;
-  },
-
-  async createCohorte(dto: CreateCohorteDTO): Promise<CohorteRentree> {
-    await delay(350);
-    const rentree = await this.getRentreeById(dto.rentree_id);
-    if (!rentree) throw new Error('Rentree parente introuvable.');
-
-    const cohortes = getStored<CohorteRentree[]>('cohortes', INITIAL_COHORTES);
-    const newCohorte: CohorteRentree = {
-      id: `coh-${Date.now()}`,
-      rentree_id: dto.rentree_id,
-      rentree_nom: rentree.nom,
-      programme_id: rentree.programme_id,
-      programme_nom: rentree.programme_nom,
-      nom: dto.nom,
-      description: dto.description,
-      date_debut: dto.date_debut,
-      date_fin: dto.date_fin,
-      statut: 'active',
-      nb_membres: 0,
-      nb_projets: 0,
-      created_at: new Date().toISOString().split('T')[0],
-    };
-    cohortes.unshift(newCohorte);
-    setStored('cohortes', cohortes);
-    return newCohorte;
-  },
-
-  async getCohorteDetailKPIs(cohorteId: string): Promise<CohorteDetailKPIs> {
-    const cohorte = await this.getCohorteById(cohorteId);
-    return {
-      rentree_nom: cohorte?.rentree_nom || 'Rentree',
-      programme_nom: cohorte?.programme_nom || 'Programme',
-      nb_membres: cohorte?.nb_membres || 0,
-      nb_projets: cohorte?.nb_projets || 0,
-    };
-  },
-
-  // ── 4. PROJETS & MEMBRES ──
-  async getProjetsByCohorte(cohorteId: string): Promise<BackendProject[]> {
-    try {
-      const { getProjets } = await import('@/services/projets/projetService');
-      return await getProjets({ cohorte: cohorteId });
-    } catch (err) {
-      throw new Error(
-        err instanceof Error ? err.message : 'Impossible de charger les projets.',
+  async getProgrammeDetailKPIs(
+    programmeId: string,
+  ): Promise<ProgrammeDetailKPIs> {
+    const rentrees =
+      await this.getRentreesByProgramme(
+        programmeId,
       );
+
+    const rentreeIds =
+      rentrees.map(
+        (r) => r.id,
+      );
+
+    const cohortes =
+      await this.getAllCohortes();
+
+    const programmeCohortes =
+      cohortes.filter(
+        (c) =>
+          rentreeIds.includes(
+            c.rentree_id,
+          ),
+      );
+
+    return {
+      nb_rentrees:
+        rentrees.length,
+
+      nb_cohortes_totales:
+        programmeCohortes.length,
+
+      nb_etudiants:
+        programmeCohortes.reduce(
+          (total, c) =>
+            total +
+            (c.nb_membres ?? 0),
+          0,
+        ),
+    };
+  },
+
+  /* ==========================================================
+     RENTREES
+  ========================================================== */
+
+  async getAllRentrees(): Promise<
+    RentreeProgramme[]
+  > {
+    const response =
+      await api.get(
+        '/intakes/',
+      );
+
+    return extractList<any>(
+      response.data,
+    ).map(
+      mapRentreeFromApi,
+    );
+  },
+
+  async getRentreesByProgramme(
+    programmeId: string,
+  ): Promise<RentreeProgramme[]> {
+    if (!programmeId) {
+      return [];
+    }
+
+    const response =
+      await api.get(
+        '/intakes/',
+        {
+          params: {
+            program:
+              programmeId,
+          },
+        },
+      );
+
+    return extractList<any>(
+      response.data,
+    ).map(
+      mapRentreeFromApi,
+    );
+  },
+
+  async getRentreeById(
+    id: string,
+  ): Promise<RentreeProgramme | null> {
+    try {
+      const response =
+        await api.get(
+          `/intakes/${id}/`,
+        );
+
+      return mapRentreeFromApi(
+        response.data,
+      );
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 404
+      ) {
+        return null;
+      }
+
+      throw error;
     }
   },
 
-  async getMembresByCohorte(cohorteId: string): Promise<Membre[]> {
+  async createRentree(
+    dto: CreateRentreeDTO,
+  ): Promise<RentreeProgramme> {
+    const payload =
+      mapRentreeToApi(dto);
+
+    const response =
+      await api.post(
+        '/intakes/',
+        payload,
+      );
+
+    return mapRentreeFromApi(
+      response.data,
+    );
+  },
+
+  /* ==========================================================
+     KPI RENTREE
+  ========================================================== */
+
+  async getRentreeDetailKPIs(
+    rentreeId: string,
+  ): Promise<RentreeDetailKPIs> {
+    const cohortes =
+      await this.getCohortesByRentree(
+        rentreeId,
+      );
+
+    return {
+      nb_cohortes:
+        cohortes.length,
+
+      nb_membres:
+        cohortes.reduce(
+          (total, c) =>
+            total +
+            (c.nb_membres ?? 0),
+          0,
+        ),
+
+      nb_projets:
+        cohortes.reduce(
+          (total, c) =>
+            total +
+            (c.nb_projets ?? 0),
+          0,
+        ),
+    };
+  },
+
+  /* ==========================================================
+     COHORTES
+  ========================================================== */
+
+  async getAllCohortes(): Promise<
+    CohorteRentree[]
+  > {
+    const response =
+      await api.get(
+        '/cohortes/',
+      );
+
+    return extractList<any>(
+      response.data,
+    ).map(
+      mapCohorteFromApi,
+    );
+  },
+
+  async getCohortesByRentree(
+    rentreeId: string,
+  ): Promise<CohorteRentree[]> {
+    const response =
+      await api.get(
+        '/cohortes/',
+        {
+          params: {
+            rentree_id:
+              rentreeId,
+          },
+        },
+      );
+
+    return extractList<any>(
+      response.data,
+    ).map(
+      mapCohorteFromApi,
+    );
+  },
+
+  async getCohorteById(
+    id: string,
+  ): Promise<CohorteRentree | null> {
     try {
-      const { students, trainers } = await getCohorteMembers(cohorteId);
+      const response =
+        await api.get(
+          `/cohortes/${id}/`,
+        );
 
-      const mapEnrollment = (enrollment: {
-        id: string;
-        user: { first_name: string; last_name: string; email: string };
-        role: string;
-      }): Membre => ({
-        id: String(enrollment.id),
-        cohorte_id: cohorteId,
-        nom: enrollment.user.last_name,
-        prenom: enrollment.user.first_name,
-        email: enrollment.user.email,
-        role: enrollment.role === 'student' ? 'etudiant' : enrollment.role === 'mentor' ? 'mentor' : enrollment.role,
-      });
+      return mapCohorteFromApi(
+        response.data,
+      );
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 404
+      ) {
+        return null;
+      }
 
-      const mapTrainer = (trainer: {
-        id: number;
-        user: { first_name: string; last_name: string; email: string };
-      }): Membre => ({
-        id: String(trainer.id),
-        cohorte_id: cohorteId,
-        nom: trainer.user.last_name,
-        prenom: trainer.user.first_name,
-        email: trainer.user.email,
-        role: 'lead',
-      });
+      throw error;
+    }
+  },
 
-      return [...students.map(mapEnrollment), ...trainers.map(mapTrainer)];
-    } catch (err) {
+  async createCohorte(
+    dto: CreateCohorteDTO,
+  ): Promise<CohorteRentree> {
+    const response =
+      await api.post(
+        '/cohortes/',
+        dto,
+      );
+
+    return mapCohorteFromApi(
+      response.data,
+    );
+  },
+
+  async getCohorteDetailKPIs(
+    cohorteId: string,
+  ): Promise<CohorteDetailKPIs> {
+    const cohorte =
+      await this.getCohorteById(
+        cohorteId,
+      );
+
+    if (!cohorte) {
       throw new Error(
-        err instanceof Error ? err.message : 'Impossible de charger les membres.',
+        'Cohorte introuvable.',
       );
     }
+
+    return {
+      rentree_nom:
+        cohorte.rentree_nom ?? '',
+
+      programme_nom:
+        cohorte.programme_nom ?? '',
+
+      nb_membres:
+        cohorte.nb_membres ?? 0,
+
+      nb_projets:
+        cohorte.nb_projets ?? 0,
+    };
+  },
+
+  /* ==========================================================
+     PROJETS
+  ========================================================== */
+
+  async getProjetsByCohorte(
+    cohorteId: string,
+  ): Promise<ProjetCohorte[]> {
+    const response =
+      await api.get(
+        '/projets/',
+        {
+          params: {
+            cohorte_id:
+              cohorteId,
+          },
+        },
+      );
+
+    return extractList<ProjetCohorte>(
+      response.data,
+    );
+  },
+
+  /* ==========================================================
+     MEMBRES
+  ========================================================== */
+
+  async getMembresByCohorte(
+    cohorteId: string,
+  ): Promise<Membre[]> {
+    const response =
+      await api.get(
+        '/membres/',
+        {
+          params: {
+            cohorte_id:
+              cohorteId,
+          },
+        },
+      );
+
+    return extractList<Membre>(
+      response.data,
+    );
   },
 };
+
+export default programmeService;
+

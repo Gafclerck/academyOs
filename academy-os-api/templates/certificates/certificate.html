@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Certificat</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #FFFFFF;
+    }
+    .outer-border {
+      box-sizing: border-box;
+      width: 297mm;
+      height: 210mm;
+      padding: 12mm;
+      background: linear-gradient(90deg, #FF7900 0%, #FFA048 100%);
+    }
+    .inner-border {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      background-color: #FFFFFF;
+      border: 2px solid #111827;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10mm;
+    }
+    .brand {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #111827;
+      margin-bottom: 6mm;
+    }
+    .title {
+      font-size: 34px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 10mm;
+      letter-spacing: 2px;
+    }
+    .intro {
+      font-size: 15px;
+      color: #4B5563;
+      margin-bottom: 4mm;
+    }
+    .learner-name {
+      font-size: 30px;
+      font-weight: 700;
+      color: #FF7900;
+      margin-bottom: 8mm;
+      border-bottom: 2px solid #FF7900;
+      padding-bottom: 4mm;
+    }
+    .program-line {
+      font-size: 16px;
+      color: #1F2937;
+      margin-bottom: 2mm;
+    }
+    .program-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 10mm;
+    }
+    .footer {
+      margin-top: auto;
+      font-size: 11px;
+      color: #9CA3AF;
+    }
+    .footer strong {
+      color: #4B5563;
+    }
+  </style>
+</head>
+<body>
+  <div class="outer-border">
+    <div class="inner-border">
+      <div class="brand">Xarala Academy</div>
+      <div class="title">Certificat de réussite</div>
+      <div class="intro">Ce certificat est décerné à</div>
+      <div class="learner-name">{{ learner_name }}</div>
+      <div class="program-line">pour avoir complété avec succès le programme</div>
+      <div class="program-title">{{ program_title }}</div>
+      <div class="program-line">{{ cohort_name }} — délivré le {{ date_envoi }}</div>
+      <div class="footer">
+        Certificat n° {{ certificate_id }} — vérifiable sur
+        <strong>{{ verification_url }}</strong>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
