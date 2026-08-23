@@ -74,3 +74,9 @@ class Enrollment(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"{self.user_id} → {self.cohort_id} ({self.status})"
+
+    @property
+    def display_name(self):
+        user = self.user
+        name = f"{user.first_name} {user.last_name}".strip()
+        return name or user.email

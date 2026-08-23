@@ -17,7 +17,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, AlertCircle, CalendarDays, Users, ChevronDown } from 'lucide-react';
 import type { Session, CreateCohortePayload } from '@/types/cohorte';
-import { getSessions, createCohort } from '@/services/cohorteService';
+import { getSessions, createCohort } from '@/services/cohortes/cohorteService';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ export default function CreateCohortModal({
       const data = await getSessions();
       setSessions(data);
     } catch {
-       setSessionsError('Impossible de charger les rentrées. Veuillez réessayer.');
+      setSessionsError('Impossible de charger les rentrées. Veuillez réessayer.');
     } finally {
       setLoadingSessions(false);
     }
@@ -273,7 +273,7 @@ export default function CreateCohortModal({
               {loadingSessions ? (
                 <div className="h-10 flex items-center gap-2 px-3 bg-muted rounded-lg border border-input text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                   Chargement des rentrées…
+                  Chargement des rentrées…
                 </div>
               ) : sessionsError ? (
                 <div className="flex flex-col gap-2">

@@ -65,14 +65,27 @@ export const tokenStore = {
   },
 
   clear(): void {
+    // Mémoire
     accessToken = null
     refreshToken = null
 
+    // SessionStorage
     removeStorage(ACCESS_KEY)
     removeStorage(REFRESH_KEY)
+
+    // Sécurité : suppression directe au cas où
+    try {
+      sessionStorage.removeItem(ACCESS_KEY)
+      sessionStorage.removeItem(REFRESH_KEY)
+    } catch {
+      // sessionStorage indisponible
+    }
   },
 
   hasTokens(): boolean {
-    return accessToken !== null && refreshToken !== null
+    return (
+      accessToken !== null &&
+      refreshToken !== null
+    )
   },
 }
