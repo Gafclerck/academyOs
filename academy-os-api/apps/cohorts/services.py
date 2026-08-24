@@ -59,7 +59,13 @@ def add_users_to_cohort(emails, cohort, expected_role):
                 {"email": email, "status": already_status, "detail": "Déjà membre de la cohorte."}
             )
             continue
-        model.objects.create(cohort=cohort, user=user)
+        member = model.objects.create(cohort=cohort, user=user)
+        if expected_role == User.Role.LEARNER:
+            from apps.evaluations.services import create_assignments_for_enrollment
+            try:
+                create_assignments_for_enrollment(member)
+            except Exception:
+                pass  # L'échec de l'auto-assignation n'empêche pas l'inscription
         try:
             send_added_to_cohort_email(
                 email, cohort.name, role=expected_role

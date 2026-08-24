@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 
 import { useRentrees } from '@/hooks/rentrees/useRentrees'
-
 import type { Rentree } from '@/types/rentree'
 
 import { StatCard } from '@/components/ui/StatCard'
@@ -34,13 +33,22 @@ export const RentreeListPage: React.FC = () => {
     isFetching,
   } = useRentrees()
 
-  
+  /* ========================================================
+     SUPPRIMER
+  ======================================================== */
+
+
+
   /* ========================================================
      COLUMNS
   ======================================================== */
 
   const columns = useMemo<ColumnDef<Rentree>[]>(
     () => [
+      /* ======================================================
+         NOM
+      ====================================================== */
+
       {
         accessorKey: 'name',
 
@@ -51,12 +59,12 @@ export const RentreeListPage: React.FC = () => {
 
           return (
             <div className="flex items-center gap-3">
-              <div className="size-9 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10">
                 <Calendar className="size-4 text-[#FF6B0B]" />
               </div>
 
               <div className="min-w-0">
-                <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
                   {rentree.name || 'Sans nom'}
                 </p>
               </div>
@@ -65,6 +73,10 @@ export const RentreeListPage: React.FC = () => {
         },
       },
 
+      /* ======================================================
+         DATE DEBUT
+      ====================================================== */
+
       {
         accessorKey: 'start_date',
 
@@ -72,10 +84,16 @@ export const RentreeListPage: React.FC = () => {
 
         cell: ({ row }) => (
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            {rentreeDate(row.original.start_date)}
+            {rentreeDate(
+              row.original.start_date,
+            )}
           </span>
         ),
       },
+
+      /* ======================================================
+         STATUT
+      ====================================================== */
 
       {
         accessorKey: 'status',
@@ -89,28 +107,57 @@ export const RentreeListPage: React.FC = () => {
         ),
       },
 
+      /* ======================================================
+         ACTIONS
+      ====================================================== */
+
       {
+        id: 'actions',
+
         header: () => (
-          <div className="text-right pr-2">
+          <div className="pr-2 text-right">
             Actions
           </div>
         ),
 
-        cell: ({ row }) => (
-          <div className="text-right">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                navigate(`/rentrees/${row.original.id}`)
-              }
-              className="h-8 px-3 rounded-xl border-[#FF6B0B]/30 hover:border-[#FF6B0B] hover:bg-[#FF6B0B] hover:text-white text-[#FF6B0B] font-semibold text-xs transition-colors"
-            >
-              <Eye className="size-3.5 mr-1.5" />
-              Voir Détails
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const rentree = row.original
+
+          return (
+            <div className="flex items-center justify-end gap-2">
+
+              {/* VOIR DETAILS */}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate(
+                    `/rentrees/${rentree.id}`,
+                  )
+                }
+                className="
+                  h-8
+                  rounded-xl
+                  border-[#FF6B0B]/30
+                  px-3
+                  text-xs
+                  font-semibold
+                  text-[#FF6B0B]
+                  hover:border-[#FF6B0B]
+                  hover:bg-[#FF6B0B]
+                  hover:text-white
+                "
+              >
+                <Eye className="mr-1.5 size-3.5" />
+                Voir détails
+              </Button>
+
+
+
+            </div>
+          )
+        },
       },
     ],
     [navigate],
@@ -123,11 +170,13 @@ export const RentreeListPage: React.FC = () => {
   const totalRentrees = rentrees.length
 
   const rentreesActives = rentrees.filter(
-    (rentree) => rentree.status === 'ongoing',
+    (rentree) =>
+      rentree.status === 'ongoing',
   ).length
 
   const rentreesAVenir = rentrees.filter(
-    (rentree) => rentree.status === 'upcoming',
+    (rentree) =>
+      rentree.status === 'upcoming',
   ).length
 
   /* ========================================================
@@ -139,30 +188,59 @@ export const RentreeListPage: React.FC = () => {
 
       {/* HEADER */}
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
             Toutes les Rentrées
           </h1>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Gérez les rentrées académiques.
           </p>
         </div>
 
         <Button
-          onClick={() => navigate('/rentrees/new')}
-          className="h-11 px-5 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 hover:shadow-[#FF6B0B]/40 transition-all shrink-0"
+          onClick={() =>
+            navigate('/rentrees/new')
+          }
+          className="
+            h-11
+            shrink-0
+            rounded-xl
+            bg-[#FF6B0B]
+            px-5
+            font-semibold
+            text-white
+            shadow-lg
+            shadow-[#FF6B0B]/25
+            transition-all
+            hover:bg-[#ff7a24]
+            hover:shadow-[#FF6B0B]/40
+          "
         >
-          <Plus className="size-4 mr-2" />
+          <Plus className="mr-2 size-4" />
           Nouvelle Rentrée
         </Button>
+
       </div>
 
       {/* ERROR */}
 
       {isError && (
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
+        <div className="
+          flex
+          items-center
+          justify-between
+          gap-4
+          rounded-2xl
+          border
+          border-red-200
+          bg-red-50
+          p-4
+          dark:border-red-500/20
+          dark:bg-red-500/10
+        ">
 
           <div>
             <p className="font-semibold text-red-700 dark:text-red-400">
@@ -183,7 +261,9 @@ export const RentreeListPage: React.FC = () => {
           >
             <RefreshCw
               className={`mr-2 size-4 ${
-                isFetching ? 'animate-spin' : ''
+                isFetching
+                  ? 'animate-spin'
+                  : ''
               }`}
             />
 
@@ -195,7 +275,7 @@ export const RentreeListPage: React.FC = () => {
 
       {/* KPI */}
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
 
         <StatCard
           title="Total Rentrées"
@@ -242,23 +322,31 @@ export const RentreeListPage: React.FC = () => {
    DATE
 ============================================================ */
 
-const rentreeDate = (date: string): string => {
+const rentreeDate = (
+  date: string,
+): string => {
   if (!date) {
     return '—'
   }
 
   const parsedDate = new Date(date)
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (
+    Number.isNaN(
+      parsedDate.getTime(),
+    )
+  ) {
     return date
   }
 
-  return parsedDate.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
+  return parsedDate.toLocaleDateString(
+    'fr-FR',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    },
+  )
 }
 
 export default RentreeListPage
-

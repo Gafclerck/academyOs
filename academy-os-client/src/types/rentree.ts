@@ -1,4 +1,3 @@
-
 export type StatutRentree =
   | 'upcoming'
   | 'ongoing'
@@ -24,4 +23,3 @@ export interface UpdateRentreeDTO {
   start_date?: string
   status?: StatutRentree
 }
-

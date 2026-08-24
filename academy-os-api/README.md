@@ -21,182 +21,186 @@ academy-os-api/
 │   │   ├── base.py          # configuration commune (apps, DRF, JWT, CORS, base de données)
 │   │   ├── development.py   # environnement de développement (DEBUG, CORS ouvert, email console)
 │   │   └── production.py    # environnement de production (DEBUG off, HSTS, cookies sécurisés)
-│   ├── urls.py              # routage : /admin/, /api/v1/auth/, /api/v1/programs/, /api/v1/intakes/, /api/v1/cohorts/, /api/schema|docs|redoc/
+│   ├── urls.py              # routage racine /api/v1/
 │   ├── wsgi.py              # point d'entrée WSGI ; module de settings par défaut : production
 │   └── asgi.py              # point d'entrée ASGI ; module de settings par défaut : production
 └── apps/
-    ├── core/                # socle partagé : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, infra de test partagée (`base.py`/`factories.py`)
+    ├── core/                # socle partagé : modèles abstraits (`TimeStampedModel`, `UUIDModel`), permissions globales, infra de test (`base.py`/`factories.py`)
     ├── users/               # modèle utilisateur personnalisé, auth, RBAC
-    ├── programs/            # catalogue de formation (Programme + Projet à venir)
-    ├── cohorts/             # Intake + Cohort (période globale avec name, FK program)
-    ├── certificates/        # certificats (model-only pour l'instant)
+    ├── programs/            # catalogue de programmes et projets
+    ├── cohorts/             # Intake + Cohort + Inscriptions + Affectations formateurs
+    ├── evaluations/         # Assignations, Livrables, Grilles critériées, Corrections, Statistiques/KPIs
+    ├── certificates/        # Certificats de complétion (génération et statut)
     ├── pedagogy/            # COQUILLE : CourseSession + Absence (cours)
-    ├── evaluations/         # COQUILLE : ProjectAssignment + Deliverable (soumission/correction)
-    └── attachments/         # Attachment (upload de fichiers, stockage local/S3)
-
+    └── attachments/         # Attachment (upload de fichiers polymorphiques, stockage local/S3)
 ```
 
 ### Organisation des applications — quoi mettre où
 
 - **Code en anglais** : apps, classes, champs, fichiers, routes, enums. Commentaires et descriptions d'API en français.
-- Les applications vivent sous `apps/` avec des chemins d'import dotted (ex. `apps.cohorts`). Toute nouvelle application doit être déclarée dans `LOCAL_APPS` dans `config/settings/base.py`.
+- Les applications vivent sous `apps/` avec des chemins d'import dotted (ex. `apps.evaluations`). Toute nouvelle application doit être déclarée dans `LOCAL_APPS` dans `config/settings/base.py`.
 - Modèle utilisateur personnalisé : `AUTH_USER_MODEL = 'users.User'`. Les clés étrangères vers un utilisateur doivent référencer `settings.AUTH_USER_MODEL`, jamais le modèle `User` par défaut.
-- **Mapping entité → app** (les entités à venir ne sont pas encore implémentées : créer le modèle dans l'app indiquée) :
+- **Mapping entité → app** :
 
-| Entité | App | Notes |
-|---|---|---|
-| `Project` | `apps.programs` | FK → Program |
-| `Intake` ✅ | `apps.cohorts` | ex-`TrainingPeriod` ; période globale (`name`, `start_date`, `status`) |
-| `Cohort` ✅ | `apps.cohorts` | FK `program` → Program, FK `intake`, `description` |
-| `TrainerAssignment` ✅ | `apps.cohorts` | formateur affecté à une cohorte (contrainte d'unicité cohorte+user) |
-| `Enrollment` ✅ | `apps.cohorts` | apprenant inscrit, `mentor` → TrainerAssignment (même cohorte) |
-| `CourseSession` | `apps.pedagogy` | un cours ; FK → Cohort + Project + formateur |
-| `Absence` | `apps.pedagogy` | FK → CourseSession + Enrollment |
-| `ProjectAssignment` | `apps.evaluations` | projet confié à une inscription |
-| `Deliverable` | `apps.evaluations` | soumission/correction d'un projet |
-| `Attachment` ✅ | `apps.attachments` | fichier joint polymorphe (éviter `File`, collision `django.core.files.File`) ; lien GenericForeignKey vers toute entité |
-| `Certificate` ✅ | `apps.certificates` | à compléter : FK → Enrollment |
+| Entité | App | Statut | Description |
+|---|---|---|---|
+| `Program` | `apps.programs` | ✅ Actif | Programme de formation (ex: Dév Web, Data) |
+| `Project` | `apps.projects` | ✅ Actif | Projet d'un programme avec ordre séquentiel unique (`order`) |
+| `Intake` | `apps.cohorts` | ✅ Actif | Session / période globale institutionnelle (`name`, `start_date`, `status`) |
+| `Cohort` | `apps.cohorts` | ✅ Actif | Cohorte rattachée à un `program` et un `intake` |
+| `TrainerAssignment` | `apps.cohorts` | ✅ Actif | Formateur affecté à une cohorte |
+| `Enrollment` | `apps.cohorts` | ✅ Actif | Apprenant inscrit à une cohorte avec lien `mentor` optionnel |
+| `EvaluationCriterion` | `apps.evaluations` | ✅ Actif | Critère d'évaluation / compétence rattaché à un projet (`max_score`, `weight`, `order`) |
+| `ProjectAssignment` | `apps.evaluations` | ✅ Actif | Assignation d'un projet à une inscription avec statut et note finale |
+| `Deliverable` | `apps.evaluations` | ✅ Actif | Livrable versionné soumis par l'apprenant (liens, pièces jointes, feedbacks) |
+| `CriterionScore` | `apps.evaluations` | ✅ Actif | Note détaillée et niveau d'acquisition par compétence sur un livrable |
+| `Certificate` | `apps.certificates` | ✅ Actif | Certificat de fin de formation déclenché à la validation du parcours |
+| `Attachment` | `apps.attachments` | ✅ Actif | Fichier joint polymorphique (`GenericRelation`) avec suppression en cascade |
+| `CourseSession` | `apps.pedagogy` | ⏳ Coquille | Cours dispensé par un formateur à une cohorte |
+| `Absence` | `apps.pedagogy` | ⏳ Coquille | Suivi des présences / absences par session pédagogique |
 
-- **Distinction clé** : `Intake` = période globale organisée par l'institution ; `CourseSession` = cours dispensé par un formateur à une cohorte. Ne pas confondre.
-- **Règles métier à valider en code** (pas seulement par FK) : le `start_date` d'une `Cohort` ne doit pas précéder celui de son `Intake` ; le `mentor` d'une `Enrollment` doit pointer vers un `TrainerAssignment` de la même cohorte.
-- **Apps coquilles** (`pedagogy`, `evaluations`) : ne pas ajouter de code métier tant qu'une feature ne le nécessite pas — elles servent de guide d'architecture.
-- Routes exposées : `/api/v1/auth/`, `/api/v1/programs/`, `/api/v1/intakes/`, `/api/v1/cohorts/`, `/api/v1/attachments/` (version d'API pilotée par `settings.API_VERSION`), ainsi que la documentation OpenAPI sur `/api/schema/`, `/api/docs/` (Swagger) et `/api/redoc/`. Les nouveaux endpoints doivent être annotés avec drf-spectacular.
-- **Stockage des fichiers** : bascule par `STORAGE_BACKEND` (`local` en dev, `s3` en prod). En `s3`, les URLs de téléchargement sont signées et temporaires (`querystring_auth`) ; en `local` (dev), les fichiers sous `/media/` sont servis directement et donc publics — réservé au développement.
-- **Pagination** (globale, `PageNumberPagination`) : tous les list endpoints renvoient `{count, next, previous, results}`. Paramètres : `page` (1-indexé), `page_size` (défaut `20`, max `100`).
-- **Filtres** sur `/api/v1/cohorts/` : `?intake={uuid}` (cohortes d'un intake), `?program={uuid}` (cohortes d'un programme) — combinables entre eux et avec la pagination. Un UUID invalide renvoie `400`.
+---
 
-### Endpoints d'authentification (`/api/v1/auth/`)
+## Module Évaluations & Livrables
 
-| Méthode | Route | Accès | Corps | Description |
-|---|---|---|---|---|
-| POST | `register/` | Admin | `email, role` (`admin`/`organizer`/`trainer`/`learner`), `first_name`, `last_name`, `phone_number` | Créer un compte (statut `pending`) ; email avec code (7j) pour premier mot de passe |
-| POST | `login/` | Public | `email, password` | Connexion JWT (`access`, `refresh`) — réservée aux comptes `active` (limite 5/min) |
-| POST | `token/refresh/` | Public | `refresh` | Rotation du refresh token |
-| POST | `logout/` | Authentifié | `refresh` | Révocation du refresh token (blacklist) |
-| GET | `me/` | Authentifié | — | Profil de l'utilisateur connecté |
-| PATCH | `me/` | Authentifié | `first_name, last_name, phone_number` | Compléter/modifier le profil |
-| POST | `change-password/` | Authentifié | `old_password, new_password` | Changer son mot de passe |
-| POST | `invite/` | Organizer / Admin | `email, role` ou `emails: [..], role` | Inviter des utilisateurs par email (batch `{emails:[...]}` → `{results:[...]}` par email) ; statut `pending`, code valable 7 jours |
-| POST | `forgot-password/` | Public | `email` | Envoyer un code OTP (réponse 200 anti-énumération) : 30 min si `active`, 7 jours si `pending` |
-| POST | `reset-password/` | Public | `email, code, new_password` | Définir un nouveau mot de passe via le code (active les comptes `pending` en `active`) |
+### 1. Cycle de vie et Flow opérationnel
+
+Le module d'évaluation gère l'intégralité du parcours pratique de l'apprenant, depuis son inscription jusqu'à sa certification :
+
+```text
+1. CONFIGURATION (Admin / Formateur)
+   └── L'administrateur crée des projets ordonnés (order: 1, 2, 3...) dans un programme
+       et définit les critères d'évaluation par projet (EvaluationCriterion).
+
+2. AUTO-ASSIGNATION (Système)
+   └── Dès qu'un apprenant est inscrit dans une cohorte (Enrollment), le système crée
+       automatiquement une assignation (ProjectAssignment) pour chaque projet publié.
+       - Projet 1 (order 1)  ──► Statut : IN_PROGRESS (débloqué)
+       - Projets suivants    ──► Statut : PENDING (verrouillés)
+
+3. SOUMISSION (Apprenant)
+   └── L'apprenant dépose son travail sur l'assignation débloquée (POST .../submit/).
+       - Envoi des liens (dépôt GitHub, démo en ligne) et commentaires.
+       - Pièces jointes illimitées (ZIP, PDF, maquettes...) via upload multipart.
+       - Création d'un Deliverable versionné (v1) et passage de l'assignation en SUBMITTED.
+
+4. CORRECTION & ÉVALUATION (Formateur / Mentor)
+   └── Le formateur affecté à la cohorte évalue le livrable (POST .../review/).
+       Deux modes de notation possibles :
+       - Mode Grille critériée : saisie des notes et niveaux d'acquisition par compétence
+         (CriterionScore) ──► calcul automatique de la moyenne pondérée normalisée.
+       - Mode Note directe : saisie directe du score global.
+
+5. DÉCISION & PROGRESSION :
+   ├── Si REJETÉ :
+   │     - Le livrable passe en REJECTED avec le feedback du formateur.
+   │     - L'assignation repasse en IN_PROGRESS : l'étudiant peut soumettre une version v2.
+   │
+   └── Si VALIDÉ :
+         - Le livrable passe en VALIDATED, l'assignation enregistre le final_score.
+         - Le projet suivant passe automatiquement de PENDING à IN_PROGRESS.
+         - Si c'était le dernier projet du programme : l'inscription passe en COMPLETED
+           et un Certificat EN_ATTENTE est automatiquement initialisé.
+```
+
+---
+
+### 2. Matching Fonctionnalités $\leftrightarrow$ Endpoints API (Routes Plates `/api/v1/`)
+
+Toutes les routes sont plates et accessibles directement sous `/api/v1/` :
+
+| Domaine | Méthode | Endpoint | Permissions | Description & Filtres |
+| :--- | :--- | :--- | :--- | :--- |
+| **Critères** | `GET` | `/api/v1/criteria/` | Authentifié | Lister les critères d'évaluation. Filtres : `?project=<uuid>`, `?competency_name=` |
+| | `POST` | `/api/v1/criteria/` | Admin / Organizer | Créer un critère d'évaluation (`project, title, competency_name, max_score, weight, order`) |
+| | `GET` | `/api/v1/criteria/<id>/` | Authentifié | Détail d'un critère d'évaluation |
+| | `PATCH` | `/api/v1/criteria/<id>/` | Admin / Organizer | Modifier un critère d'évaluation |
+| | `DELETE` | `/api/v1/criteria/<id>/` | Admin / Organizer | Supprimer un critère d'évaluation |
+| **Assignations** | `GET` | `/api/v1/assignments/` | Authentifié (selon rôle) | Liste des assignations de projet. Filtres : `?cohort=`, `?project=`, `?user=`, `?status=` |
+| | `POST` | `/api/v1/assignments/` | Admin / Trainer | Création manuelle d'une assignation (`enrollment, project, deadline_override`) |
+| | `GET` | `/api/v1/assignments/<id>/` | Authentifié (selon rôle) | Détail d'une assignation avec liste de ses livrables et note finale |
+| | `PATCH` | `/api/v1/assignments/<id>/` | Admin | Modifier une assignation (ex: date limite, statut) |
+| | `DELETE` | `/api/v1/assignments/<id>/` | Admin | Supprimer une assignation |
+| **Livrables** | `GET` | `/api/v1/assignments/<id>/deliverables/` | Authentifié (selon rôle) | Liste chronologique et versionnée des livrables déposés pour une assignation |
+| | `POST` | `/api/v1/assignments/<id>/deliverables/submit/` | Apprenant assigné | **Soumettre un livrable** (multipart/form-data ou JSON : `repo_url`, `live_url`, `comments`, `files`) |
+| | `GET` | `/api/v1/deliverables/<id>/` | Authentifié (selon rôle) | Détail complet d'un livrable avec ses pièces jointes et sa grille de notes détaillée |
+| | `POST` | `/api/v1/deliverables/<id>/review/` | Formateur cohorte / Admin | **Corriger un livrable** (`status: "validated"\|"rejected"`, `score`, `feedback`, `criterion_scores: [...]`) |
+| **Statistiques** | `GET` | `/api/v1/cohorts/<id>/stats/` | Formateur cohorte / Admin | Statistiques de cohorte (progression moyenne %, taux de validation, stats par compétence et par apprenant) |
+| | `GET` | `/api/v1/dashboard/stats/` | Admin / Organizer | Tableau de bord global (utilisateurs, cohortes, projets, taux de complétion académie, distributions) |
+
+---
+
+## Administration des Utilisateurs & Membres
 
 ### Endpoints d'administration des utilisateurs (`/api/v1/users/`)
 
 | Méthode | Route | Permissions | Filtres / Paramètres | Description |
 |---|---|---|---|---|
-| GET | `users/` | Admin | `?role=`, `?status=`, `?is_active=`, `?search=` | Liste paginée de tous les utilisateurs avec filtres combinables |
-| GET | `users/<id>/` | Admin | — | Détails complets d'un utilisateur (rôle, statut, dates, téléphone) |
-| PATCH | `users/<id>/` | Admin | `status`, `role`, `first_name`, `last_name`, `phone_number` | Modifier un utilisateur (ex: suspension `suspended`, réactivation `active`) |
-| DELETE | `users/<id>/` | Admin | — | Supprimer un compte (interdit sur son propre compte administrateur) |
+| GET | `/api/v1/users/` | Admin | `?role=`, `?status=`, `?is_active=`, `?search=` | Liste paginée de tous les utilisateurs avec filtres combinables |
+| GET | `/api/v1/users/<id>/` | Admin | — | Détails complets d'un utilisateur (rôle, statut, dates, téléphone) |
+| PATCH | `/api/v1/users/<id>/` | Admin | `status`, `role`, `first_name`, `last_name`, `phone_number` | Modifier un utilisateur (ex: suspension `suspended`, réactivation `active`) |
+| DELETE | `/api/v1/users/<id>/` | Admin | — | Supprimer un compte (interdit sur son propre compte administrateur) |
 
-### Cycle de vie des statuts (`status`)
-- **`pending`** : Compte pré-créé / invité, en attente de définition du premier mot de passe (`is_active = False`).
+### Cycle de vie des statuts utilisateurs (`status`)
+- **`pending`** : Compte invité / pré-créé, en attente d'activation (`is_active = False`).
 - **`active`** : Compte actif pouvant s'authentifier (`is_active = True`).
 - **`suspended`** : Compte suspendu par l'administrateur (`is_active = False`).
 - **`archived`** : Compte archivé / désactivé définitivement (`is_active = False`).
-- `User.is_active` est synchronisé automatiquement avec `status == 'active'`.
 
 ### Endpoints membres d'une cohorte (`/api/v1/cohorts/<id>/`)
 
 | Méthode | Endpoint | Permissions | Corps | Description |
 |---|---|---|---|---|
-| GET | `cohorts/<id>/enrollments/` | Admin / Organizer | — | Liste des inscriptions (apprenants) |
-| POST | `cohorts/<id>/enrollments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des apprenants (résultat par email : `enrolled`/`already_enrolled`/`not_found`/`role_incompatible`/`user_inactive`) |
-| GET | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | — | Liste des formateurs affectés |
-| POST | `cohorts/<id>/trainer-assignments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des formateurs (résultat par email : `assigned`/`already_assigned`/…) |
-| PATCH | `cohorts/<id>/enrollments/<id>/` | Admin / Organizer | `{mentor: uuid|null}` | Poser/retirer le mentor (doit être une affectation de la même cohorte, sinon 404) |
+| GET | `/api/v1/cohorts/<id>/enrollments/` | Admin / Organizer | — | Liste des inscriptions (apprenants) |
+| POST | `/api/v1/cohorts/<id>/enrollments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des apprenants (auto-assignation automatique des projets) |
+| GET | `/api/v1/cohorts/<id>/trainer-assignments/` | Admin / Organizer | — | Liste des formateurs affectés |
+| POST | `/api/v1/cohorts/<id>/trainer-assignments/` | Admin / Organizer | `{emails:[...]}` | Ajouter des formateurs à la cohorte |
+| PATCH | `/api/v1/cohorts/<id>/enrollments/<id>/` | Admin / Organizer | `{mentor: uuid\|null}` | Poser ou retirer le mentor de l'apprenant (doit être un formateur de la cohorte) |
 
-L'invitation crée un compte **sans mot de passe utilisable** (`set_unusable_password()`) ; le code reçu par email lui permet de définir son premier mot de passe via `reset-password/`. Les codes sont hashés (HMAC-SHA256) et expirants (`PasswordResetToken`).
+---
 
-### Endpoints pièces jointes (`/api/v1/attachments/`)
+## Pièces Jointes & Stockage (`/api/v1/attachments/`)
 
 | Méthode | Route | Accès | Corps | Description |
 |---|---|---|---|---|
-| POST | `attachments/` | Authentifié | `file` (multipart/form-data) | Uploader un fichier (extensions autorisées, max 10 Mo) ; stocké sous un nom UUID |
-| GET | `attachments/<id>/` | Auteur ou admin | — | Détail + URL de téléchargement (signée en S3) |
-| DELETE | `attachments/<id>/` | Auteur ou admin | — | Supprimer le fichier |
+| POST | `/api/v1/attachments/` | Authentifié | `file` (multipart/form-data) | Uploader un fichier autonome (max 10 Mo) ; stocké sous UUID sécurisé |
+| GET | `/api/v1/attachments/<id>/` | Auteur ou admin | — | Détail + URL de téléchargement (signée en S3) |
+| DELETE | `/api/v1/attachments/<id>/` | Auteur ou admin | — | Supprimer le fichier physique et la ligne en base |
 
-### Endpoints critères d'évaluation (`/api/v1/criteria/`)
+**Lien polymorphique (GenericForeignKey)** : `Attachment` se rattache directement aux livrables (`Deliverable`) et projets (`Project`). La suppression d'un livrable ou d'un projet supprime automatiquement en cascade toutes ses pièces jointes associées.
 
-| Méthode | Route | Accès | Filtres / Corps | Description |
-|---|---|---|---|---|
-| GET | `criteria/` | Authentifié | `?project=`, `?competency_name=` | Liste des critères d'évaluation et compétences d'un projet |
-| POST | `criteria/` | Admin / Organizer | `project, title, description, competency_name, max_score, weight, order` | Créer un critère d'évaluation |
-| GET | `criteria/<id>/` | Authentifié | — | Détail d'un critère |
-| PATCH | `criteria/<id>/` | Admin / Organizer | champs partiels | Modifier un critère |
-| DELETE | `criteria/<id>/` | Admin / Organizer | — | Supprimer un critère |
+---
 
-### Endpoints d'évaluations et notation (`/api/v1/evaluations/`)
-
-| Méthode | Route | Accès | Filtres / Corps | Description |
-|---|---|---|---|---|
-| GET | `evaluations/` | Authentifié (selon rôle) | `?cohort=`, `?project=`, `?enrollment=`, `?learner=`, `?status=` | Liste filtrée des évaluations (Admin: tout, Formateur: cohortes affectées, Apprenant: ses évaluations) |
-| GET | `evaluations/<id>/` | Authentifié (selon rôle) | — | Détail complet d'une évaluation avec notes par compétence / critère |
-| POST | `evaluations/grade/` | Formateur (affecté) / Admin / Organizer | `{enrollment, project, status, score, general_feedback, criterion_scores: [{criterion, score, level, feedback}]}` | Enregistrer ou mettre à jour la notation d'un apprenant avec calcul auto de moyenne |
-| DELETE | `evaluations/<id>/` | Admin | — | Supprimer une évaluation |
-
-### Endpoints de Statistiques / KPIs (`/api/v1/`)
-
-| Méthode | Route | Accès | Description |
-|---|---|---|---|
-| GET | `dashboard/stats/` | Admin / Organizer | Métriques globales complètes : cohortes actives, total apprenants, formateurs, taux de complétion global, taux de validation, distributions de statuts et compétences, récentes évaluations |
-| GET | `cohorts/<id>/stats/` | Formateur affecté / Admin / Organizer | Statistiques détaillées de la cohorte : progression moyenne, taux de validation, taux de complétion, métriques par projet (taux et moyenne), synthèse par compétence et progression individuelle des apprenants |
-
-**Lien polymorphe (GenericForeignKey)** : `Attachment` se rattache à n'importe quelle entité métier (`Projet`, `Livrable`, `Session`, `Certificat`…) via `content_type`/`object_id` nullables. Pour la **création d'un parent avec fichiers**, on n'utilise pas cet endpoint : la vue de création du parent reçoit une requête **multipart unique** (champs + fichiers `file` répétés) et appelle le service `create_attachments(user, files, parent=...)` (`apps/attachments/services.py`) dans la même requête transactionnelle — pas de manipulation d'ids côté front. Chaque parent porte `attachments = GenericRelation(...)` et renvoie ses fichiers imbriqués.
-
-Règle d'accès actuelle (Attachment non lié) : seul l'auteur de l'upload ou un admin consulte/supprime. La matrice RBAC complète (mentor/organizer de la cohorte concernée) sera appliquée quand `Attachment` sera lié à une entité métier.
-
-## Configuration
-
-### Sélection du module de settings
-
-Le module de settings est choisi **uniquement** via la variable d'environnement `DJANGO_SETTINGS_MODULE`. Les points d'entrée utilisent `os.environ.setdefault(...)`, c'est-à-dire qu'une valeur **par défaut** est appliquée seulement si la variable n'est pas déjà définie dans l'environnement : la valeur du shell fait toujours foi.
+## Configuration & Démarrage
 
 ### Variables d'environnement
 
-- Le fichier `.env` contient les secrets de l'application et est chargé par django-environ dans `base.py`. Il se crée à partir de `.env.example`.
-- `SECRET_KEY` est obligatoire et doit être propre à chaque environnement. Une clé forte est déjà renseignée dans le `.env` local.
+- `.env` contient les secrets de l'application et est chargé par `django-environ` dans `base.py`.
+- Base de données : PostgreSQL en production et développement principal (`DATABASE_URL`). SQLite local en secours sans variable.
 
-### Base de données
-
-- `base.py` lit la variable `DATABASE_URL` via `env.db()`. Par défaut, le projet utilise PostgreSQL (via Docker avec `docker-compose.yml` à la racine, ou le service Windows `localhost:5432` selon le `.env`). Sans `DATABASE_URL`, il retombe sur SQLite local (`db.sqlite3`). psycopg2 est épinglé, donc la prod nécessite un `DATABASE_URL` PostgreSQL.
-
-### API et authentification
-
-- Authentification par JWT (Bearer) via simplejwt, avec rotation des refresh tokens et blacklist des tokens révoqués.
-- Permission par défaut : `IsAuthenticated`. Les endpoints publics doivent explicitement déclarer `permission_classes = [AllowAny]` et choisir un scope de throttling.
-- Rendus et parsers JSON uniquement.
-- Limites de débit : `anon` 100/jour, `user` 1000/jour, `login` 5/min, `invite` 10/h, `enroll` 60/h, `forgot` 5/h, `reset` 5/h.
-- CORS : ouvert en développement (`CORS_ALLOW_ALL_ORIGINS`), restreint en production à `CORS_ALLOWED_ORIGINS` (à configurer dans `.env` avec l'origine du front).
-
-## Lancer le projet
-
-Prérequis : Python 3.13.
+### Lancer le projet (Windows / PowerShell)
 
 ```powershell
-# 1. Environnement virtuel (à créer une première fois)
+# 1. Environnement virtuel
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-# 2. Fichier de configuration
-Copy-Item .env.example .env   # puis renseigner les valeurs réelles
+# 2. Configuration
+Copy-Item .env.example .env
 
-# 3. Migrations
+# 3. Migrations & Check
 .\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py check
 
-# 4. Serveur de développement
+# 4. Lancer le serveur
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-L'API est alors disponible sur `http://127.0.0.1:8000/`, la documentation sur `/api/docs/`.
+L'API est accessible sur `http://127.0.0.1:8000/api/v1/`, Swagger sur `http://127.0.0.1:8000/api/docs/`.
 
-## Tests
+### Tests
 
 ```powershell
-.\.venv\Scripts\python.exe manage.py test            # suite complète
-.\.venv\Scripts\python.exe manage.py test apps.users # une app ciblée
+.\.venv\Scripts\python.exe manage.py test                  # Exécuter toute la suite de tests
+.\.venv\Scripts\python.exe manage.py test apps.evaluations # Tester spécifiquement les évaluations
 ```
-
-Tests Django natifs (`django.test.TestCase` / `rest_framework.test.APITestCase`). L'infra partagée (`base.py`/`factories.py` avec `AuthAPITestCase`, `UserFactory`, …) vit dans `apps/core/tests/` ; les tests métier dans le package `tests/` de chaque app (ex. `apps/users/tests/`, `apps/programs/tests/`, `apps/cohorts/tests/`), avec les factories par app (ex. `ProgramFactory`, `IntakeFactory`). La base `test_academy_os_db` est créée sur le PostgreSQL local.
-
-⚠️ Gotcha DRF : `SimpleRateThrottle.THROTTLE_RATES` est lié au dict d'origine à l'import — `@override_settings` ne marche pas, il faut patcher l'attribut de classe (voir `apps/core/tests/base.py`).

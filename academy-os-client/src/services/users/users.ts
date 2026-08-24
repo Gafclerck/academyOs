@@ -34,6 +34,7 @@ export const getUsers = async (): Promise<User[]> => {
   return response.data.results
 }
 
+
 // ===============================
 // INVITER UN UTILISATEUR
 // ===============================
@@ -81,3 +82,4 @@ export const deleteUser = async (
 ): Promise<void> => {
   await API.delete(`/users/${id}/`)
 }
+

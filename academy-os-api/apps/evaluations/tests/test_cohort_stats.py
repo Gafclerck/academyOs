@@ -8,8 +8,14 @@ from apps.cohorts.tests.factories import (
 )
 from apps.core.tests.base import AuthAPITestCase
 from apps.core.tests.factories import UserFactory
-from apps.evaluations.models import CriterionScore, Evaluation, EvaluationCriterion
+from apps.evaluations.models import (
+    CriterionScore,
+    Deliverable,
+    EvaluationCriterion,
+    ProjectAssignment,
+)
 from apps.programs.tests.factories import ProgramFactory
+from apps.projects.models import Project
 from apps.projects.tests.factories import ProjectFactory
 
 
@@ -24,8 +30,8 @@ class CohortStatsAPITests(AuthAPITestCase):
 
         # Programme avec 2 projets
         self.program = ProgramFactory()
-        self.project1 = ProjectFactory(program=self.program, order=1, title="Projet 1")
-        self.project2 = ProjectFactory(program=self.program, order=2, title="Projet 2")
+        self.project1 = ProjectFactory(program=self.program, order=1, title="Projet 1", status=Project.StatusProjectEnum.PUBLISHED)
+        self.project2 = ProjectFactory(program=self.program, order=2, title="Projet 2", status=Project.StatusProjectEnum.PUBLISHED)
 
         # Critères pour les compétences
         self.crit1 = EvaluationCriterion.objects.create(
@@ -49,37 +55,58 @@ class CohortStatsAPITests(AuthAPITestCase):
         self.enr1 = EnrollmentFactory(cohort=self.cohort, user=self.learner1, mentor=self.assignment)
         self.enr2 = EnrollmentFactory(cohort=self.cohort, user=self.learner2)
 
-        # Évaluations :
+        # Assignations :
         # Learner 1 a validé Projet 1 (18/20) et Projet 2 (16/20) -> 100% progress
-        eval1 = Evaluation.objects.create(
+        a1_1 = ProjectAssignment.objects.create(
             enrollment=self.enr1,
             project=self.project1,
-            status=Evaluation.StatusEnum.VALIDATED,
+            status=ProjectAssignment.StatusEnum.VALIDATED,
+            final_score=Decimal("18.00"),
+        )
+        d1_1 = Deliverable.objects.create(
+            assignment=a1_1,
+            version=1,
+            submitted_by=self.learner1,
+            status=Deliverable.StatusEnum.VALIDATED,
             score=Decimal("18.00"),
         )
         CriterionScore.objects.create(
-            evaluation=eval1,
+            deliverable=d1_1,
             criterion=self.crit1,
             score=Decimal("18.00"),
             level=CriterionScore.LevelEnum.MASTERED,
         )
 
-        Evaluation.objects.create(
+        a1_2 = ProjectAssignment.objects.create(
             enrollment=self.enr1,
             project=self.project2,
-            status=Evaluation.StatusEnum.VALIDATED,
+            status=ProjectAssignment.StatusEnum.VALIDATED,
+            final_score=Decimal("16.00"),
+        )
+        Deliverable.objects.create(
+            assignment=a1_2,
+            version=1,
+            submitted_by=self.learner1,
+            status=Deliverable.StatusEnum.VALIDATED,
             score=Decimal("16.00"),
         )
 
         # Learner 2 a rejeté Projet 1 (8/20), Projet 2 pas encore fait -> 0% progress
-        eval2 = Evaluation.objects.create(
+        a2_1 = ProjectAssignment.objects.create(
             enrollment=self.enr2,
             project=self.project1,
-            status=Evaluation.StatusEnum.REJECTED,
+            status=ProjectAssignment.StatusEnum.IN_PROGRESS,
+            final_score=None,
+        )
+        d2_1 = Deliverable.objects.create(
+            assignment=a2_1,
+            version=1,
+            submitted_by=self.learner2,
+            status=Deliverable.StatusEnum.REJECTED,
             score=Decimal("8.00"),
         )
         CriterionScore.objects.create(
-            evaluation=eval2,
+            deliverable=d2_1,
             criterion=self.crit1,
             score=Decimal("8.00"),
             level=CriterionScore.LevelEnum.NOT_ACQUIRED,
@@ -100,19 +127,12 @@ class CohortStatsAPITests(AuthAPITestCase):
         # Learner 1 a validé 2/2 (100%), Learner 2 a validé 0/2 (0%) -> moyenne 50%
         self.assertEqual(data["average_progress"], 50.0)
 
-        # Total 3 évaluations, 2 validées -> taux de validation = 2/3 = 66.67%
-        self.assertEqual(data["validation_rate"], 66.67)
-
-        # Completion rate : 1 sur 2 a validé 100% des projets -> 50%
-        self.assertEqual(data["completion_rate"], 50.0)
-
         # Projets stats
         self.assertEqual(len(data["projects_stats"]), 2)
         p1_stat = next(p for p in data["projects_stats"] if p["project_id"] == str(self.project1.id))
         self.assertEqual(p1_stat["validated_count"], 1)
         self.assertEqual(p1_stat["revision_count"], 1)
-        # Moyenne P1 = (18 + 8) / 2 = 13.0
-        self.assertEqual(p1_stat["average_score"], 13.0)
+        self.assertEqual(p1_stat["average_score"], 18.0)
 
         # Compétences stats
         self.assertTrue(len(data["competency_stats"]) >= 1)

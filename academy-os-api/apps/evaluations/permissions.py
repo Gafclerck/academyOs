@@ -5,12 +5,12 @@ from apps.users.models import User
 
 
 class CanGradeEvaluation(permissions.BasePermission):
-    """Permission permettant de noter ou évaluer un apprenant.
+    """Permission permettant de noter ou évaluer un livrable / assignation.
 
     Autorise :
     - Les administrateurs
     - Les organisateurs
-    - Les formateurs affectés à la cohorte de l'apprenant (y compris les mentors assignés)
+    - Les formateurs affectés à la cohorte concernée (y compris les mentors assignés)
     """
 
     def has_permission(self, request, view):
@@ -31,9 +31,17 @@ class CanGradeEvaluation(permissions.BasePermission):
             return True
 
         if request.user.role == User.Role.TRAINER:
-            cohort_id = obj.enrollment.cohort_id if hasattr(obj, "enrollment") else getattr(obj, "cohort_id", None)
+            # Obtenir la cohorte selon le type d'objet (Deliverable, ProjectAssignment, ou Enrollment)
+            if hasattr(obj, "assignment"):
+                cohort_id = obj.assignment.enrollment.cohort_id
+            elif hasattr(obj, "enrollment"):
+                cohort_id = obj.enrollment.cohort_id
+            else:
+                cohort_id = getattr(obj, "cohort_id", None)
+
             if not cohort_id:
                 return False
+
             return TrainerAssignment.objects.filter(
                 cohort_id=cohort_id,
                 user=request.user,
@@ -44,11 +52,11 @@ class CanGradeEvaluation(permissions.BasePermission):
 
 
 class CanViewEvaluation(permissions.BasePermission):
-    """Permission de consultation d'une évaluation.
+    """Permission de consultation d'une assignation ou d'un livrable.
 
     - Les administrateurs et organisateurs peuvent tout consulter.
-    - Les formateurs peuvent consulter les évaluations des cohortes auxquelles ils sont affectés.
-    - Les apprenants peuvent consulter uniquement leurs propres évaluations.
+    - Les formateurs peuvent consulter les assignations/livrables des cohortes auxquelles ils sont affectés.
+    - Les apprenants peuvent consulter uniquement leurs propres assignations/livrables.
     """
 
     def has_permission(self, request, view):
@@ -61,14 +69,22 @@ class CanViewEvaluation(permissions.BasePermission):
         if user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
             return True
 
+        # Résoudre l'enrollment
+        enrollment = getattr(obj, "enrollment", None)
+        if enrollment is None and hasattr(obj, "assignment"):
+            enrollment = obj.assignment.enrollment
+
+        if not enrollment:
+            return False
+
         if user.role == User.Role.TRAINER:
             return TrainerAssignment.objects.filter(
-                cohort_id=obj.enrollment.cohort_id,
+                cohort_id=enrollment.cohort_id,
                 user=user,
                 status=TrainerAssignment.StatusEnum.ACTIVE,
             ).exists()
 
         if user.role == User.Role.LEARNER:
-            return obj.enrollment.user_id == user.id
+            return enrollment.user_id == user.id
 
         return False

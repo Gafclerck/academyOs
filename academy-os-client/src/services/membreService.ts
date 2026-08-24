@@ -1,12 +1,15 @@
 /**
  * Service API - Gestion des Membres de Cohorte
  *
- * Endpoints backend (DRF) :
- *   GET    /api/v1/cohorts/{cohortId}/enrollments/
- *   POST   /api/v1/cohorts/{cohortId}/enrollments/
- *   GET    /api/v1/cohorts/{cohortId}/trainer-assignments/
- *   POST   /api/v1/cohorts/{cohortId}/trainer-assignments/
- *   PATCH  /api/v1/cohorts/{cohortId}/enrollments/{enrollmentId}/
+ * Endpoints backend :
+ *
+ * GET    /api/v1/cohorts/{cohortId}/enrollments/
+ * POST   /api/v1/cohorts/{cohortId}/enrollments/
+ *
+ * GET    /api/v1/cohorts/{cohortId}/trainer-assignments/
+ * POST   /api/v1/cohorts/{cohortId}/trainer-assignments/
+ *
+ * PATCH  /api/v1/cohorts/{cohortId}/enrollments/{enrollmentId}/
  */
 
 import axios from 'axios'
@@ -18,35 +21,84 @@ import type {
   AssignMentorPayload,
   AddMembersPayload,
 } from '@/types/programme'
+import { tokenStore } from '@/lib/tokenStore'
+
+
+
+// ============================================================
+// CONFIGURATION API
+// ============================================================
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://127.0.0.1:8000/api/v1'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10_000,
 })
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+// ============================================================
+// AUTHENTIFICATION
+// ============================================================
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenStore.getAccessToken()
 
-  return config
-})
+    console.log(
+      '🔐 TOKEN DISPONIBLE:',
+      token ? 'OUI' : 'NON',
+    )
+
+    if (token) {
+      config.headers = config.headers ?? {}
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  },
+)
+
+// ============================================================
+// GESTION DES ERREURS
+// ============================================================
 
 function extractMessage(
   err: unknown,
   fallback: string,
 ): string {
   if (axios.isAxiosError(err)) {
-    const serverMsg = (
-      err.response?.data as { message?: string }
-    )?.message
+    const data = err.response?.data as
+      | {
+          message?: string
+          detail?: string
+          error?: string
+          results?: unknown
+        }
+      | undefined
 
-    return serverMsg ?? err.message ?? fallback
+    console.error(
+      '❌ API ERROR:',
+      {
+        status: err.response?.status,
+        data: err.response?.data,
+      },
+    )
+
+    return (
+      data?.message ??
+      data?.detail ??
+      data?.error ??
+      err.message ??
+      fallback
+    )
   }
 
   if (err instanceof Error) {
@@ -56,16 +108,16 @@ function extractMessage(
   return fallback
 }
 
-/**
- * Mode mock
- *
- * false = utiliser le backend
- * true  = utiliser les données temporaires
- */
-const USE_MOCK = true
+// ============================================================
+// MOCK
+// ============================================================
+
+const USE_MOCK = false
 
 const delay = (ms = 400) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms))
+  new Promise<void>((resolve) =>
+    setTimeout(resolve, ms),
+  )
 
 // ============================================================
 // MOCK ENROLLMENTS
@@ -160,28 +212,56 @@ const MOCK_TRAINERS: BackendTrainerAssignment[] = [
 ]
 
 // ============================================================
-// RÉCUPÉRER LES APPRENANTS
+// GET ENROLLMENTS
 // ============================================================
 
 export async function getEnrollments(
   cohortId: string,
 ): Promise<BackendEnrollment[]> {
   try {
+    if (!cohortId) {
+      throw new Error(
+        'Identifiant de cohorte manquant.',
+      )
+    }
+
     if (USE_MOCK) {
       await delay(500)
 
       return MOCK_ENROLLMENTS.filter(
-        (enrollment) => enrollment.cohort === cohortId,
+        (enrollment) =>
+          enrollment.cohort === cohortId,
       )
     }
 
     const { data } =
-      await api.get<BackendEnrollment[]>(
-        `cohorts/${cohortId}/enrollments/`,
+      await api.get(
+        `/cohorts/${cohortId}/enrollments/`,
       )
 
-    return data
+    console.log(
+      '🔥 GET ENROLLMENTS RESPONSE:',
+      data,
+    )
+
+    if (
+      data &&
+      Array.isArray(data.results)
+    ) {
+      return data.results
+    }
+
+    if (Array.isArray(data)) {
+      return data
+    }
+
+    return []
   } catch (err) {
+    console.error(
+      '❌ GET ENROLLMENTS ERROR:',
+      err,
+    )
+
     throw new Error(
       extractMessage(
         err,
@@ -192,28 +272,56 @@ export async function getEnrollments(
 }
 
 // ============================================================
-// RÉCUPÉRER LES FORMATEURS
+// GET TRAINER ASSIGNMENTS
 // ============================================================
 
 export async function getTrainerAssignments(
   cohortId: string,
 ): Promise<BackendTrainerAssignment[]> {
   try {
+    if (!cohortId) {
+      throw new Error(
+        'Identifiant de cohorte manquant.',
+      )
+    }
+
     if (USE_MOCK) {
       await delay(500)
 
       return MOCK_TRAINERS.filter(
-        (trainer) => trainer.cohort === cohortId,
+        (trainer) =>
+          trainer.cohort === cohortId,
       )
     }
 
     const { data } =
-      await api.get<BackendTrainerAssignment[]>(
-        `cohorts/${cohortId}/trainer-assignments/`,
+      await api.get(
+        `/cohorts/${cohortId}/trainer-assignments/`,
       )
 
-    return data
+    console.log(
+      '🔥 GET TRAINER ASSIGNMENTS RESPONSE:',
+      data,
+    )
+
+    if (
+      data &&
+      Array.isArray(data.results)
+    ) {
+      return data.results
+    }
+
+    if (Array.isArray(data)) {
+      return data
+    }
+
+    return []
   } catch (err) {
+    console.error(
+      '❌ GET TRAINER ASSIGNMENTS ERROR:',
+      err,
+    )
+
     throw new Error(
       extractMessage(
         err,
@@ -224,7 +332,7 @@ export async function getTrainerAssignments(
 }
 
 // ============================================================
-// AJOUTER DES APPRENANTS
+// POST ENROLLMENTS
 // ============================================================
 
 export async function addLearners(
@@ -232,30 +340,48 @@ export async function addLearners(
   emails: string[],
 ): Promise<MemberBatchResult> {
   try {
-    if (USE_MOCK) {
-      await delay(500)
+    if (!cohortId) {
+      throw new Error(
+        'Identifiant de cohorte manquant.',
+      )
+    }
 
-      return {
-        results: emails.map((email) => ({
-          email,
-          status: 'enrolled',
-          detail: 'Membre ajouté.',
-        })),
-      }
+    if (emails.length === 0) {
+      throw new Error(
+        'Aucun apprenant sélectionné.',
+      )
     }
 
     const payload: AddMembersPayload = {
       emails,
     }
 
+    console.log(
+      '📤 POST ENROLLMENTS',
+      {
+        url: `/cohorts/${cohortId}/enrollments/`,
+        payload,
+      },
+    )
+
     const { data } =
       await api.post<MemberBatchResult>(
-        `cohorts/${cohortId}/enrollments/`,
+        `/cohorts/${cohortId}/enrollments/`,
         payload,
       )
 
+    console.log(
+      '✅ POST ENROLLMENTS RESPONSE:',
+      data,
+    )
+
     return data
   } catch (err) {
+    console.error(
+      '❌ POST ENROLLMENTS ERROR:',
+      err,
+    )
+
     throw new Error(
       extractMessage(
         err,
@@ -266,7 +392,7 @@ export async function addLearners(
 }
 
 // ============================================================
-// AJOUTER DES FORMATEURS
+// POST TRAINER ASSIGNMENTS
 // ============================================================
 
 export async function addTrainers(
@@ -274,30 +400,48 @@ export async function addTrainers(
   emails: string[],
 ): Promise<MemberBatchResult> {
   try {
-    if (USE_MOCK) {
-      await delay(500)
+    if (!cohortId) {
+      throw new Error(
+        'Identifiant de cohorte manquant.',
+      )
+    }
 
-      return {
-        results: emails.map((email) => ({
-          email,
-          status: 'assigned',
-          detail: 'Formateur ajouté.',
-        })),
-      }
+    if (emails.length === 0) {
+      throw new Error(
+        'Aucun formateur sélectionné.',
+      )
     }
 
     const payload: AddMembersPayload = {
       emails,
     }
 
+    console.log(
+      '📤 POST TRAINER ASSIGNMENTS',
+      {
+        url: `/cohorts/${cohortId}/trainer-assignments/`,
+        payload,
+      },
+    )
+
     const { data } =
       await api.post<MemberBatchResult>(
-        `cohorts/${cohortId}/trainer-assignments/`,
+        `/cohorts/${cohortId}/trainer-assignments/`,
         payload,
       )
 
+    console.log(
+      '✅ POST TRAINER ASSIGNMENTS RESPONSE:',
+      data,
+    )
+
     return data
   } catch (err) {
+    console.error(
+      '❌ POST TRAINER ASSIGNMENTS ERROR:',
+      err,
+    )
+
     throw new Error(
       extractMessage(
         err,
@@ -308,7 +452,7 @@ export async function addTrainers(
 }
 
 // ============================================================
-// ASSIGNER / RETIRER UN MENTOR
+// PATCH MENTOR
 // ============================================================
 
 export async function assignMentor(
@@ -317,28 +461,47 @@ export async function assignMentor(
   mentorId: string | null,
 ): Promise<BackendEnrollment> {
   try {
+    if (!cohortId) {
+      throw new Error(
+        'Identifiant de cohorte manquant.',
+      )
+    }
+
+    if (!enrollmentId) {
+      throw new Error(
+        "Identifiant d'inscription manquant.",
+      )
+    }
+
     if (USE_MOCK) {
       await delay(400)
 
-      const enrollment = MOCK_ENROLLMENTS.find(
-        (item) => item.id === enrollmentId,
-      )
+      const enrollment =
+        MOCK_ENROLLMENTS.find(
+          (item) =>
+            item.id === enrollmentId,
+        )
 
       if (!enrollment) {
-        throw new Error('Inscription introuvable.')
+        throw new Error(
+          'Inscription introuvable.',
+        )
       }
 
       if (mentorId) {
-        const trainer = MOCK_TRAINERS.find(
-          (item) => item.id === mentorId,
-        )
+        const trainer =
+          MOCK_TRAINERS.find(
+            (item) =>
+              item.id === mentorId,
+          )
 
         enrollment.mentor = trainer
           ? {
               id: trainer.id,
               user: trainer.user,
               status: trainer.status,
-              assigned_at: trainer.assigned_at,
+              assigned_at:
+                trainer.assigned_at,
             }
           : null
       } else {
@@ -356,12 +519,17 @@ export async function assignMentor(
 
     const { data } =
       await api.patch<BackendEnrollment>(
-        `cohorts/${cohortId}/enrollments/${enrollmentId}/`,
+        `/cohorts/${cohortId}/enrollments/${enrollmentId}/`,
         payload,
       )
 
     return data
   } catch (err) {
+    console.error(
+      '❌ PATCH MENTOR ERROR:',
+      err,
+    )
+
     throw new Error(
       extractMessage(
         err,

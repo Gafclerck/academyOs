@@ -1,6 +1,10 @@
+from decimal import Decimal
+
 from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.contrib.contenttypes.fields import GenericRelation
+from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from apps.core.models import TimeStampedModel, UUIDModel
 
@@ -60,88 +64,148 @@ class EvaluationCriterion(UUIDModel, TimeStampedModel):
         return f"{self.project.title} - {self.title} (max: {self.max_score})"
 
 
-class Evaluation(UUIDModel, TimeStampedModel):
-    """Évaluation globale d'un apprenant sur un projet au sein de sa cohorte.
-
-    Effectuée par un formateur ou un mentor affecté à la cohorte.
-    """
+class ProjectAssignment(UUIDModel, TimeStampedModel):
+    """Assignation d'un projet du programme à un apprenant inscrit dans une cohorte."""
 
     class StatusEnum(models.TextChoices):
         PENDING = "pending", "En attente"
-        IN_REVIEW = "in_review", "En cours de revue"
+        IN_PROGRESS = "in_progress", "En cours"
+        SUBMITTED = "submitted", "Soumis"
         VALIDATED = "validated", "Validé"
-        REVISION_REQUIRED = "revision_required", "Révision requise"
-        REJECTED = "rejected", "Rejeté"
 
     enrollment = models.ForeignKey(
         "cohorts.Enrollment",
         on_delete=models.CASCADE,
-        related_name="evaluations",
+        related_name="project_assignments",
     )
     project = models.ForeignKey(
         "projects.Project",
-        on_delete=models.CASCADE,
-        related_name="evaluations",
+        on_delete=models.PROTECT,
+        related_name="assignments",
     )
-    evaluated_by = models.ForeignKey(
+    status = models.CharField(
+        max_length=20,
+        choices=StatusEnum.choices,
+        default=StatusEnum.PENDING,
+    )
+    assigned_at = models.DateTimeField(default=timezone.now)
+    deadline_override = models.DateTimeField(null=True, blank=True)
+    final_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Note finale obtenue sur l'assignation de projet",
+    )
+
+    class Meta:
+        db_table = "project_assignments"
+        ordering = ["-assigned_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment", "project"],
+                name="unique_assignment_per_enrollment_and_project",
+            )
+        ]
+        verbose_name = "Assignation de projet"
+        verbose_name_plural = "Assignations de projet"
+
+    def __str__(self):
+        return f"{self.enrollment.user.email} - {self.project.title} ({self.status})"
+
+
+class Deliverable(UUIDModel, TimeStampedModel):
+    """Livrable soumis par un apprenant pour une assignation de projet (gère les versions/itérations)."""
+
+    class StatusEnum(models.TextChoices):
+        SUBMITTED = "submitted", "Soumis"
+        VALIDATED = "validated", "Validé"
+        REJECTED = "rejected", "Rejeté"
+
+    assignment = models.ForeignKey(
+        ProjectAssignment,
+        on_delete=models.CASCADE,
+        related_name="deliverables",
+    )
+    version = models.PositiveIntegerField(default=1)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="submitted_deliverables",
+    )
+    submitted_at = models.DateTimeField(default=timezone.now)
+    repo_url = models.URLField(max_length=500, blank=True, default="")
+    live_url = models.URLField(max_length=500, blank=True, default="")
+    comments = models.TextField(blank=True, default="")
+
+    # Pièces jointes polymorphiques (ZIP, PDF, maquettes...) avec suppression en cascade
+    attachments = GenericRelation(
+        "attachments.Attachment",
+        related_query_name="deliverables",
+    )
+
+    # Champs d'évaluation / correction par le formateur
+    status = models.CharField(
+        max_length=20,
+        choices=StatusEnum.choices,
+        default=StatusEnum.SUBMITTED,
+    )
+    reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="conducted_evaluations",
+        related_name="reviewed_deliverables",
     )
-    status = models.CharField(
-        max_length=25,
-        choices=StatusEnum.choices,
-        default=StatusEnum.PENDING,
-    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     score = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(0)],
-        help_text="Score global calculé ou attribué (sur 20 ou base équivalente)",
+        help_text="Note attribuée pour cette version de livrable",
     )
-    general_feedback = models.TextField(
-        blank=True,
-        default="",
-        help_text="Commentaire général et appréciation du formateur/mentor",
-    )
-    evaluated_at = models.DateTimeField(null=True, blank=True)
+    feedback = models.TextField(blank=True, default="")
 
     class Meta:
-        db_table = "evaluations"
-        ordering = ["-updated_at"]
+        db_table = "deliverables"
+        ordering = ["assignment", "-version"]
         constraints = [
             models.UniqueConstraint(
-                fields=["enrollment", "project"],
-                name="uniq_evaluation_per_enrollment_project",
+                fields=["assignment", "version"],
+                name="unique_deliverable_version_per_assignment",
             )
         ]
-        verbose_name = "Évaluation"
-        verbose_name_plural = "Évaluations"
+        verbose_name = "Livrable"
+        verbose_name_plural = "Livrables"
 
     def __str__(self):
-        return f"Évaluation {self.project.title} - {self.enrollment.user.email} ({self.status})"
+        return f"Livrable V{self.version} - {self.assignment.project.title} ({self.status})"
 
     def calculate_score(self):
-        """Recalcule la note globale pondérée à partir des scores détaillés."""
-        scores = self.criterion_scores.select_related("criterion").all()
+        """Recalcule la note globale pondérée à partir des scores détaillés par critère."""
+        scores = list(self.criterion_scores.select_related("criterion").all())
         if not scores:
             return None
 
-        total_weighted_score = sum(s.score * s.criterion.weight for s in scores)
         total_weight = sum(s.criterion.weight for s in scores)
-
         if total_weight == 0:
-            return 0.0
+            return Decimal("0.00")
 
-        return round(float(total_weighted_score / total_weight), 2)
+        # Normalisation par rapport au max_score du critère ramené sur base 20 (ou moyenne pondérée directe si max_score=20)
+        total_weighted_score = sum(
+            ((s.score / s.criterion.max_score * Decimal("20.00")) if s.criterion.max_score > 0 else s.score)
+            * s.criterion.weight
+            for s in scores
+        )
+        calculated = total_weighted_score / total_weight
+        return round(Decimal(str(calculated)), 2)
 
 
 class CriterionScore(UUIDModel, TimeStampedModel):
-    """Note et appréciation pour un critère spécifique dans une évaluation."""
+    """Note et appréciation pour un critère spécifique dans une évaluation de livrable."""
 
     class LevelEnum(models.TextChoices):
         NOT_ACQUIRED = "not_acquired", "Non acquis"
@@ -149,8 +213,8 @@ class CriterionScore(UUIDModel, TimeStampedModel):
         ACQUIRED = "acquired", "Acquis"
         MASTERED = "mastered", "Maîtrisé"
 
-    evaluation = models.ForeignKey(
-        Evaluation,
+    deliverable = models.ForeignKey(
+        Deliverable,
         on_delete=models.CASCADE,
         related_name="criterion_scores",
     )
@@ -182,8 +246,8 @@ class CriterionScore(UUIDModel, TimeStampedModel):
         ordering = ["criterion__order", "created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["evaluation", "criterion"],
-                name="uniq_score_per_evaluation_criterion",
+                fields=["deliverable", "criterion"],
+                name="uniq_score_per_deliverable_criterion",
             )
         ]
         verbose_name = "Note par critère"
