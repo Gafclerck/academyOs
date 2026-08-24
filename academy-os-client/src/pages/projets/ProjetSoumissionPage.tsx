@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Send, Loader2 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProjetById } from '@/services/projets/projetService';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useProjet } from '@/hooks/useProjets';
 import { createSoumission } from '@/services/soumissionService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,12 +15,9 @@ export const ProjetSoumissionPage: React.FC = () => {
   const { projetId } = useParams<{ projetId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const projetIdNum = projetId ? Number(projetId) : undefined;
 
-  const { data: projet } = useQuery({
-    queryKey: ['projet', projetId],
-    queryFn: () => getProjetById(projetId || ''),
-    enabled: !!projetId,
-  });
+  const { data: projet, isLoading } = useProjet(projetIdNum);
 
   const [form, setForm] = useState({
     commentaire: '',
@@ -31,7 +28,7 @@ export const ProjetSoumissionPage: React.FC = () => {
     mutationFn: () =>
       createSoumission({
         projet_id: projetId || '',
-        cohorte_id: projet?.cohorte_id || '',
+        cohorte_id: String(projet?.cohorte ?? ''),
         membre_id: 'm-1',
         fichier_url: form.fichier_url || undefined,
         commentaire: form.commentaire || undefined,
@@ -53,10 +50,18 @@ export const ProjetSoumissionPage: React.FC = () => {
     mutation.mutate();
   };
 
-  if (!projet) {
+  if (isLoading) {
     return (
       <div className="text-center py-16">
         <p className="text-slate-500">Chargement...</p>
+      </div>
+    );
+  }
+
+  if (!projet) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-slate-500">Projet introuvable</p>
       </div>
     );
   }
@@ -77,7 +82,7 @@ export const ProjetSoumissionPage: React.FC = () => {
             Soumettre un projet
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {projet.nom}
+            {projet.name}
           </p>
         </div>
       </div>
@@ -88,7 +93,7 @@ export const ProjetSoumissionPage: React.FC = () => {
             {projet.description}
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            Date de rendu prévue : {projet.date_fin_prevue ? new Date(projet.date_fin_prevue).toLocaleDateString('fr-FR') : '-'}
+            Date de rendu prévue : {projet.deadline ? new Date(projet.deadline).toLocaleDateString('fr-FR') : '-'}
           </p>
         </div>
 

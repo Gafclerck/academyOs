@@ -1,0 +1,18 @@
+{% extends "emails/base_email.html" %}
+{% block content %}
+<div class="greeting" style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 16px;">
+  Félicitations {{ learner_first_name }} 🎉
+</div>
+<p class="paragraph" style="font-size: 15px; line-height: 1.6; color: #4B5563; margin-bottom: 20px;">
+  Vous avez complété avec succès le programme <strong>{{ program_title }}</strong>
+  sur la plateforme <strong>AcademyOS</strong> de <strong>Xarala Academy</strong>.
+</p>
+<p class="paragraph" style="font-size: 15px; line-height: 1.6; color: #4B5563; margin-bottom: 20px;">
+  Votre certificat officiel est joint à cet email, au format PDF. Vous pouvez
+  également le retrouver à tout moment depuis votre espace personnel.
+</p>
+<p class="paragraph" style="font-size: 14px; line-height: 1.6; color: #6B7280; margin-top: 28px;">
+  Toutes nos félicitations pour ce parcours accompli,<br>
+  <strong>L'équipe Xarala Academy</strong>
+</p>
+{% endblock %}
