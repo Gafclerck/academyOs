@@ -1,218 +1,442 @@
-import React, { useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Users,
-  Plus,
   ArrowLeft,
-  Eye,
-  GraduationCap,
-} from 'lucide-react';
-import { useRentree, useCohortesByRentree, useRentreeDetailKPIs } from '../../hooks/useProgrammes';
-import type { CohorteRentree } from '../../types/programme';
-import { StatCard } from '../../components/ui/StatCard';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { DataTable, type ColumnDef } from '../../components/ui/DataTable';
-import { Button } from '@/components/ui/button';
+  Calendar,
+  Clock,
+  Pencil,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react'
+
+import { getRentreeById } from '@/services/rentrees/rentreeService'
+import type { Rentree } from '@/types/rentree'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { Button } from '@/components/ui/button'
 
 export const RentreeDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
 
-  const { data: rentree, isLoading: rentreeLoading } = useRentree(id);
-  const { data: cohortes = [], isLoading: cohortesLoading } = useCohortesByRentree(id);
-  const { data: kpis } = useRentreeDetailKPIs(id);
+  // ============================================================
+  // ÉTAT
+  // ============================================================
 
-  const totalEtudiants = useMemo(
-    () => cohortes.reduce((acc, c) => acc + (c.nb_membres || 0), 0),
-    [cohortes]
-  );
+  const [rentree, setRentree] = useState<Rentree | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const columns = useMemo<ColumnDef<CohorteRentree>[]>(
-    () => [
-      {
-        accessorKey: 'nom',
-        header: 'Nom de la Cohorte',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
-              <GraduationCap className="size-4 text-[#FF6B0B]" />
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {row.original.nom}
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {row.original.rentree_nom || rentree?.nom}
-              </p>
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'date_debut',
-        header: 'Date de début',
-        cell: ({ row }) => (
-          <span className="text-sm text-slate-600 dark:text-slate-300">
-            {new Date(row.original.date_debut).toLocaleDateString('fr-FR')}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'date_fin',
-        header: 'Date de fin',
-        cell: ({ row }) => (
-          <span className="text-sm text-slate-600 dark:text-slate-300">
-            {new Date(row.original.date_fin).toLocaleDateString('fr-FR')}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'nb_membres',
-        header: 'Nb Étudiants',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Users className="size-4 text-slate-400" />
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">
-              {row.original.nb_membres}
-            </span>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'statut',
-        header: 'Statut',
-        cell: ({ row }) => <StatusBadge status={row.original.statut} />,
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/cohortes/${row.original.id}`)}
-            className="h-8 px-3 rounded-lg border-slate-200 dark:border-white/10 font-semibold text-xs"
-          >
-            <Eye className="size-3.5 mr-1.5" />
-            Voir
-          </Button>
-        ),
-      },
-    ],
-    [navigate, rentree?.nom]
-  );
+  // ============================================================
+  // CHARGEMENT DE LA RENTRÉE
+  // ============================================================
 
-  if (rentreeLoading) {
+  useEffect(() => {
+    const loadRentree = async () => {
+      if (!id) {
+        setError(
+          'Identifiant de la rentrée introuvable.',
+        )
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        const data = await getRentreeById(id)
+
+        if (!data) {
+          setError('Rentrée introuvable.')
+          return
+        }
+
+        setRentree(data)
+      } catch (err) {
+        console.error(
+          'Erreur chargement détail rentrée :',
+          err,
+        )
+
+        setError(
+          'Impossible de récupérer les informations de la rentrée.',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadRentree()
+  }, [id])
+
+  // ============================================================
+  // LOADING
+  // ============================================================
+
+  if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-8 animate-pulse space-y-6">
-        <div className="h-8 bg-slate-200 dark:bg-white/10 rounded w-1/2" />
-        <div className="grid grid-cols-2 gap-4">
-          <div className="h-32 bg-slate-200 dark:bg-white/10 rounded-2xl" />
-          <div className="h-32 bg-slate-200 dark:bg-white/10 rounded-2xl" />
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+          <Loader2 className="size-5 animate-spin" />
+
+          <span>
+            Chargement de la rentrée...
+          </span>
         </div>
-        <div className="h-96 bg-slate-200 dark:bg-white/10 rounded-2xl" />
       </div>
-    );
+    )
   }
 
-  if (!rentree) {
+  // ============================================================
+  // ERREUR
+  // ============================================================
+
+  if (error || !rentree) {
     return (
-      <div className="text-center py-16 space-y-4">
-        <p className="text-lg font-bold text-red-500">Rentrée introuvable.</p>
-        <Button onClick={() => navigate('/rentrees')} variant="outline">
-          <ArrowLeft className="size-4 mr-2" />
+      <div className="space-y-6">
+
+        <button
+          type="button"
+          onClick={() => navigate('/rentrees')}
+          className="flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#FF6B0B]"
+        >
+          <ArrowLeft className="size-4" />
+
           Retour aux rentrées
-        </Button>
+        </button>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 dark:border-red-500/20 dark:bg-red-500/10">
+          <div className="flex items-start gap-3">
+
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-500" />
+
+            <div>
+              <p className="font-semibold text-red-700 dark:text-red-400">
+                Impossible de charger la rentrée
+              </p>
+
+              <p className="mt-1 text-sm text-red-600 dark:text-red-300">
+                {error ?? 'Rentrée introuvable.'}
+              </p>
+            </div>
+
+          </div>
+        </div>
+
       </div>
-    );
+    )
   }
+
+  // ============================================================
+  // RENDU
+  // ============================================================
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('/rentrees')}
-            className="size-9 rounded-xl border-slate-200 dark:border-white/10"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+    <div className="space-y-6">
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
+      <div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/rentrees')}
+          className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#FF6B0B]"
+        >
+          <ArrowLeft className="size-4" />
+
+          Retour aux rentrées
+        </button>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {rentree.nom}
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+              {rentree.name}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {new Date(rentree.date_debut).toLocaleDateString('fr-FR')} - {new Date(rentree.date_fin).toLocaleDateString('fr-FR')}
-              {rentree.programme_nom && (
-                <span className="ml-2 text-[#FF6B0B]">• {rentree.programme_nom}</span>
+
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Détails de la rentrée académique
+            </p>
+          </div>
+
+          <Button
+            onClick={() =>
+              navigate(
+                `/rentrees/${rentree.id}/edit`,
+              )
+            }
+            className="rounded-xl bg-[#FF6B0B] font-semibold text-white shadow-md shadow-[#FF6B0B]/20 hover:bg-[#e85f08]"
+          >
+            <Pencil className="mr-2 size-4" />
+
+            Modifier
+          </Button>
+
+        </div>
+
+      </div>
+
+      {/* ======================================================
+          INFORMATIONS PRINCIPALES
+      ====================================================== */}
+
+      <div className="grid gap-6 md:grid-cols-2">
+
+        {/* NOM */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+
+          <div className="flex items-start gap-4">
+
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10">
+              <Calendar className="size-6 text-[#FF6B0B]" />
+            </div>
+
+            <div className="min-w-0">
+
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Nom de la rentrée
+              </p>
+
+              <p className="mt-1 break-words text-lg font-bold text-slate-900 dark:text-white">
+                {rentree.name || 'Sans nom'}
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* STATUT */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+
+          <div className="flex items-start gap-4">
+
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+              <Clock className="size-6 text-blue-500" />
+            </div>
+
+            <div>
+
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Statut
+              </p>
+
+              <div className="mt-2">
+                <StatusBadge
+                  status={rentree.status}
+                />
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ======================================================
+          DATES
+      ====================================================== */}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          Informations de la rentrée
+        </h2>
+
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+
+          {/* DATE DE DÉBUT */}
+
+          <div>
+
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Date de début
+            </p>
+
+            <div className="mt-2 flex items-center gap-3">
+
+              <div className="flex size-10 items-center justify-center rounded-lg bg-[#FF6B0B]/10">
+                <Calendar className="size-5 text-[#FF6B0B]" />
+              </div>
+
+              <p className="text-base font-semibold text-slate-900 dark:text-white">
+                {formatDate(rentree.start_date)}
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* IDENTIFIANT */}
+
+          <div>
+
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Identifiant
+            </p>
+
+            <p className="mt-2 break-all text-sm font-medium text-slate-700 dark:text-slate-300">
+              {rentree.id}
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ======================================================
+          INFORMATIONS TECHNIQUES
+      ====================================================== */}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          Informations complémentaires
+        </h2>
+
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+
+          {/* DATE CRÉATION */}
+
+          <div>
+
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Créée le
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+              {formatDateTime(
+                rentree.created_at,
               )}
             </p>
+
           </div>
+
+          {/* DATE MODIFICATION */}
+
+          <div>
+
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Dernière modification
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+              {formatDateTime(
+                rentree.updated_at,
+              )}
+            </p>
+
+          </div>
+
         </div>
+
+      </div>
+
+      {/* ======================================================
+          ACTIONS
+      ====================================================== */}
+
+      <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-6 dark:border-white/10">
 
         <Button
-          onClick={() => navigate(`/rentrees/${rentree.id}/cohortes/new`)}
-          className="h-10 px-5 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 transition-all"
+          variant="outline"
+          onClick={() => navigate('/rentrees')}
+          className="rounded-xl"
         >
-          <Plus className="size-4 mr-2" />
-          Nouvelle Cohorte
+          <ArrowLeft className="mr-2 size-4" />
+
+          Retour
         </Button>
+
+        <Button
+          onClick={() =>
+            navigate(
+              `/rentrees/${rentree.id}/edit`,
+            )
+          }
+          className="rounded-xl bg-[#FF6B0B] font-semibold text-white hover:bg-[#e85f08]"
+        >
+          <Pencil className="mr-2 size-4" />
+
+          Modifier la rentrée
+        </Button>
+
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Cohortes"
-          value={kpis?.nb_cohortes ?? cohortes.length}
-          subtitle="Groupes actifs"
-          icon={GraduationCap}
-        />
-        <StatCard
-          title="Nb Étudiants"
-          value={kpis?.nb_membres ?? totalEtudiants}
-          subtitle="Inscrits"
-          icon={Users}
-        />
-      </div>
-
-      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 dark:border-white/10">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Liste des Cohortes
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Toutes les cohortes rattachées à cette rentrée
-          </p>
-        </div>
-        <DataTable
-          columns={columns}
-          data={cohortes}
-          searchPlaceholder="Rechercher une cohorte..."
-          emptyMessage="Aucune cohorte pour cette rentrée"
-          isLoading={cohortesLoading}
-        />
-        {!cohortesLoading && cohortes.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <div className="size-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
-              <GraduationCap className="size-8 text-slate-400" />
-            </div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
-              Aucune cohorte créée
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 max-w-sm">
-              Créez votre première cohorte pour commencer à gérer les apprenants de cette rentrée.
-            </p>
-            <Button
-              onClick={() => navigate(`/rentrees/${rentree.id}/cohortes/new`)}
-              className="h-10 px-5 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 transition-all"
-            >
-              <Plus className="size-4 mr-2" />
-              Créer la première cohorte
-            </Button>
-          </div>
-        )}
-      </div>
     </div>
-  );
-};
+  )
+}
+
+// ============================================================
+// FORMAT DATE
+// ============================================================
+
+const formatDate = (
+  date?: string | null,
+): string => {
+  if (!date) {
+    return '—'
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] =
+      date.split('-')
+
+    return `${day}/${month}/${year}`
+  }
+
+  const parsedDate = new Date(date)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date
+  }
+
+  return parsedDate.toLocaleDateString(
+    'fr-FR',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    },
+  )
+}
+
+// ============================================================
+// FORMAT DATE + HEURE
+// ============================================================
+
+const formatDateTime = (
+  date?: string | null,
+): string => {
+  if (!date) {
+    return '—'
+  }
+
+  const parsedDate = new Date(date)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date
+  }
+
+  return parsedDate.toLocaleString(
+    'fr-FR',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  )
+}
+
+export default RentreeDetailPage

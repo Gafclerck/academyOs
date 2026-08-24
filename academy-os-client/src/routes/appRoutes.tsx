@@ -7,14 +7,21 @@ import PrivateRoutes from '@/routes/privateRoutes';
 
 
 import { ProgrammeLayout } from '@/components/layouts/ProgrammeLayout';
+
 import { ProgrammeListPage } from '@/pages/programme/ProgrammeListPage';
 import { ProgrammeCreatePage } from '@/pages/programme/ProgrammeCreatePage';
 import { ProgrammeDetailPage } from '@/pages/programme/ProgrammeDetailPage';
+import { ProgrammeEditPage } from '@/pages/programme/ProgrammeEditPage';
+
 import { RentreeCreatePage } from '@/pages/rentrees/RentreeCreatePage';
 import { RentreeDetailPage } from '@/pages/rentrees/RentreeDetailPage';
 import { RentreeListPage } from '@/pages/rentrees/RentreeListPage';
+
 import { CohorteCreatePage } from '@/pages/cohortes/CohorteCreatePage';
-import { CohorteDetailPage } from '@/pages/cohortes/CohorteDetailPage';
+import CohorteEditPage from '@/pages/cohortes/CohorteEditPage'
+import { ProjetListPage } from '@/pages/projets/ProjetListPage';
+
+
 import InviterApprenant from '@/pages/cohortes/InviterApprenant';
 import InviterFormateur from '@/pages/cohortes/InviterFormateur';
 import UsersPage from '@/pages/users/UsersPage';
@@ -25,8 +32,8 @@ import InviteResetPassword from '@/pages/auth/InviteResetPassword'
 import Profile from '@/pages/users/Profile'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import EditUserPage from '@/pages/users/EditUserPage';
-import { ProjetListPage } from '@/pages/projets/ProjetListPage';
-import { ProjetDetailPage } from '@/pages/projets/ProjetDetailPage';
+import RentreeEditPage from '@/pages/rentrees/RentreeEditPage';
+import CohorteDetailPage from '@/pages/cohortes/CohorteDetailPage';
 
 
 const AppRoutes = () => {
@@ -50,21 +57,25 @@ const AppRoutes = () => {
           <Route path="/programmes" element={<ProgrammeListPage />} />
           <Route path="/programmes/new" element={<ProgrammeCreatePage />} />
           <Route path="/programmes/:id" element={<ProgrammeDetailPage />} />
+          <Route path="/programmes/:id/edit" element={<ProgrammeEditPage />} />
 
           {/* 2. Rentrées */}
-          <Route path="/rentrees/new" element={<RentreeCreatePage />} />
-          <Route path="/programmes/:programmeId/rentrees/new" element={<RentreeCreatePage />} />
           <Route path="/rentrees" element={<RentreeListPage />} />
+          <Route path="/rentrees/new" element={<RentreeCreatePage />} />
           <Route path="/rentrees/:id" element={<RentreeDetailPage />} />
+          <Route path="/rentrees/:id/edit"element={<RentreeEditPage />} />
+
 
           {/* Redirections compatibilité anciennes URLs Sessions */}
           <Route path="/sessions/:id" element={<Navigate to="/rentrees/:id" replace />} />
           <Route path="/sessions" element={<Navigate to="/rentrees" replace />} />
 
           {/* 3. Cohortes */}
-          <Route path="/rentrees/:rentreeId/cohortes/new" element={<CohorteCreatePage />} />
+
           <Route path="/cohortes" element={<CohortListPage />} />
           <Route path="/cohortes/:id" element={<CohorteDetailPage />} />
+          <Route path="/cohortes/new" element={<CohorteCreatePage />}/>
+          <Route path="/cohortes/:id/edit" element={<CohorteEditPage />}/>
 
           {/* 4. Invitations */}
           <Route path="/cohortes/:id/inviter-apprenant" element={<InviterApprenant />} />
@@ -72,7 +83,6 @@ const AppRoutes = () => {
 
           {/* 5. Projets */}
           <Route path="/projets" element={<ProjetListPage />} />
-          <Route path="/projets/:id" element={<ProjetDetailPage />} />
 
           {/* 6. Utilisateurs */}
           <Route path="/users" element={<UsersPage />} />

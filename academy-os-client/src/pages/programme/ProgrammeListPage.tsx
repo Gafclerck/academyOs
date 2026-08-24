@@ -9,8 +9,7 @@ import {
   Users,
   ChevronDown,
   RefreshCw,
-  Pencil,
-  Trash2,
+  Eye,
 } from 'lucide-react'
 
 import {
@@ -37,6 +36,10 @@ export const ProgrammeListPage: React.FC = () => {
     'all' | 'actif' | 'inactif'
   >('all')
 
+  // ============================================================
+  // PROGRAMMES
+  // ============================================================
+
   const {
     data: programmes = [],
     isLoading,
@@ -46,10 +49,18 @@ export const ProgrammeListPage: React.FC = () => {
     isFetching,
   } = useProgrammes()
 
+  // ============================================================
+  // KPIs
+  // ============================================================
+
   const {
     data: kpis,
     isLoading: kpisLoading,
   } = useProgrammeKPIs()
+
+  // ============================================================
+  // FILTRE STATUT
+  // ============================================================
 
   const filteredData = useMemo(() => {
     if (statutFilter === 'all') {
@@ -62,13 +73,18 @@ export const ProgrammeListPage: React.FC = () => {
     )
   }, [programmes, statutFilter])
 
+  // ============================================================
+  // COLONNES
+  // ============================================================
+
   const columns = useMemo<
     ColumnDef<Programme>[]
   >(
     () => [
-      /* ======================================================
-         NOM DU PROGRAMME
-      ====================================================== */
+      // ========================================================
+      // NOM DU PROGRAMME
+      // ========================================================
+
       {
         accessorKey: 'nom',
 
@@ -92,22 +108,24 @@ export const ProgrammeListPage: React.FC = () => {
             <div className="min-w-0">
               <p
                 className="
-                  truncate text-sm
+                  truncate
+                  text-sm
                   font-bold
                   text-slate-900
                   dark:text-white
                 "
               >
-                {row.original.nom}
+                {row.original.nom || 'Sans nom'}
               </p>
             </div>
           </div>
         ),
       },
 
-      /* ======================================================
-         DESCRIPTION
-      ====================================================== */
+      // ========================================================
+      // DESCRIPTION
+      // ========================================================
+
       {
         accessorKey: 'description',
 
@@ -128,9 +146,10 @@ export const ProgrammeListPage: React.FC = () => {
         ),
       },
 
-      /* ======================================================
-         STATUT
-      ====================================================== */
+      // ========================================================
+      // STATUT
+      // ========================================================
+
       {
         accessorKey: 'statut',
 
@@ -143,9 +162,10 @@ export const ProgrammeListPage: React.FC = () => {
         ),
       },
 
-      /* ======================================================
-         ACTIONS
-      ====================================================== */
+      // ========================================================
+      // ACTIONS
+      // ========================================================
+
       {
         id: 'actions',
 
@@ -155,77 +175,61 @@ export const ProgrammeListPage: React.FC = () => {
           </div>
         ),
 
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2">
+        cell: ({ row }) => {
+          const programme = row.original
 
-            {/* MODIFIER */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                navigate(
-                  `/programmes/${row.original.id}/edit`,
-                )
-              }
-              className="
-                h-8
-                rounded-xl
-                border-blue-200
-                px-3
-                text-xs
-                font-semibold
-                text-blue-600
-                hover:border-blue-500
-                hover:bg-blue-500
-                hover:text-white
-                dark:border-blue-500/30
-                dark:text-blue-400
-              "
-            >
-              <Pencil className="mr-1.5 size-3.5" />
-              Modifier
-            </Button>
+          return (
+            <div className="flex items-center justify-end gap-2">
 
-            {/* SUPPRIMER */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                console.log(
-                  'Supprimer programme:',
-                  row.original.id,
-                )
-              }}
-              className="
-                h-8
-                rounded-xl
-                border-red-200
-                px-3
-                text-xs
-                font-semibold
-                text-red-600
-                hover:border-red-500
-                hover:bg-red-500
-                hover:text-white
-                dark:border-red-500/30
-                dark:text-red-400
-              "
-            >
-              <Trash2 className="mr-1.5 size-3.5" />
-              Supprimer
-            </Button>
+              {/* ==================================================
+                  VOIR DÉTAILS
+              ================================================== */}
 
-          </div>
-        ),
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate(
+                    `/programmes/${programme.id}`,
+                  )
+                }
+                className="
+                  h-8
+                  rounded-xl
+                  border-[#FF6B0B]/30
+                  px-3
+                  text-xs
+                  font-semibold
+                  text-[#FF6B0B]
+                  hover:border-[#FF6B0B]
+                  hover:bg-[#FF6B0B]
+                  hover:text-white
+                "
+              >
+                <Eye className="mr-1.5 size-3.5" />
+                Voir détails
+              </Button>
+
+
+
+            </div>
+          )
+        },
       },
     ],
     [navigate],
   )
 
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
 
       <div
         className="
@@ -287,7 +291,9 @@ export const ProgrammeListPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* ERROR */}
+      {/* ======================================================
+          ERROR
+      ====================================================== */}
 
       {isError && (
         <div
@@ -348,7 +354,9 @@ export const ProgrammeListPage: React.FC = () => {
         </div>
       )}
 
-      {/* KPIs */}
+      {/* ======================================================
+          KPIs
+      ====================================================== */}
 
       <div
         className="
@@ -408,7 +416,9 @@ export const ProgrammeListPage: React.FC = () => {
         />
       </div>
 
-      {/* TABLE */}
+      {/* ======================================================
+          TABLE
+      ====================================================== */}
 
       <DataTable
         columns={columns}
@@ -481,6 +491,7 @@ export const ProgrammeListPage: React.FC = () => {
           </div>
         }
       />
+
     </div>
   )
 }

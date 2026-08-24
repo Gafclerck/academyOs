@@ -1,303 +1,354 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  ArrowLeft,
-  Loader2,
-  Check,
-  AlertCircle,
-  Lock,
-  CalendarDays,
-} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Save, Loader2, AlertCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, parse } from 'date-fns';
-import {
-  createCohorteSchema,
-  type CreateCohorteFormValues,
-} from '../../lib/programmeSchemas';
-import { useRentree, useCreateCohorte } from '../../hooks/useProgrammes';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DatePicker } from '@/components/ui/date-picker';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
-export const CohorteCreatePage: React.FC = () => {
-  const { rentreeId } = useParams<{ rentreeId: string }>();
-  const navigate = useNavigate();
+import { useCreateCohorte } from '@/hooks/cohortes/useCohortes';
+import { useProgrammes } from '@/hooks/useProgrammes';
+import { useRentrees } from '@/hooks/rentrees/useRentrees';
+import type { CreateCohorteDTO } from '@/types/cohorte';
 
-  const { data: rentree, isLoading: rentLoading } = useRentree(rentreeId);
-  const createCohorteMutation = useCreateCohorte();
+// ============================================================
+// SCHEMA
+// ============================================================
 
-  const form = useForm<CreateCohorteFormValues>({
-    resolver: zodResolver(createCohorteSchema),
-    defaultValues: {
-      rentree_id: rentreeId || '',
-      nom: '',
-      description: '',
-      date_debut: '',
-      date_fin: '',
-    },
+const cohorteSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Le nom de la cohorte est obligatoire.'),
+    description: z.string().optional(),
+    program: z.string().min(1, 'Le programme est obligatoire.'),
+    intake: z.string().min(1, 'La rentrée est obligatoire.'),
+    start_date: z.string().min(1, 'La date de début est obligatoire.'),
+    end_date: z.string().min(1, 'La date de fin est obligatoire.'),
+    status: z.enum(['upcoming', 'ongoing', 'completed', 'active', 'inactive']),
+  })
+  .refine((data) => data.end_date >= data.start_date, {
+    message: 'La date de fin doit être postérieure ou égale à la date de début.',
+    path: ['end_date'],
   });
 
+type CohorteFormData = z.infer<typeof cohorteSchema>;
+
+// ============================================================
+// PAGE
+// ============================================================
+
+export const CohorteCreatePage: React.FC = () => {
+  const navigate = useNavigate();
+
+  // ── Mutation ────────────────────────────────────────────────
+  const createCohorteMutation = useCreateCohorte();
+
+  // ── Programmes ──────────────────────────────────────────────
+  const {
+    data: programmes = [],
+    isLoading: programmesLoading,
+    isError: programmesError,
+  } = useProgrammes();
+
+  // ── Rentrées ────────────────────────────────────────────────
+  const {
+    data: rentrees = [],
+    isLoading: rentreesLoading,
+    isError: rentreesError,
+  } = useRentrees();
+
+  // ── Formulaire ──────────────────────────────────────────────
   const {
     register,
     handleSubmit,
+    watch,
     setValue,
-    control,
-    formState: { errors, isSubmitting },
-  } = form;
+    formState: { errors },
+  } = useForm<CohorteFormData>({
+    resolver: zodResolver(cohorteSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      program: '',
+      intake: '',
+      start_date: '',
+      end_date: '',
+      status: 'upcoming',
+    },
+  });
 
-  const watchedDateDebut = useWatch({ control, name: 'date_debut' });
-  const watchedDateFin = useWatch({ control, name: 'date_fin' });
+  // ── Valeurs sélectionnées ───────────────────────────────────
+  const selectedProgram = watch('program');
+  const selectedIntake = watch('intake');
 
-  const toDate = (str: string): Date | undefined => {
-    if (!str) return undefined;
-    const parsed = parse(str, 'yyyy-MM-dd', new Date());
-    return isNaN(parsed.getTime()) ? undefined : parsed;
-  };
+  // ── États dérivés ───────────────────────────────────────────
+  const loadingReferences = programmesLoading || rentreesLoading;
+  const referencesError = programmesError || rentreesError;
 
-  const onSubmit = async (values: CreateCohorteFormValues) => {
+  // ── Soumission ──────────────────────────────────────────────
+  const onSubmit = async (data: CohorteFormData) => {
     try {
-      const created = await createCohorteMutation.mutateAsync({
-        rentree_id: rentreeId!,
-        nom: values.nom,
-        description: values.description,
-        date_debut: values.date_debut,
-        date_fin: values.date_fin,
-      });
-      toast.success('Cohorte créée avec succès !', {
-        description: `La cohorte "${created.nom}" a été rattachée à la rentrée.`,
-      });
-      navigate(`/rentrees/${rentreeId}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur lors de la création de la cohorte.';
-      toast.error('Erreur', { description: msg });
+      const payload: CreateCohorteDTO = {
+        name: data.name.trim(),
+        description: data.description?.trim() || '',
+        program: data.program,
+        intake: data.intake,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        status: data.status,
+      };
+
+      console.log('[CohorteCreatePage] Payload envoyé :', payload);
+
+      await createCohorteMutation.mutateAsync(payload);
+
+      toast.success('Cohorte créée avec succès.');
+      navigate('/cohortes');
+    } catch (error: any) {
+      console.error('Erreur création cohorte :', error);
+
+      const apiError = error?.response?.data;
+
+      toast.error(
+        apiError?.detail ||
+          apiError?.message ||
+          apiError?.name?.[0] ||
+          apiError?.program?.[0] ||
+          apiError?.intake?.[0] ||
+          apiError?.start_date?.[0] ||
+          apiError?.end_date?.[0] ||
+          apiError?.status?.[0] ||
+          'Impossible de créer la cohorte.',
+      );
     }
   };
 
-  if (rentLoading) {
-    return (
-      <div className="max-w-2xl mx-auto p-8 animate-pulse space-y-4">
-        <div className="h-6 bg-slate-200 dark:bg-white/10 rounded w-1/2" />
-        <div className="h-48 bg-slate-200 dark:bg-white/10 rounded-2xl" />
-      </div>
-    );
-  }
-
-  if (!rentree) {
-    return (
-      <div className="text-center py-16 space-y-4">
-        <p className="text-lg font-bold text-red-500">
-          Rentrée parente introuvable.
-        </p>
-        <p className="text-xs text-slate-400">
-          Une cohorte ne peut être créée sans rentrée parente existante.
-        </p>
-        <Button onClick={() => navigate('/rentrees')} variant="outline">
-          <ArrowLeft className="size-4 mr-2" />
-          Retour aux rentrées
-        </Button>
-      </div>
-    );
-  }
-
+  // ── Render ──────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+    <div className="space-y-6">
+      {/* HEADER */}
+      <div className="mx-auto w-full max-w-3xl">
         <button
-          onClick={() => navigate('/programmes')}
-          className="hover:text-[#FF6B0B] transition-colors"
-        >
-          Accueil
-        </button>
-        <span>/</span>
-        <button
-          onClick={() => navigate('/rentrees')}
-          className="hover:text-[#FF6B0B] transition-colors"
-        >
-          Rentrees
-        </button>
-        <span>/</span>
-        <button
-          onClick={() => navigate(`/rentrees/${rentree.id}`)}
-          className="hover:text-[#FF6B0B] transition-colors"
-        >
-          {rentree.nom}
-        </button>
-        <span>/</span>
-        <span className="text-slate-900 dark:text-white">Nouvelle Cohorte</span>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigate(`/rentrees/${rentree.id}`)}
-          className="size-9 rounded-xl border-slate-200 dark:border-white/10"
+          type="button"
+          onClick={() => navigate('/cohortes')}
+          disabled={createCohorteMutation.isPending}
+          className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#FF6B0B] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ArrowLeft className="size-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-            Nouvelle Cohorte pour : {rentree.nom}
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Créez une classe d'apprentissage rattachée à la rentrée active.
-          </p>
+          Retour aux cohortes
+        </button>
+
+        <div className="mb-6 flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10">
+            <Users className="size-5 text-[#FF6B0B]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+              Nouvelle cohorte
+            </h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Créez une nouvelle cohorte académique.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1f1f38] p-6 sm:p-8 shadow-sm space-y-5">
-        {/* Rentrée parente verrouillée */}
-        <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-[#FF6B0B]/10 flex items-center justify-center shrink-0">
-              <CalendarDays className="size-4.5 text-[#FF6B0B]" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Rentrée Parente
-              </p>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">
-                {rentree.nom}
-              </p>
-            </div>
+      {/* ERREUR PROGRAMMES / RENTRÉES */}
+      {referencesError && (
+        <div className="mx-auto flex w-full max-w-3xl items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
+          <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-500" />
+          <div>
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+              Impossible de charger les données nécessaires.
+            </p>
+            <p className="mt-1 text-xs text-red-600 dark:text-red-300">
+              Vérifiez que les API des programmes et des rentrées sont disponibles.
+            </p>
           </div>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-200/80 dark:bg-white/10 text-slate-600 dark:text-slate-300">
-            <Lock className="size-3 text-slate-500" />
-            Fixé
-          </span>
         </div>
+      )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <input type="hidden" value={rentree.id} {...register('rentree_id')} />
-
-          <div className="space-y-1.5">
-            <Label htmlFor="nom" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Nom de la Cohorte <span className="text-[#FF6B0B]">*</span>
-            </Label>
-            <Input
-              id="nom"
-              placeholder="Ex : Cohorte Gamma"
-              {...register('nom')}
-              className={`h-11 rounded-xl bg-slate-50 dark:bg-white/5 border ${errors.nom ? 'border-red-500 focus-visible:ring-red-500' : 'border-slate-200 dark:border-white/10'
-                }`}
+      {/* FORMULAIRE */}
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-[#151528] sm:p-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* NOM */}
+          <div>
+            <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Nom de la cohorte
+            </label>
+            <input
+              id="name"
+              type="text"
+              placeholder="Ex : Cohorte Octobre 2026"
+              disabled={createCohorteMutation.isPending}
+              {...register('name')}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
             />
-            {errors.nom && (
-              <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
-                <AlertCircle className="size-3.5" />
-                {errors.nom.message}
-              </p>
-            )}
+            {errors.name && <p className="mt-1.5 text-xs text-red-500">{errors.name.message}</p>}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          {/* DESCRIPTION */}
+          <div>
+            <label htmlFor="description" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Description
-            </Label>
+            </label>
             <textarea
               id="description"
-              rows={3}
-              placeholder="Objectifs, modalités, prérequis..."
+              rows={4}
+              placeholder="Décrivez brièvement cette cohorte..."
+              disabled={createCohorteMutation.isPending}
               {...register('description')}
-              className={`w-full p-3.5 text-sm rounded-xl bg-slate-50 dark:bg-white/5 border outline-none transition-all ${errors.description
-                ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                : 'border-slate-200 dark:border-white/10 focus:ring-1 focus:ring-[#FF6B0B]'
-                }`}
-            />
-            {errors.description && (
-              <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
-                <AlertCircle className="size-3.5" />
-                {errors.description.message}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="date_debut" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Date de début <span className="text-[#FF6B0B]">*</span>
-              </Label>
-              <DatePicker
-                date={toDate(watchedDateDebut)}
-                onDateChange={(d) => {
-                  if (d) setValue('date_debut', format(d, 'yyyy-MM-dd'), { shouldValidate: true });
-                }}
-                placeholder="JJ/MM/AAAA"
-                error={!!errors.date_debut}
-              />
-              {errors.date_debut && (
-                <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="size-3.5" />
-                  {errors.date_debut.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="date_fin" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Date de fin <span className="text-[#FF6B0B]">*</span>
-              </Label>
-              <DatePicker
-                date={toDate(watchedDateFin)}
-                onDateChange={(d) => {
-                  if (d) setValue('date_fin', format(d, 'yyyy-MM-dd'), { shouldValidate: true });
-                }}
-                placeholder="JJ/MM/AAAA"
-                error={!!errors.date_fin}
-              />
-              {errors.date_fin && (
-                <p className="text-xs font-semibold text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="size-3.5" />
-                  {errors.date_fin.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="rentree_parente" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Rentrée Parente
-            </Label>
-            <Input
-              id="rentree_parente"
-              value={rentree.nom}
-              disabled
-              className="h-11 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 cursor-not-allowed"
+              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
-            <Button
+          {/* PROGRAMME */}
+          <div>
+            <label htmlFor="program" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Programme
+            </label>
+            <select
+              id="program"
+              value={selectedProgram}
+              disabled={loadingReferences || createCohorteMutation.isPending}
+              onChange={(event) => setValue('program', event.target.value, { shouldValidate: true })}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#1f1f38] dark:text-white"
+            >
+              <option value="">
+                {programmesLoading ? 'Chargement des programmes...' : 'Sélectionnez un programme'}
+              </option>
+              {programmes.map((programme) => (
+                <option key={programme.id} value={programme.id}>
+                  {programme.nom}
+                  {programme.statut ? ` (${programme.statut})` : ''}
+                </option>
+              ))}
+            </select>
+            {errors.program && <p className="mt-1.5 text-xs text-red-500">{errors.program.message}</p>}
+          </div>
+
+          {/* RENTRÉE */}
+          <div>
+            <label htmlFor="intake" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Rentrée
+            </label>
+            <select
+              id="intake"
+              value={selectedIntake}
+              disabled={loadingReferences || createCohorteMutation.isPending}
+              onChange={(event) => setValue('intake', event.target.value, { shouldValidate: true })}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#1f1f38] dark:text-white"
+            >
+              <option value="">
+                {rentreesLoading ? 'Chargement des rentrées...' : 'Sélectionnez une rentrée'}
+              </option>
+              {rentrees.map((rentree) => (
+                <option key={rentree.id} value={rentree.id}>
+                  {rentree.name}
+                  {rentree.status ? ` (${rentree.status})` : ''}
+                </option>
+              ))}
+            </select>
+            {errors.intake && <p className="mt-1.5 text-xs text-red-500">{errors.intake.message}</p>}
+          </div>
+
+          {/* DATES */}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="start_date" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Date de début
+              </label>
+              <input
+                id="start_date"
+                type="date"
+                disabled={createCohorteMutation.isPending}
+                {...register('start_date')}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
+              />
+              {errors.start_date && <p className="mt-1.5 text-xs text-red-500">{errors.start_date.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="end_date" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Date de fin
+              </label>
+              <input
+                id="end_date"
+                type="date"
+                disabled={createCohorteMutation.isPending}
+                {...register('end_date')}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
+              />
+              {errors.end_date && <p className="mt-1.5 text-xs text-red-500">{errors.end_date.message}</p>}
+            </div>
+          </div>
+
+          {/* STATUT */}
+          <div>
+            <label htmlFor="status" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Statut
+            </label>
+            <select
+              id="status"
+              disabled={createCohorteMutation.isPending}
+              {...register('status')}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#1f1f38] dark:text-white"
+            >
+              <option value="upcoming">À venir</option>
+              <option value="ongoing">En cours</option>
+              <option value="completed">Terminée</option>
+              
+            </select>
+            {errors.status && <p className="mt-1.5 text-xs text-red-500">{errors.status.message}</p>}
+          </div>
+
+          {/* ERREUR API */}
+          {createCohorteMutation.isError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-500" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-400">La création a échoué</p>
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-300">
+                    Vérifiez les informations saisies et réessayez.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ACTIONS */}
+          <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-white/10">
+            <button
               type="button"
-              variant="outline"
-              onClick={() => navigate(`/rentrees/${rentree.id}`)}
-              className="h-11 px-5 rounded-xl border-slate-200 dark:border-white/10 font-semibold"
+              onClick={() => navigate('/cohortes')}
+              disabled={createCohorteMutation.isPending}
+              className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
             >
               Annuler
-            </Button>
-            <Button
+            </button>
+
+            <button
               type="submit"
-              disabled={isSubmitting || createCohorteMutation.isPending}
-              className="h-11 px-6 rounded-xl bg-[#FF6B0B] hover:bg-[#ff7a24] text-white font-semibold shadow-lg shadow-[#FF6B0B]/25 transition-all"
+              disabled={createCohorteMutation.isPending || loadingReferences}
+              className="flex items-center gap-2 rounded-xl bg-[#FF6B0B] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#FF6B0B]/20 transition hover:bg-[#e85f08] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting || createCohorteMutation.isPending ? (
+              {createCohorteMutation.isPending ? (
                 <>
-                  <Loader2 className="size-4 animate-spin mr-2" />
+                  <Loader2 className="size-4 animate-spin" />
                   Création...
                 </>
               ) : (
                 <>
-                  <Check className="size-4 mr-2" />
-                  Créer la Cohorte
+                  <Save className="size-4" />
+                  Créer la cohorte
                 </>
               )}
-            </Button>
+            </button>
           </div>
         </form>
       </div>
     </div>
   );
 };
+
+export default CohorteCreatePage;

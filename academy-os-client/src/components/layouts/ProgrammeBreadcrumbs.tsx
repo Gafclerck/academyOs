@@ -1,11 +1,15 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
+
 import {
   useProgramme,
   useSession,
   useCohorte,
 } from '@/hooks/useProgrammes'
+import { useRentree } from '@/hooks/rentrees/useRentree'
+
+
 
 export const ProgrammeBreadcrumbs: React.FC = () => {
   const location = useLocation()
@@ -22,12 +26,12 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     location.pathname === '/dashboard'
 
   // ─────────────────────────────────────────────
-  // DÉTECTION DES DÉTAILS
+  // PROGRAMME
   // ─────────────────────────────────────────────
 
   const isProgrammeDetail =
     pathnames[0] === 'programmes' &&
-    pathnames[1] &&
+    !!pathnames[1] &&
     pathnames[1] !== 'new'
 
   const programmeId = isProgrammeDetail
@@ -37,9 +41,13 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
   const { data: programme } =
     useProgramme(programmeId)
 
+  // ─────────────────────────────────────────────
+  // SESSION
+  // ─────────────────────────────────────────────
+
   const isSessionDetail =
     pathnames[0] === 'sessions' &&
-    pathnames[1] &&
+    !!pathnames[1] &&
     pathnames[1] !== 'new'
 
   const sessionId = isSessionDetail
@@ -49,9 +57,13 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
   const { data: session } =
     useSession(sessionId)
 
+  // ─────────────────────────────────────────────
+  // COHORTE
+  // ─────────────────────────────────────────────
+
   const isCohorteDetail =
     pathnames[0] === 'cohortes' &&
-    pathnames[1] &&
+    !!pathnames[1] &&
     pathnames[1] !== 'new'
 
   const cohorteId = isCohorteDetail
@@ -62,6 +74,22 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     useCohorte(cohorteId)
 
   // ─────────────────────────────────────────────
+  // RENTRÉE
+  // ─────────────────────────────────────────────
+
+  const isRentreeDetail =
+    pathnames[0] === 'rentrees' &&
+    !!pathnames[1] &&
+    pathnames[1] !== 'new'
+
+  const rentreeId = isRentreeDetail
+    ? pathnames[1]
+    : undefined
+
+  const { data: rentree } =
+    useRentree(rentreeId)
+
+  // ─────────────────────────────────────────────
   // TITRES
   // ─────────────────────────────────────────────
 
@@ -69,11 +97,28 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     segment: string,
     index: number,
   ): string => {
-    if (segment === 'programmes') return 'Programmes'
-    if (segment === 'sessions') return 'Sessions'
-    if (segment === 'cohortes') return 'Cohortes'
-    if (segment === 'new') return 'Nouveau'
+    // Niveaux principaux
+    if (segment === 'programmes') {
+      return 'Programmes'
+    }
 
+    if (segment === 'sessions') {
+      return 'Sessions'
+    }
+
+    if (segment === 'cohortes') {
+      return 'Cohortes'
+    }
+
+    if (segment === 'rentrees') {
+      return 'Rentrées'
+    }
+
+    if (segment === 'new') {
+      return 'Nouveau'
+    }
+
+    // Détail programme
     if (
       index === 1 &&
       pathnames[0] === 'programmes' &&
@@ -82,6 +127,7 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return programme.nom
     }
 
+    // Détail session
     if (
       index === 1 &&
       pathnames[0] === 'sessions' &&
@@ -90,6 +136,7 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return session.nom
     }
 
+    // Détail cohorte
     if (
       index === 1 &&
       pathnames[0] === 'cohortes' &&
@@ -98,6 +145,16 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return cohorte.nom
     }
 
+    // Détail rentrée
+    if (
+      index === 1 &&
+      pathnames[0] === 'rentrees' &&
+      rentree
+    ) {
+      return rentree.name
+    }
+
+    // Fallback
     return segment
   }
 
@@ -109,7 +166,6 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       ═══════════════════════════════════════════ */}
 
       {isDashboard ? (
-        // Sur le Dashboard : afficher uniquement "Dashboard"
         <span className="flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
           <Home className="size-3.5" />
 
@@ -118,7 +174,6 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
           </span>
         </span>
       ) : (
-        // Sur les autres pages : Dashboard est un lien
         <Link
           to="/dashboard"
           className="flex items-center gap-1 transition-colors hover:text-[#FF6B0B]"
@@ -151,7 +206,6 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
 
           return (
             <React.Fragment key={to}>
-
               <ChevronRight
                 className="
                   size-3.5
@@ -185,11 +239,9 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
                   {title}
                 </Link>
               )}
-
             </React.Fragment>
           )
         })}
-
     </nav>
   )
 }

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from 'axios'
 
 import type {
   Programme,
@@ -7,6 +7,7 @@ import type {
   CreateRentreeDTO,
   CohorteRentree,
   CreateCohorteDTO,
+  ProjetCohorte,
   Membre,
   ProgrammeKPIs,
   ProgrammeDetailKPIs,
@@ -14,10 +15,13 @@ import type {
   CohorteDetailKPIs,
   StatutRentree,
   StatutCohorte,
-} from '../../types/programme';
-import type { BackendProject } from '@/types/projet';
+} from '../../types/programme'
 
-import { tokenStore } from '@/lib/tokenStore';
+import { tokenStore } from '@/lib/tokenStore'
+
+/* ============================================================
+   API
+============================================================ */
 
 const api = axios.create({
   baseURL:
@@ -30,7 +34,7 @@ const api = axios.create({
   },
 
   timeout: 10000,
-});
+})
 
 /* ============================================================
    AUTH
@@ -38,19 +42,20 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = tokenStore.getAccessToken();
+    const token = tokenStore.getAccessToken()
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`
     }
 
-    return config;
+    return config
   },
   (error) => Promise.reject(error),
-);
+)
 
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
     if (axios.isAxiosError(error)) {
       console.error('API ERROR', {
@@ -59,12 +64,12 @@ api.interceptors.response.use(
         method: error.config?.method,
         payload: error.config?.data,
         response: error.response?.data,
-      });
+      })
     }
 
-    return Promise.reject(error);
+    return Promise.reject(error)
   },
-);
+)
 
 /* ============================================================
    HELPERS
@@ -72,7 +77,7 @@ api.interceptors.response.use(
 
 const extractList = <T>(data: unknown): T[] => {
   if (Array.isArray(data)) {
-    return data as T[];
+    return data as T[]
   }
 
   if (
@@ -83,7 +88,7 @@ const extractList = <T>(data: unknown): T[] => {
       (data as { results: unknown }).results,
     )
   ) {
-    return (data as { results: T[] }).results;
+    return (data as { results: T[] }).results
   }
 
   if (
@@ -94,16 +99,19 @@ const extractList = <T>(data: unknown): T[] => {
       (data as { data: unknown }).data,
     )
   ) {
-    return (data as { data: T[] }).data;
+    return (data as { data: T[] }).data
   }
 
-  return [];
-};
+  return []
+}
 
 /* ============================================================
    PROGRAMMES
 ============================================================ */
 
+/**
+ * API -> Frontend
+ */
 const mapProgrammeFromApi = (
   raw: any,
 ): Programme => ({
@@ -119,9 +127,9 @@ const mapProgrammeFromApi = (
     raw.description ??
     '',
 
-
   statut:
     raw.status === 'active' ||
+    raw.status === 'actif' ||
     raw.statut === 'actif'
       ? 'actif'
       : 'inactif',
@@ -136,23 +144,24 @@ const mapProgrammeFromApi = (
 
   updated_at:
     raw.updated_at,
-});
+})
 
+/**
+ * Frontend -> API
+ */
 const mapProgrammeToApi = (
   dto: CreateProgrammeDTO,
 ) => ({
-  title: dto.nom,
+  title: dto.nom.trim(),
 
   description:
-    dto.description,
+    dto.description?.trim() ?? '',
 
   status:
     dto.statut === 'actif'
       ? 'active'
       : 'inactive',
-
-
-});
+})
 
 /* ============================================================
    RENTREES
@@ -163,7 +172,7 @@ const mapStatutRentreeFromApi = (
 ): StatutRentree => {
   const value = String(
     status ?? '',
-  ).toLowerCase();
+  ).toLowerCase()
 
   if (
     [
@@ -173,7 +182,7 @@ const mapStatutRentreeFromApi = (
       'draft',
     ].includes(value)
   ) {
-    return 'a_venir';
+    return 'a_venir'
   }
 
   if (
@@ -184,7 +193,7 @@ const mapStatutRentreeFromApi = (
       'active',
     ].includes(value)
   ) {
-    return 'en_cours';
+    return 'en_cours'
   }
 
   if (
@@ -195,14 +204,14 @@ const mapStatutRentreeFromApi = (
       'done',
     ].includes(value)
   ) {
-    return 'terminee';
+    return 'terminee'
   }
 
-  return 'a_venir';
-};
+  return 'a_venir'
+}
 
 /**
- * Récupère l'ID du programme depuis l'API.
+ * Récupérer l'ID du programme depuis l'API
  */
 const getProgramIdFromApi = (
   raw: any,
@@ -216,45 +225,39 @@ const getProgramIdFromApi = (
     ) {
       return String(
         raw.program.id ?? '',
-      );
+      )
     }
 
-    return String(
-      raw.program,
-    );
+    return String(raw.program)
   }
 
   if (
     raw.program_id !== undefined &&
     raw.program_id !== null
   ) {
-    return String(
-      raw.program_id,
-    );
+    return String(raw.program_id)
   }
 
   if (
     raw.programme_id !== undefined &&
     raw.programme_id !== null
   ) {
-    return String(
-      raw.programme_id,
-    );
+    return String(raw.programme_id)
   }
 
-  return '';
-};
+  return ''
+}
 
 /**
- * Mapping API -> Frontend
+ * API -> Frontend
  */
 const mapRentreeFromApi = (
   raw: any,
 ): RentreeProgramme => {
   const programmeId =
-    getProgramIdFromApi(raw);
+    getProgramIdFromApi(raw)
 
-  let programmeNom = '';
+  let programmeNom = ''
 
   if (
     raw.program &&
@@ -263,7 +266,7 @@ const mapRentreeFromApi = (
     programmeNom =
       raw.program.name ??
       raw.program.title ??
-      '';
+      ''
   }
 
   if (!programmeNom) {
@@ -271,13 +274,12 @@ const mapRentreeFromApi = (
       raw.program_name ??
       raw.program_title ??
       raw.programme_nom ??
-      '';
+      ''
   }
 
   return {
     id: String(raw.id),
 
-    // IMPORTANT
     programme_id:
       programmeId,
 
@@ -328,21 +330,14 @@ const mapRentreeFromApi = (
 
     created_at:
       raw.created_at,
-  };
-};
+
+    updated_at:
+      raw.updated_at,
+  }
+}
 
 /**
- * Mapping Frontend -> API
- *
- * Backend attendu :
- *
- * {
- *   program: UUID,
- *   name: string,
- *   description: string,
- *   start_date: string,
- *   end_date: string
- * }
+ * Frontend -> API
  */
 const mapRentreeToApi = (
   dto: CreateRentreeDTO,
@@ -350,15 +345,15 @@ const mapRentreeToApi = (
   const programId =
     String(
       dto.programme_id ?? '',
-    ).trim();
+    ).trim()
 
   if (!programId) {
     throw new Error(
       'Impossible de créer la rentrée : le programme est obligatoire.',
-    );
+    )
   }
 
-  const payload = {
+  return {
     program: programId,
 
     name:
@@ -372,15 +367,8 @@ const mapRentreeToApi = (
 
     end_date:
       dto.date_fin,
-  };
-
-  console.log(
-    '[programmeService] POST /intakes/ payload:',
-    payload,
-  );
-
-  return payload;
-};
+  }
+}
 
 /* ============================================================
    COHORTES
@@ -391,7 +379,7 @@ const mapStatutCohorteFromApi = (
 ): StatutCohorte => {
   const value = String(
     status ?? '',
-  ).toLowerCase();
+  ).toLowerCase()
 
   if (
     [
@@ -400,25 +388,54 @@ const mapStatutCohorteFromApi = (
       'closed',
     ].includes(value)
   ) {
-    return 'terminee';
+    return 'terminee'
   }
 
-  return 'active';
-};
+  return 'active'
+}
 
 const mapCohorteFromApi = (
   raw: any,
-): CohorteRentree => ({
-  id: String(raw.id),
+): CohorteRentree => {
+  /* ============================================================
+     PROGRAMME
+  ============================================================ */
 
-  rentree_id: String(
-    raw.intake ??
-    raw.intake_id ??
+  const programmeId =
+    raw.programme_id ??
+    raw.program_id ??
+    (
+      typeof raw.program === 'object'
+        ? raw.program?.id
+        : raw.program
+    )
+
+  const programmeNom =
+    raw.program_name ??
+    raw.programme_nom ??
+    (
+      typeof raw.program === 'object'
+        ? (
+            raw.program?.title ??
+            raw.program?.name
+          )
+        : undefined
+    )
+
+  /* ============================================================
+     RENTRÉE
+  ============================================================ */
+
+  const rentreeId =
     raw.rentree_id ??
-    '',
-  ),
+    raw.intake_id ??
+    (
+      typeof raw.intake === 'object'
+        ? raw.intake?.id
+        : raw.intake
+    )
 
-  rentree_nom:
+  const rentreeNom =
     raw.intake_name ??
     raw.rentree_nom ??
     (
@@ -428,71 +445,71 @@ const mapCohorteFromApi = (
             raw.intake?.title
           )
         : undefined
-    ),
+    )
 
-  programme_id:
-    raw.program ??
-    raw.program_id ??
-    raw.programme_id
-      ? String(
-          raw.program ??
-          raw.program_id ??
-          raw.programme_id,
-        )
-      : undefined,
+  return {
+    id: String(raw.id),
 
-  programme_nom:
-    raw.program_name ??
-    raw.programme_nom ??
-    (
-      typeof raw.program === 'object'
-        ? (
-            raw.program?.name ??
-            raw.program?.title
-          )
-        : undefined
-    ),
+    rentree_id:
+      rentreeId
+        ? String(rentreeId)
+        : '',
 
-  nom:
-    raw.name ??
-    raw.title ??
-    raw.nom ??
-    '',
+    rentree_nom:
+      rentreeNom ?? '',
 
-  description:
-    raw.description ??
-    '',
+    programme_id:
+      programmeId
+        ? String(programmeId)
+        : undefined,
 
-  date_debut:
-    raw.start_date ??
-    raw.date_debut ??
-    '',
+    programme_nom:
+      programmeNom ?? '',
 
-  date_fin:
-    raw.end_date ??
-    raw.date_fin ??
-    '',
+    nom:
+      raw.name ??
+      raw.title ??
+      raw.nom ??
+      '',
 
-  statut:
-    mapStatutCohorteFromApi(
-      raw.status ??
-      raw.statut,
-    ),
+    description:
+      raw.description ??
+      '',
 
-  nb_membres:
-    raw.nb_membres ??
-    raw.members_count ??
-    raw.enrollments_count ??
-    0,
+    date_debut:
+      raw.start_date ??
+      raw.date_debut ??
+      '',
 
-  nb_projets:
-    raw.nb_projets ??
-    raw.projects_count ??
-    0,
+    date_fin:
+      raw.end_date ??
+      raw.date_fin ??
+      '',
 
-  created_at:
-    raw.created_at,
-});
+    statut:
+      mapStatutCohorteFromApi(
+        raw.status ??
+        raw.statut,
+      ),
+
+    nb_membres:
+      raw.nb_membres ??
+      raw.members_count ??
+      raw.enrollments_count ??
+      0,
+
+    nb_projets:
+      raw.nb_projets ??
+      raw.projects_count ??
+      0,
+
+    created_at:
+      raw.created_at,
+
+    updated_at:
+      raw.updated_at,
+  }
+}
 
 /* ============================================================
    SERVICE
@@ -506,13 +523,13 @@ export const programmeService = {
 
   async getProgrammes(): Promise<Programme[]> {
     const response =
-      await api.get('/programs/');
+      await api.get('/programs/')
 
     return extractList<any>(
       response.data,
     ).map(
       mapProgrammeFromApi,
-    );
+    )
   },
 
   async getProgrammeById(
@@ -522,63 +539,106 @@ export const programmeService = {
       const response =
         await api.get(
           `/programs/${id}/`,
-        );
+        )
 
       return mapProgrammeFromApi(
         response.data,
-      );
+      )
     } catch (error) {
       if (
         axios.isAxiosError(error) &&
         error.response?.status === 404
       ) {
-        return null;
+        return null
       }
 
-      throw error;
+      throw error
     }
   },
+
+  /* ==========================================================
+     CRÉER UN PROGRAMME
+  ========================================================== */
 
   async createProgramme(
     dto: CreateProgrammeDTO,
   ): Promise<Programme> {
+    const payload =
+      mapProgrammeToApi(dto)
+
+    console.log(
+      '[programmeService] POST /programs/',
+      payload,
+    )
+
     const response =
       await api.post(
         '/programs/',
-        mapProgrammeToApi(dto),
-      );
+        payload,
+      )
 
     return mapProgrammeFromApi(
       response.data,
-    );
+    )
   },
+
+  /* ==========================================================
+     MODIFIER UN PROGRAMME
+  ========================================================== */
 
   async updateProgramme(
     id: string,
     dto: CreateProgrammeDTO,
   ): Promise<Programme> {
+    if (!id) {
+      throw new Error(
+        'L’identifiant du programme est obligatoire.',
+      )
+    }
+
+    const payload =
+      mapProgrammeToApi(dto)
+
+    console.log(
+      '[programmeService] PUT /programs/' +
+        id +
+        '/',
+      payload,
+    )
+
     const response =
       await api.put(
         `/programs/${id}/`,
-        mapProgrammeToApi(dto),
-      );
+        payload,
+      )
 
     return mapProgrammeFromApi(
       response.data,
-    );
+    )
   },
+
+  /* ==========================================================
+     MODIFICATION PARTIELLE
+  ========================================================== */
 
   async patchProgramme(
     id: string,
     data: Partial<CreateProgrammeDTO>,
   ): Promise<Programme> {
+    if (!id) {
+      throw new Error(
+        'L’identifiant du programme est obligatoire.',
+      )
+    }
+
     const payload: Record<
       string,
       unknown
-    > = {};
+    > = {}
 
     if (data.nom !== undefined) {
-      payload.title = data.nom;
+      payload.title =
+        data.nom.trim()
     }
 
     if (
@@ -586,35 +646,50 @@ export const programmeService = {
       undefined
     ) {
       payload.description =
-        data.description;
+        data.description.trim()
     }
-
- 
 
     if (data.statut !== undefined) {
       payload.status =
         data.statut === 'actif'
           ? 'active'
-          : 'inactive';
+          : 'inactive'
     }
+
+    console.log(
+      '[programmeService] PATCH /programs/' +
+        id +
+        '/',
+      payload,
+    )
 
     const response =
       await api.patch(
         `/programs/${id}/`,
         payload,
-      );
+      )
 
     return mapProgrammeFromApi(
       response.data,
-    );
+    )
   },
+
+  /* ==========================================================
+     SUPPRIMER UN PROGRAMME
+  ========================================================== */
 
   async deleteProgramme(
     id: string,
   ): Promise<void> {
+    if (!id) {
+      throw new Error(
+        'L’identifiant du programme est obligatoire.',
+      )
+    }
+
     await api.delete(
       `/programs/${id}/`,
-    );
+    )
   },
 
   /* ==========================================================
@@ -623,10 +698,10 @@ export const programmeService = {
 
   async getProgrammeKPIs(): Promise<ProgrammeKPIs> {
     const programmes =
-      await this.getProgrammes();
+      await this.getProgrammes()
 
     const rentrees =
-      await this.getAllRentrees();
+      await this.getAllRentrees()
 
     return {
       total_programmes:
@@ -643,7 +718,7 @@ export const programmeService = {
 
       total_etudiants:
         0,
-    };
+    }
   },
 
   async getProgrammeDetailKPIs(
@@ -652,15 +727,15 @@ export const programmeService = {
     const rentrees =
       await this.getRentreesByProgramme(
         programmeId,
-      );
+      )
 
     const rentreeIds =
       rentrees.map(
         (r) => r.id,
-      );
+      )
 
     const cohortes =
-      await this.getAllCohortes();
+      await this.getAllCohortes()
 
     const programmeCohortes =
       cohortes.filter(
@@ -668,7 +743,7 @@ export const programmeService = {
           rentreeIds.includes(
             c.rentree_id,
           ),
-      );
+      )
 
     return {
       nb_rentrees:
@@ -684,11 +759,11 @@ export const programmeService = {
             (c.nb_membres ?? 0),
           0,
         ),
-    };
+    }
   },
 
   /* ==========================================================
-     RENTREES
+     RENTRÉES
   ========================================================== */
 
   async getAllRentrees(): Promise<
@@ -697,20 +772,20 @@ export const programmeService = {
     const response =
       await api.get(
         '/intakes/',
-      );
+      )
 
     return extractList<any>(
       response.data,
     ).map(
       mapRentreeFromApi,
-    );
+    )
   },
 
   async getRentreesByProgramme(
     programmeId: string,
   ): Promise<RentreeProgramme[]> {
     if (!programmeId) {
-      return [];
+      return []
     }
 
     const response =
@@ -722,13 +797,13 @@ export const programmeService = {
               programmeId,
           },
         },
-      );
+      )
 
     return extractList<any>(
       response.data,
     ).map(
       mapRentreeFromApi,
-    );
+    )
   },
 
   async getRentreeById(
@@ -738,20 +813,20 @@ export const programmeService = {
       const response =
         await api.get(
           `/intakes/${id}/`,
-        );
+        )
 
       return mapRentreeFromApi(
         response.data,
-      );
+      )
     } catch (error) {
       if (
         axios.isAxiosError(error) &&
         error.response?.status === 404
       ) {
-        return null;
+        return null
       }
 
-      throw error;
+      throw error
     }
   },
 
@@ -759,21 +834,21 @@ export const programmeService = {
     dto: CreateRentreeDTO,
   ): Promise<RentreeProgramme> {
     const payload =
-      mapRentreeToApi(dto);
+      mapRentreeToApi(dto)
 
     const response =
       await api.post(
         '/intakes/',
         payload,
-      );
+      )
 
     return mapRentreeFromApi(
       response.data,
-    );
+    )
   },
 
   /* ==========================================================
-     KPI RENTREE
+     KPI RENTRÉE
   ========================================================== */
 
   async getRentreeDetailKPIs(
@@ -782,7 +857,7 @@ export const programmeService = {
     const cohortes =
       await this.getCohortesByRentree(
         rentreeId,
-      );
+      )
 
     return {
       nb_cohortes:
@@ -803,7 +878,7 @@ export const programmeService = {
             (c.nb_projets ?? 0),
           0,
         ),
-    };
+    }
   },
 
   /* ==========================================================
@@ -816,13 +891,13 @@ export const programmeService = {
     const response =
       await api.get(
         '/cohortes/',
-      );
+      )
 
     return extractList<any>(
       response.data,
     ).map(
       mapCohorteFromApi,
-    );
+    )
   },
 
   async getCohortesByRentree(
@@ -837,38 +912,49 @@ export const programmeService = {
               rentreeId,
           },
         },
-      );
+      )
 
     return extractList<any>(
       response.data,
     ).map(
       mapCohorteFromApi,
-    );
+    )
   },
 
-  async getCohorteById(
-    id: string,
-  ): Promise<CohorteRentree | null> {
-    try {
-      const response =
-        await api.get(
-          `/cohortes/${id}/`,
-        );
+async getCohorteById(
+  id: string,
+): Promise<CohorteRentree | null> {
+  if (!id) {
+    throw new Error(
+      'L’identifiant de la cohorte est obligatoire.',
+    )
+  }
 
-      return mapCohorteFromApi(
-        response.data,
-      );
-    } catch (error) {
-      if (
-        axios.isAxiosError(error) &&
-        error.response?.status === 404
-      ) {
-        return null;
-      }
+  try {
+    const response =
+      await api.get(
+        `/cohorts/${id}/`,
+      )
 
-      throw error;
+    console.log(
+      '🔎 COHORTE DETAIL API:',
+      response.data,
+    )
+
+    return mapCohorteFromApi(
+      response.data,
+    )
+  } catch (error) {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 404
+    ) {
+      return null
     }
-  },
+
+    throw error
+  }
+},
 
   async createCohorte(
     dto: CreateCohorteDTO,
@@ -877,11 +963,11 @@ export const programmeService = {
       await api.post(
         '/cohortes/',
         dto,
-      );
+      )
 
     return mapCohorteFromApi(
       response.data,
-    );
+    )
   },
 
   async getCohorteDetailKPIs(
@@ -890,12 +976,12 @@ export const programmeService = {
     const cohorte =
       await this.getCohorteById(
         cohorteId,
-      );
+      )
 
     if (!cohorte) {
       throw new Error(
         'Cohorte introuvable.',
-      );
+      )
     }
 
     return {
@@ -910,7 +996,7 @@ export const programmeService = {
 
       nb_projets:
         cohorte.nb_projets ?? 0,
-    };
+    }
   },
 
   /* ==========================================================
@@ -929,11 +1015,11 @@ export const programmeService = {
               cohorteId,
           },
         },
-      );
+      )
 
     return extractList<ProjetCohorte>(
       response.data,
-    );
+    )
   },
 
   /* ==========================================================
@@ -952,13 +1038,14 @@ export const programmeService = {
               cohorteId,
           },
         },
-      );
+      )
 
     return extractList<Membre>(
       response.data,
-    );
+    )
   },
-};
 
-export default programmeService;
+  
+}
 
+export default programmeService

@@ -2,6 +2,7 @@ import API from '@/api/api'
 import type {
   Rentree,
   CreateRentreeDTO,
+  UpdateRentreeDTO,
 } from '@/types/rentree'
 
 // ============================================================
@@ -70,7 +71,7 @@ export const createRentree = async (
 
 export const updateRentree = async (
   id: string,
-  data: CreateRentreeDTO,
+  data: UpdateRentreeDTO,
 ): Promise<Rentree> => {
   const response = await API.put<Rentree>(
     `intakes/${id}/`,
