@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.template.loader import render_to_string
-from weasyprint import HTML
 
 from .models import Certificate
 
@@ -43,6 +42,8 @@ def generate_certificate_pdf(certificate):
     Ne modifie pas le statut du certificat : cette fonction ne fait que
     produire et stocker le fichier, la décision d'envoi reste séparée.
     """
+    from weasyprint import HTML
+
     inscription = certificate.inscription
     verification_url = f"{settings.FRONTEND_URL}/certificats/{certificate.id}"
 
