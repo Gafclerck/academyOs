@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -7,12 +7,20 @@ import {
   Pencil,
   Loader2,
   AlertCircle,
+  Users,
+  BookOpen,
+  ChevronRight,
 } from 'lucide-react'
 
 import { getRentreeById } from '@/services/rentrees/rentreeService'
+import { getCohortes } from '@/services/cohortes/cohorteService'
+
 import type { Rentree } from '@/types/rentree'
+import type { Cohorte } from '@/types/cohorte'
+
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
 
 export const RentreeDetailPage: React.FC = () => {
   const navigate = useNavigate()
@@ -23,35 +31,77 @@ export const RentreeDetailPage: React.FC = () => {
   // ============================================================
 
   const [rentree, setRentree] = useState<Rentree | null>(null)
+  const [cohortes, setCohortes] = useState<Cohorte[]>([])
+
   const [loading, setLoading] = useState(true)
+  const [loadingCohortes, setLoadingCohortes] = useState(true)
+
   const [error, setError] = useState<string | null>(null)
+  const [cohortesError, setCohortesError] = useState<string | null>(null)
 
   // ============================================================
-  // CHARGEMENT DE LA RENTRÉE
+  // CHARGEMENT RENTRÉE + COHORTES
   // ============================================================
 
   useEffect(() => {
-    const loadRentree = async () => {
+    const loadData = async () => {
       if (!id) {
         setError(
-          'Identifiant de la rentrée introuvable.',
+          "Identifiant de la rentrée introuvable.",
         )
         setLoading(false)
+        setLoadingCohortes(false)
         return
       }
 
       try {
         setLoading(true)
+        setLoadingCohortes(true)
+
         setError(null)
+        setCohortesError(null)
 
-        const data = await getRentreeById(id)
+        // --------------------------------------------------------
+        // RÉCUPÉRATION RENTRÉE
+        // --------------------------------------------------------
 
-        if (!data) {
+        const rentreeData = await getRentreeById(id)
+
+        if (!rentreeData) {
           setError('Rentrée introuvable.')
           return
         }
 
-        setRentree(data)
+        setRentree(rentreeData)
+
+        // --------------------------------------------------------
+        // RÉCUPÉRATION DES COHORTES
+        // --------------------------------------------------------
+
+        const allCohortes = await getCohortes()
+
+        console.log(
+          '🔥 TOUTES LES COHORTES :',
+          allCohortes,
+        )
+
+        // --------------------------------------------------------
+        // FILTRE :
+        //
+        // Cohorte.intake === Rentree.id
+        // --------------------------------------------------------
+
+        const linkedCohortes = allCohortes.filter(
+          (cohorte) =>
+            String(cohorte.intake) === String(rentreeData.id),
+        )
+
+        console.log(
+          '🔥 COHORTES DE LA RENTRÉE :',
+          linkedCohortes,
+        )
+
+        setCohortes(linkedCohortes)
       } catch (err) {
         console.error(
           'Erreur chargement détail rentrée :',
@@ -63,14 +113,15 @@ export const RentreeDetailPage: React.FC = () => {
         )
       } finally {
         setLoading(false)
+        setLoadingCohortes(false)
       }
     }
 
-    loadRentree()
+    loadData()
   }, [id])
 
   // ============================================================
-  // LOADING
+  // LOADING PRINCIPAL
   // ============================================================
 
   if (loading) {
@@ -88,7 +139,7 @@ export const RentreeDetailPage: React.FC = () => {
   }
 
   // ============================================================
-  // ERREUR
+  // ERREUR RENTRÉE
   // ============================================================
 
   if (error || !rentree) {
@@ -128,6 +179,12 @@ export const RentreeDetailPage: React.FC = () => {
   }
 
   // ============================================================
+  // NOMBRE DE COHORTES
+  // ============================================================
+
+  const nombreCohortes = cohortes.length
+
+  // ============================================================
   // RENDU
   // ============================================================
 
@@ -154,7 +211,7 @@ export const RentreeDetailPage: React.FC = () => {
 
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              {rentree.name}
+              {rentree.name || 'Rentrée sans nom'}
             </h1>
 
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -183,9 +240,11 @@ export const RentreeDetailPage: React.FC = () => {
           INFORMATIONS PRINCIPALES
       ====================================================== */}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
 
-        {/* NOM */}
+        {/* ====================================================
+            NOM
+        ==================================================== */}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
 
@@ -211,7 +270,9 @@ export const RentreeDetailPage: React.FC = () => {
 
         </div>
 
-        {/* STATUT */}
+        {/* ====================================================
+            STATUT
+        ==================================================== */}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
 
@@ -239,19 +300,55 @@ export const RentreeDetailPage: React.FC = () => {
 
         </div>
 
+        {/* ====================================================
+            COHORTES
+        ==================================================== */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+
+          <div className="flex items-start gap-4">
+
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+              <Users className="size-6 text-emerald-500" />
+            </div>
+
+            <div>
+
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Cohortes
+              </p>
+
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+                {loadingCohortes
+                  ? '...'
+                  : nombreCohortes}
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
 
       {/* ======================================================
-          DATES
+          INFORMATIONS RENTRÉE
       ====================================================== */}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
 
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-          Informations de la rentrée
-        </h2>
+        <div className="flex items-center gap-2">
 
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <Calendar className="size-5 text-[#FF6B0B]" />
+
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            Informations de la rentrée
+          </h2>
+
+        </div>
+
+        <div className="mt-6 grid gap-6 md:grid-cols-3">
 
           {/* DATE DE DÉBUT */}
 
@@ -289,7 +386,213 @@ export const RentreeDetailPage: React.FC = () => {
 
           </div>
 
+          {/* STATUT */}
+
+          <div>
+
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Statut
+            </p>
+
+            <div className="mt-2">
+              <StatusBadge
+                status={rentree.status}
+              />
+            </div>
+
+          </div>
+
         </div>
+
+      </div>
+
+      {/* ======================================================
+          COHORTES DE LA RENTRÉE
+      ====================================================== */}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+          <div>
+
+            <div className="flex items-center gap-2">
+
+              <Users className="size-5 text-[#FF6B0B]" />
+
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Cohortes de la rentrée
+              </h2>
+
+            </div>
+
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Les cohortes associées à cette rentrée académique.
+            </p>
+
+          </div>
+
+          <div className="rounded-full bg-[#FF6B0B]/10 px-3 py-1 text-sm font-semibold text-[#FF6B0B]">
+            {nombreCohortes}{' '}
+            {nombreCohortes > 1
+              ? 'cohortes'
+              : 'cohorte'}
+          </div>
+
+        </div>
+
+        {/* ----------------------------------------------------
+            CHARGEMENT COHORTES
+        ---------------------------------------------------- */}
+
+        {loadingCohortes && (
+          <div className="flex min-h-[180px] items-center justify-center">
+
+            <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+
+              <Loader2 className="size-5 animate-spin" />
+
+              Chargement des cohortes...
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ----------------------------------------------------
+            ERREUR COHORTES
+        ---------------------------------------------------- */}
+
+        {!loadingCohortes && cohortesError && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
+
+            <div className="flex items-center gap-3">
+
+              <AlertCircle className="size-5 text-red-500" />
+
+              <p className="text-sm text-red-600 dark:text-red-300">
+                {cohortesError}
+              </p>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ----------------------------------------------------
+            AUCUNE COHORTE
+        ---------------------------------------------------- */}
+
+        {!loadingCohortes &&
+          !cohortesError &&
+          cohortes.length === 0 && (
+            <div className="mt-6 flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-white/10">
+
+              <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 dark:bg-white/5">
+
+                <Users className="size-6 text-slate-400" />
+
+              </div>
+
+              <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Aucune cohorte
+              </p>
+
+              <p className="mt-1 text-center text-sm text-slate-400">
+                Aucune cohorte n'est encore associée à cette rentrée.
+              </p>
+
+            </div>
+          )}
+
+        {/* ----------------------------------------------------
+            LISTE DES COHORTES
+        ---------------------------------------------------- */}
+
+        {!loadingCohortes &&
+          !cohortesError &&
+          cohortes.length > 0 && (
+            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+              {cohortes.map((cohorte) => (
+                <button
+                  key={cohorte.id}
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/cohortes/${cohorte.id}`,
+                    )
+                  }
+                  className="group rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-[#FF6B0B]/40 hover:bg-white hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-[#151528]"
+                >
+
+                  <div className="flex items-start justify-between gap-4">
+
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10">
+                      <BookOpen className="size-5 text-[#FF6B0B]" />
+                    </div>
+
+                    <ChevronRight className="mt-1 size-5 text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#FF6B0B]" />
+
+                  </div>
+
+                  <div className="mt-4">
+
+                    <h3 className="font-bold text-slate-900 dark:text-white">
+                      {cohorte.name || 'Cohorte sans nom'}
+                    </h3>
+
+                    {cohorte.description && (
+                      <p className="mt-1 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+                        {cohorte.description}
+                      </p>
+                    )}
+
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+
+                    <StatusBadge
+                      status={cohorte.status}
+                    />
+
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 dark:border-white/10">
+
+                    <div>
+
+                      <p className="text-xs text-slate-400">
+                        Apprenants
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
+                        {cohorte.members_count ??
+                          cohorte.enrollments_count ??
+                          0}
+                      </p>
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-xs text-slate-400">
+                        Projets
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
+                        {cohorte.projects_count ?? 0}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </button>
+              ))}
+
+            </div>
+          )}
 
       </div>
 
@@ -303,7 +606,7 @@ export const RentreeDetailPage: React.FC = () => {
           Informations complémentaires
         </h2>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <div className="mt-6 grid gap-6 md:grid-cols-3">
 
           {/* DATE CRÉATION */}
 
@@ -333,6 +636,20 @@ export const RentreeDetailPage: React.FC = () => {
               {formatDateTime(
                 rentree.updated_at,
               )}
+            </p>
+
+          </div>
+
+          {/* ID */}
+
+          <div>
+
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Identifiant
+            </p>
+
+            <p className="mt-1 break-all text-sm font-semibold text-slate-900 dark:text-white">
+              {rentree.id}
             </p>
 
           </div>
@@ -388,8 +705,7 @@ const formatDate = (
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    const [year, month, day] =
-      date.split('-')
+    const [year, month, day] = date.split('-')
 
     return `${day}/${month}/${year}`
   }
@@ -440,3 +756,4 @@ const formatDateTime = (
 }
 
 export default RentreeDetailPage
+

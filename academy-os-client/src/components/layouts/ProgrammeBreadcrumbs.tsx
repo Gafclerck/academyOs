@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
@@ -7,9 +8,9 @@ import {
   useSession,
   useCohorte,
 } from '@/hooks/useProgrammes'
+
 import { useRentree } from '@/hooks/rentrees/useRentree'
-
-
+import { useProjet } from '@/hooks/useProjets'
 
 export const ProgrammeBreadcrumbs: React.FC = () => {
   const location = useLocation()
@@ -90,6 +91,22 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     useRentree(rentreeId)
 
   // ─────────────────────────────────────────────
+  // PROJET
+  // ─────────────────────────────────────────────
+
+  const isProjetDetail =
+    pathnames[0] === 'projets' &&
+    !!pathnames[1] &&
+    pathnames[1] !== 'new'
+
+  const projetId = isProjetDetail
+    ? pathnames[1]
+    : undefined
+
+  const { data: projet } =
+    useProjet(projetId)
+
+  // ─────────────────────────────────────────────
   // TITRES
   // ─────────────────────────────────────────────
 
@@ -97,7 +114,11 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     segment: string,
     index: number,
   ): string => {
-    // Niveaux principaux
+
+    // ─────────────────────────────────────────────
+    // NIVEAUX PRINCIPAUX
+    // ─────────────────────────────────────────────
+
     if (segment === 'programmes') {
       return 'Programmes'
     }
@@ -114,11 +135,18 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return 'Rentrées'
     }
 
+    if (segment === 'projets') {
+      return 'Projets'
+    }
+
     if (segment === 'new') {
       return 'Nouveau'
     }
 
-    // Détail programme
+    // ─────────────────────────────────────────────
+    // DÉTAIL PROGRAMME
+    // ─────────────────────────────────────────────
+
     if (
       index === 1 &&
       pathnames[0] === 'programmes' &&
@@ -127,7 +155,10 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return programme.nom
     }
 
-    // Détail session
+    // ─────────────────────────────────────────────
+    // DÉTAIL SESSION
+    // ─────────────────────────────────────────────
+
     if (
       index === 1 &&
       pathnames[0] === 'sessions' &&
@@ -136,7 +167,10 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return session.nom
     }
 
-    // Détail cohorte
+    // ─────────────────────────────────────────────
+    // DÉTAIL COHORTE
+    // ─────────────────────────────────────────────
+
     if (
       index === 1 &&
       pathnames[0] === 'cohortes' &&
@@ -145,7 +179,10 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return cohorte.nom
     }
 
-    // Détail rentrée
+    // ─────────────────────────────────────────────
+    // DÉTAIL RENTRÉE
+    // ─────────────────────────────────────────────
+
     if (
       index === 1 &&
       pathnames[0] === 'rentrees' &&
@@ -154,19 +191,93 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       return rentree.name
     }
 
-    // Fallback
+    // ─────────────────────────────────────────────
+    // DÉTAIL PROJET
+    // ─────────────────────────────────────────────
+
+    if (
+      index === 1 &&
+      pathnames[0] === 'projets' &&
+      projet
+    ) {
+      return projet.title
+    }
+
+    // ─────────────────────────────────────────────
+    // FALLBACK
+    // ─────────────────────────────────────────────
+
     return segment
   }
 
+  // ─────────────────────────────────────────────
+  // CONSTRUCTION DU LIEN
+  // ─────────────────────────────────────────────
+
+  const getBreadcrumbPath = (
+    index: number,
+  ): string => {
+
+    /*
+     * Cas spécial :
+     *
+     * URL actuelle :
+     * /projets/:id
+     *
+     * Le segment "projets" doit retourner vers :
+     * /programmes/:programId/projets
+     *
+     * et non vers :
+     * /projets
+     */
+
+    if (
+      pathnames[0] === 'projets' &&
+      index === 0 &&
+      projet?.program
+    ) {
+      return `/programmes/${projet.program}/projets`
+    }
+
+    return `/${pathnames
+      .slice(0, index + 1)
+      .join('/')}`
+  }
+
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
+
   return (
-    <nav className="flex items-center gap-1.5 overflow-x-auto py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+    <nav
+      className="
+        flex
+        items-center
+        gap-1.5
+        overflow-x-auto
+        py-1
+        text-xs
+        font-medium
+        text-slate-500
+        dark:text-slate-400
+      "
+    >
 
       {/* ═══════════════════════════════════════════
           DASHBOARD
       ═══════════════════════════════════════════ */}
 
       {isDashboard ? (
-        <span className="flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
+        <span
+          className="
+            flex
+            items-center
+            gap-1
+            font-semibold
+            text-slate-900
+            dark:text-white
+          "
+        >
           <Home className="size-3.5" />
 
           <span>
@@ -176,7 +287,13 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       ) : (
         <Link
           to="/dashboard"
-          className="flex items-center gap-1 transition-colors hover:text-[#FF6B0B]"
+          className="
+            flex
+            items-center
+            gap-1
+            transition-colors
+            hover:text-[#FF6B0B]
+          "
         >
           <Home className="size-3.5" />
 
@@ -192,20 +309,24 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
 
       {!isDashboard &&
         pathnames.map((value, index) => {
-          const to = `/${pathnames
-            .slice(0, index + 1)
-            .join('/')}`
+
+          const to =
+            getBreadcrumbPath(index)
 
           const isLast =
             index === pathnames.length - 1
 
-          const title = getBreadcrumbTitle(
-            value,
-            index,
-          )
+          const title =
+            getBreadcrumbTitle(
+              value,
+              index,
+            )
 
           return (
-            <React.Fragment key={to}>
+            <React.Fragment key={`${to}-${index}`}>
+
+              {/* SÉPARATEUR */}
+
               <ChevronRight
                 className="
                   size-3.5
@@ -213,6 +334,8 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
                   text-slate-400
                 "
               />
+
+              {/* DERNIER ÉLÉMENT */}
 
               {isLast ? (
                 <span
@@ -223,6 +346,7 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
                     text-slate-900
                     dark:text-white
                   "
+                  title={title}
                 >
                   {title}
                 </span>
@@ -235,13 +359,18 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
                     transition-colors
                     hover:text-[#FF6B0B]
                   "
+                  title={title}
                 >
                   {title}
                 </Link>
               )}
+
             </React.Fragment>
           )
         })}
     </nav>
   )
 }
+
+export default ProgrammeBreadcrumbs
+
