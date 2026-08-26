@@ -1,181 +1,183 @@
-/**
- * Hooks React Query — Module Projets, Tâches & Livrables
- *
- * Convention : useProjets(filters), useProjet(id)
- * Pattern : TanStack React Query v5 (cohérent avec useProgrammes.ts)
- */
-
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
-  getProjets,
-  getProjetById,
-  createProjet,
-  updateProjet,
-  deleteProjet,
-  createTask,
-  updateTask,
-  uploadDeliverable,
-} from '@/services/projets/projetService';
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+
+import projetService from '@/services/projets/projetService'
+
 import type {
-  BackendProject,
-  ProjetFilters,
-  CreateProjectPayload,
-  UpdateProjectPayload,
-  CreateTaskPayload,
-  UpdateTaskPayload,
-} from '@/types/projet';
+  CreateProjetDTO,
+  PatchProjetDTO,
+  ProjetStatus,
+} from '@/types/projet'
 
-// ─── QUERY KEYS ──────────────────────────────────────────────────────────────
+/* ============================================================
+   TYPES
+============================================================ */
 
-export const projetKeys = {
-  all: ['projets'] as const,
-  list: (filters?: ProjetFilters) => ['projets', 'list', filters] as const,
-  detail: (id: number) => ['projets', 'detail', id] as const,
-};
+interface UseProjetsParams {
+  page?: number
+  page_size?: number
+  program?: string
+  status?: ProjetStatus
+  search?: string
+}
 
-// ─── QUERIES ──────────────────────────────────────────────────────────────────
+/* ============================================================
+   LISTE DES PROJETS
+============================================================ */
 
-/**
- * Liste des projets avec filtres optionnels.
- * Retourne { data: BackendProject[], isLoading, error, refetch }
- */
-export function useProjets(filters?: ProjetFilters) {
+export const useProjets = (
+  params?: UseProjetsParams,
+) => {
   return useQuery({
-    queryKey: projetKeys.list(filters),
-    queryFn: () => getProjets(filters),
-  });
+    queryKey: [
+      'projets',
+      params,
+    ],
+
+    queryFn: () =>
+      projetService.getProjets(params),
+  })
 }
 
-/**
- * Détail d'un projet (inclut tâches + livrables).
- * Retourne { data: BackendProject, isLoading, error, refetch }
- */
-export function useProjet(id: number | undefined) {
+/* ============================================================
+   DÉTAIL D'UN PROJET
+============================================================ */
+
+export const useProjet = (
+  id?: string,
+) => {
   return useQuery({
-    queryKey: projetKeys.detail(id ?? 0),
-    queryFn: () => getProjetById(id!),
-    enabled: !!id,
-  });
+    queryKey: [
+      'projet',
+      id,
+    ],
+
+    queryFn: () =>
+      projetService.getProjetById(id!),
+
+    enabled: Boolean(id),
+  })
 }
 
-// ─── MUTATIONS ────────────────────────────────────────────────────────────────
+/* ============================================================
+   CRÉER UN PROJET
+============================================================ */
 
-/**
- * Créer un projet.
- * Invalide la liste projets après succès.
- */
-export function useCreateProjet() {
-  const queryClient = useQueryClient();
+export const useCreateProjet = () => {
+  const queryClient =
+    useQueryClient()
+
   return useMutation({
-    mutationFn: (payload: CreateProjectPayload) => createProjet(payload),
+    mutationFn: (
+      data: CreateProjetDTO,
+    ) =>
+      projetService.createProjet(data),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: projetKeys.all });
-      toast.success('Projet créé avec succès');
+      queryClient.invalidateQueries({
+        queryKey: ['projets'],
+      })
     },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
-  });
+  })
 }
 
-/**
- * Mettre à jour un projet.
- * Invalide la liste et le détail du projet après succès.
- */
-export function useUpdateProjet() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: UpdateProjectPayload }) =>
-      updateProjet(id, payload),
-    onSuccess: (data: BackendProject) => {
-      queryClient.invalidateQueries({ queryKey: projetKeys.all });
-      queryClient.invalidateQueries({ queryKey: projetKeys.detail(data.id) });
-      toast.success('Projet mis à jour');
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
-  });
-}
+/* ============================================================
+   MODIFIER UN PROJET
+============================================================ */
 
-/**
- * Supprimer un projet.
- * Invalide la liste projets après succès.
- */
-export function useDeleteProjet() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => deleteProjet(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: projetKeys.all });
-      toast.success('Projet supprimé');
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
-  });
-}
+export const useUpdateProjet = () => {
+  const queryClient =
+    useQueryClient()
 
-/**
- * Créer une tâche dans un projet.
- * Invalide le détail du projet parent après succès.
- */
-export function useCreateTask() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ projectId, payload }: { projectId: number; payload: CreateTaskPayload }) =>
-      createTask(projectId, payload),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: projetKeys.detail(variables.projectId) });
-      toast.success('Tâche créée');
-    },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
-  });
-}
-
-/**
- * Mettre à jour une tâche (status, assignee…).
- * Invalide le détail du projet parent après succès.
- */
-export function useUpdateTask() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
-      taskId,
-      payload,
+      id,
+      data,
     }: {
-      taskId: number;
-      payload: UpdateTaskPayload;
-      projectId: number;
-    }) => updateTask(taskId, payload),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: projetKeys.detail(variables.projectId) });
-      toast.success('Tâche mise à jour');
+      id: string
+      data: CreateProjetDTO
+    }) =>
+      projetService.updateProjet(
+        id,
+        data,
+      ),
+
+    onSuccess: (
+      projet,
+    ) => {
+      queryClient.invalidateQueries({
+        queryKey: ['projets'],
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          'projet',
+          projet.id,
+        ],
+      })
     },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
-  });
+  })
 }
 
-/**
- * Uploader un livrable pour un projet.
- * Invalide le détail du projet parent après succès.
- */
-export function useUploadDeliverable() {
-  const queryClient = useQueryClient();
+/* ============================================================
+   MODIFICATION PARTIELLE
+============================================================ */
+
+export const usePatchProjet = () => {
+  const queryClient =
+    useQueryClient()
+
   return useMutation({
-    mutationFn: ({ projectId, file }: { projectId: number; file: File }) =>
-      uploadDeliverable(projectId, file),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: projetKeys.detail(variables.projectId) });
-      toast.success('Livrable uploadé avec succès');
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: PatchProjetDTO
+    }) =>
+      projetService.patchProjet(
+        id,
+        data,
+      ),
+
+    onSuccess: (
+      projet,
+    ) => {
+      queryClient.invalidateQueries({
+        queryKey: ['projets'],
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          'projet',
+          projet.id,
+        ],
+      })
     },
-    onError: (err: Error) => {
-      toast.error(err.message);
+  })
+}
+
+/* ============================================================
+   SUPPRIMER
+============================================================ */
+
+export const useDeleteProjet = () => {
+  const queryClient =
+    useQueryClient()
+
+  return useMutation({
+    mutationFn: (
+      id: string,
+    ) =>
+      projetService.deleteProjet(id),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['projets'],
+      })
     },
-  });
+  })
 }

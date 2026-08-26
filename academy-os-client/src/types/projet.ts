@@ -1,72 +1,98 @@
-/**
- * Types TypeScript — Module Projets (API Backend Django DRF)
- *
- * Contrat API : /api/v1/projects/
- * Ce fichier est la source de vérité pour tous les types backend du module Projets.
- */
+/* ============================================================
+   STATUT
+============================================================ */
 
-// ─── Backend Models ──────────────────────────────────────────────────────────
+export type ProjetStatus =
+  | 'draft'
+  | 'published'
+  | 'archived'
 
-export type ProjectStatus = 'draft' | 'active' | 'done';
-export type TaskStatus = 'todo' | 'doing' | 'done';
+/* ============================================================
+   PIÈCE JOINTE
+============================================================ */
 
-export interface BackendProject {
-  id: string;
-  name: string;
-  description: string;
-  status: ProjectStatus;
-  cohorte: string;
-  deadline: string;
-  tasks: BackendTask[];
-  deliverables: BackendDeliverable[];
+export interface ProjetAttachment {
+  id: string
+  url: string
+  original_filename: string
+  uploaded_by: string
+  uploaded_at: string
 }
 
-export interface BackendTask {
-  id: string;
-  title: string;
-  status: TaskStatus;
-  assignee: string | null;
+/* ============================================================
+   PROJET
+============================================================ */
+
+export interface Projet {
+  id: string
+
+  program: string
+  program_title: string
+
+  title: string
+  description: string
+
+  status: ProjetStatus
+
+  order: number
+
+  attachments: ProjetAttachment[]
+
+  created_at: string
+  updated_at: string
 }
 
-export interface BackendDeliverable {
-  id: string;
-  file: string;
-  uploaded_by: string;
-  created_at: string;
+/* ============================================================
+   CRÉATION
+============================================================ */
+
+export interface CreateProjetDTO {
+  program: string
+  title: string
+  description?: string
+  status: ProjetStatus
+  order: number
 }
 
-// ─── Payloads de création / mise à jour ──────────────────────────────────────
+/* ============================================================
+   MODIFICATION COMPLÈTE
+============================================================ */
 
-export interface CreateProjectPayload {
-  name: string;
-  description: string;
-  cohorte: string;
-  deadline: string;
+export interface UpdateProjetDTO {
+  program: string
+  title: string
+  description?: string
+  status: ProjetStatus
+  order: number
 }
 
-export interface UpdateProjectPayload {
-  name?: string;
-  description?: string;
-  status?: ProjectStatus;
-  cohorte?: string;
-  deadline?: string;
+/* ============================================================
+   MODIFICATION PARTIELLE
+============================================================ */
+
+export interface PatchProjetDTO {
+  program?: string
+  title?: string
+  description?: string
+  status?: ProjetStatus
+  order?: number
 }
 
-export interface CreateTaskPayload {
-  title: string;
-  status?: TaskStatus;
-  assignee?: string | null;
+/* ============================================================
+   PAGINATION
+============================================================ */
+
+export interface PaginatedResponse<T> {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }
 
-export interface UpdateTaskPayload {
-  title?: string;
-  status?: TaskStatus;
-  assignee?: string | null;
-}
+/* ============================================================
+   ATTACHMENT
+============================================================ */
 
-// ─── Filtres de liste ────────────────────────────────────────────────────────
-
-export interface ProjetFilters {
-  status?: ProjectStatus;
-  cohorte?: string;
+export interface AddAttachmentDTO {
+  attachment: string
 }
