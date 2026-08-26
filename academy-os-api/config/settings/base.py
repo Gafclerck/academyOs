@@ -254,8 +254,8 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Cohort Management API',
-    'DESCRIPTION': 'API de gestion de cohortes avec authentification JWT et RBAC',
+    'TITLE': 'Academy OS API',
+    'DESCRIPTION': 'API de gestion de la plateforme Academy OS — programmes, cohortes, projets, évaluations, certificats, réclamations et notifications.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

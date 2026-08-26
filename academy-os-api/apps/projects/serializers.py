@@ -1,8 +1,19 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.attachments.serializers import AttachmentSerializer
 
 from .models import Project
+
+
+@extend_schema_field({
+    "type": "array",
+    "items": {"type": "string", "format": "binary"},
+})
+class AttachmentFileListField(serializers.ListField):
+    """Liste de fichiers uploadables (multipart). Affiche un picker dans Swagger."""
+
+    child = serializers.FileField()
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -26,6 +37,14 @@ class ProjectSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True,
     )
+    # Fichiers à joindre au projet lors de la création (multipart/form-data).
+    # write_only : n'apparaît que dans les requêtes POST, pas dans les réponses.
+    files = AttachmentFileListField(
+        write_only=True,
+        required=False,
+        label="Fichiers",
+        help_text="Fichiers à joindre au projet (PDF, DOCX, ZIP…). Optionnel.",
+    )
 
     class Meta:
         model = Project
@@ -37,6 +56,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "description",
             "status",
             "order",
+            "files",
             "attachments",
             "created_at",
             "updated_at",
@@ -49,3 +69,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def create(self, validated_data):
+        validated_data.pop("files", None)
+        return super().create(validated_data)

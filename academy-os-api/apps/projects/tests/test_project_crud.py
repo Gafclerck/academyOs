@@ -144,6 +144,106 @@ class ProjectAdminCrudTests(AuthAPITestCase):
         assert len(detail_resp.data["attachments"]) == 1
         assert detail_resp.data["attachments"][0]["original_filename"] == "consignes.pdf"
 
+    # Vérifie la création d'un projet avec fichiers en une seule requête multipart
+    def test_admin_can_create_project_with_files(self):
+        program = ProgramFactory()
+        file1 = SimpleUploadedFile("consignes.pdf", b"%PDF-1.4 dummy content", content_type="application/pdf")
+        file2 = SimpleUploadedFile("template.docx", b"PK-3.0 dummy content", content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+        data = {
+            "program": str(program.id),
+            "title": "Projet avec fichiers",
+            "description": "Création en une seule requête.",
+            "status": "draft",
+            "order": 1,
+            "files": [file1, file2],
+        }
+        response = self.auth(self.admin).post(PROJECTS_URL, data, format="multipart")
+        assert response.status_code == 201
+        assert response.data["title"] == "Projet avec fichiers"
+
+        # Vérifie que les deux fichiers sont rattachés au projet
+        project = Project.objects.get(id=response.data["id"])
+        assert project.attachments.count() == 2
+        filenames = sorted(project.attachments.values_list("original_filename", flat=True))
+        assert filenames == ["consignes.pdf", "template.docx"]
+
+    # Vérifie que des fichiers invalides rejettent la création complète
+    def test_create_project_with_invalid_file_rejects_all(self):
+        program = ProgramFactory()
+        valid_file = SimpleUploadedFile("ok.pdf", b"%PDF-1.4", content_type="application/pdf")
+        invalid_file = SimpleUploadedFile("virus.exe", b"MZ", content_type="application/octet-stream")
+
+        data = {
+            "program": str(program.id),
+            "title": "Projet doomed",
+            "description": "Ne devrait pas créer.",
+            "status": "draft",
+            "order": 1,
+            "files": [valid_file, invalid_file],
+        }
+        response = self.auth(self.admin).post(PROJECTS_URL, data, format="multipart")
+        assert response.status_code == 400
+
+        # Aucun projet ni attachment ne doit exister
+        assert Project.objects.filter(title="Projet doomed").count() == 0
+        assert Attachment.objects.count() == 0
+
+    # Vérifie que le GET /projects/<id>/attachments/ retourne les pièces jointes
+    def test_list_project_attachments(self):
+        project = ProjectFactory()
+        file1 = SimpleUploadedFile("a.pdf", b"%PDF-1.4 a", content_type="application/pdf")
+        file2 = SimpleUploadedFile("b.pdf", b"%PDF-1.4 b", content_type="application/pdf")
+        self.auth(self.admin).post(
+            f"{PROJECTS_URL}{project.id}/attachments/",
+            {"file": file1},
+            format="multipart",
+        )
+        self.auth(self.admin).post(
+            f"{PROJECTS_URL}{project.id}/attachments/",
+            {"file": file2},
+            format="multipart",
+        )
+
+        response = self.auth(self.admin).get(f"{PROJECTS_URL}{project.id}/attachments/")
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+    # Vérifie la suppression d'une pièce jointe via endpoint project-scoped
+    def test_delete_project_attachment(self):
+        project = ProjectFactory()
+        file = SimpleUploadedFile("a.pdf", b"%PDF-1.4", content_type="application/pdf")
+        upload_resp = self.auth(self.admin).post(
+            f"{PROJECTS_URL}{project.id}/attachments/",
+            {"file": file},
+            format="multipart",
+        )
+        att_id = upload_resp.data["id"]
+        assert Attachment.objects.filter(id=att_id).exists()
+
+        response = self.auth(self.admin).delete(
+            f"{PROJECTS_URL}{project.id}/attachments/{att_id}/",
+        )
+        assert response.status_code == 204
+        assert not Attachment.objects.filter(id=att_id).exists()
+
+    # Vérifie qu'un non-admin ne peut pas supprimer une pièce jointe project-scoped
+    def test_non_admin_cannot_delete_project_attachment(self):
+        project = ProjectFactory()
+        file = SimpleUploadedFile("a.pdf", b"%PDF-1.4", content_type="application/pdf")
+        upload_resp = self.auth(self.admin).post(
+            f"{PROJECTS_URL}{project.id}/attachments/",
+            {"file": file},
+            format="multipart",
+        )
+        att_id = upload_resp.data["id"]
+
+        response = self.auth(self.learner).delete(
+            f"{PROJECTS_URL}{project.id}/attachments/{att_id}/",
+        )
+        assert response.status_code == 403
+        assert Attachment.objects.filter(id=att_id).exists()
+
     # Vérifie que la suppression d'un projet supprime en cascade ses pièces jointes
     def test_deleting_project_purges_attachments(self):
         project = ProjectFactory()
