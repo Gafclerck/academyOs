@@ -1,7 +1,11 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import ProjectAttachmentUploadView, ProjectViewSet
+from .views import (
+    ProjectAttachmentDeleteView,
+    ProjectAttachmentView,
+    ProjectViewSet,
+)
 
 # Routeur DRF : enregistre les routes CRUD automatiques
 # pour le ViewSet ProjectViewSet sous le préfixe vide
@@ -12,8 +16,13 @@ router.register(r"", ProjectViewSet, basename="project")
 urlpatterns = [
     path(
         "<uuid:project_id>/attachments/",
-        ProjectAttachmentUploadView.as_view(),
+        ProjectAttachmentView.as_view(),
         name="project-attachments",
+    ),
+    path(
+        "<uuid:project_id>/attachments/<uuid:attachment_id>/",
+        ProjectAttachmentDeleteView.as_view(),
+        name="project-attachment-detail",
     ),
     path("", include(router.urls)),
 ]
