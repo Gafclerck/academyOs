@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.attachments.services import create_attachments
 from apps.certificates.models import Certificate
+from apps.certificates.services import trigger_certificate_if_eligible
 from apps.cohorts.models import Cohort, Enrollment, TrainerAssignment
 from apps.evaluations.models import (
     CriterionScore,
@@ -233,10 +234,15 @@ def _advance_next_assignment(enrollment: Enrollment, current_order: int) -> None
 
 
 def _check_and_complete_enrollment(enrollment: Enrollment) -> None:
-    """Vérifie si tous les projets publiés du programme sont validés.
+    """Vérifie le seuil de 80% (déclenchement certificat) et de 100% (complétion inscription).
 
-    Si oui : passe l'inscription en COMPLETED et crée un certificat EN_ATTENTE.
+    - Dès 80% de projets validés : déclenche la création et la génération asynchrone du certificat.
+    - À 100% de projets validés : passe l'inscription au statut COMPLETED.
     """
+    # 1. Déclenchement automatique du certificat dès le seuil (80%) atteint
+    trigger_certificate_if_eligible(enrollment)
+
+    # 2. Complétion de l'inscription à 100% de projets validés
     total_published = Project.objects.filter(
         program=enrollment.cohort.program,
         status=Project.StatusProjectEnum.PUBLISHED,
@@ -255,11 +261,6 @@ def _check_and_complete_enrollment(enrollment: Enrollment) -> None:
         if enrollment.status != Enrollment.StatusEnum.COMPLETED:
             enrollment.status = Enrollment.StatusEnum.COMPLETED
             enrollment.save(update_fields=["status", "updated_at"])
-
-        Certificate.objects.get_or_create(
-            inscription=enrollment,
-            defaults={"status": Certificate.StatusCertificateEnum.PENDING},
-        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
