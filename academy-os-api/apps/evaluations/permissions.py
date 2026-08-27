@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-from apps.cohorts.models import TrainerAssignment
+from apps.cohorts.models import Enrollment, TrainerAssignment
 from apps.users.models import User
 
 
@@ -70,9 +70,14 @@ class CanViewEvaluation(permissions.BasePermission):
             return True
 
         # Résoudre l'enrollment
-        enrollment = getattr(obj, "enrollment", None)
-        if enrollment is None and hasattr(obj, "assignment"):
+        if isinstance(obj, Enrollment):
+            enrollment = obj
+        elif hasattr(obj, "enrollment"):
+            enrollment = obj.enrollment
+        elif hasattr(obj, "assignment"):
             enrollment = obj.assignment.enrollment
+        else:
+            enrollment = None
 
         if not enrollment:
             return False

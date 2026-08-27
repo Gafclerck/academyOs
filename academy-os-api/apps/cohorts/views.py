@@ -12,6 +12,10 @@ from rest_framework.views import APIView
 from apps.users.models import User
 from apps.users.permissions import IsAdmin, IsAdminOrOrganizer
 from .models import Cohort, Enrollment, Intake, TrainerAssignment
+from .permissions import (
+    CanViewOrManageCohortEnrollments,
+    CanViewOrManageTrainerAssignments,
+)
 from .serializers import (
     AddEmailsSerializer,
     AssignMentorSerializer,
@@ -155,6 +159,7 @@ class _MembersBaseView(generics.ListCreateAPIView):
     ),
 )
 class EnrollmentListCreateView(_MembersBaseView):
+    permission_classes = [CanViewOrManageCohortEnrollments]
     expected_role = User.Role.LEARNER
     model = Enrollment
     serializer_class = EnrollmentSerializer
@@ -180,6 +185,7 @@ class EnrollmentListCreateView(_MembersBaseView):
     ),
 )
 class TrainerAssignmentListCreateView(_MembersBaseView):
+    permission_classes = [CanViewOrManageTrainerAssignments]
     expected_role = User.Role.TRAINER
     model = TrainerAssignment
     serializer_class = TrainerAssignmentSerializer
