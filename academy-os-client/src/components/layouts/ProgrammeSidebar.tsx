@@ -10,6 +10,7 @@ import {
   CalendarDays,
   GraduationCap,
   FolderGit2,
+  ClipboardCheck,
   Users,
   ChevronRight,
   Sparkles,
@@ -18,6 +19,16 @@ import {
 
 import { useAuth } from '@/context/AuthContext'
 
+// =====================================================
+// TYPES
+// =====================================================
+
+type UserRole =
+  | 'admin'
+  | 'organizer'
+  | 'trainer'
+  | 'learner'
+
 interface SidebarItem {
   name: string
   href: string
@@ -25,50 +36,142 @@ interface SidebarItem {
     className?: string
   }>
   description: string
+  roles: UserRole[]
 }
 
+// =====================================================
+// ITEMS DU SIDEBAR
+// =====================================================
+
 const SIDEBAR_ITEMS: SidebarItem[] = [
+  // ===================================================
+  // DASHBOARD
+  // Admin / Organizer
+  // ===================================================
+
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
     description: "Vue générale de l'académie",
+    roles: ['admin', 'organizer'],
   },
+
+  // ===================================================
+  // PROGRAMMES
+  // Tous les rôles
+  // ===================================================
+
   {
     name: 'Programmes',
     href: '/programmes',
     icon: BookOpen,
     description: 'Offres de formation & cursus',
+    roles: [
+      'admin',
+      'organizer',
+      'trainer',
+      'learner',
+    ],
   },
+
+  // ===================================================
+  // RENTRÉES
+  // Tous les rôles
+  // ===================================================
+
   {
     name: 'Rentrées',
     href: '/rentrees',
     icon: CalendarDays,
     description: 'Rentrées académiques',
+    roles: [
+      'admin',
+      'organizer',
+      'trainer',
+      'learner',
+    ],
   },
+
+  // ===================================================
+  // COHORTES
+  // Tous les rôles
+  // ===================================================
+
   {
     name: 'Cohortes',
     href: '/cohortes',
     icon: GraduationCap,
     description: "Groupes d'apprenants actifs",
+    roles: [
+      'admin',
+      'organizer',
+      'trainer',
+      'learner',
+    ],
   },
+
+  // ===================================================
+  // PROJETS
+  // Tous les rôles
+  // ===================================================
+
   {
     name: 'Projets',
     href: '/projets',
     icon: FolderGit2,
     description: 'Suivi des livrables & jalons',
+    roles: [
+      'admin',
+      'organizer',
+      'trainer',
+      'learner',
+    ],
   },
+
+  // ===================================================
+  // ÉVALUATIONS
+  // Tous les rôles
+  // ===================================================
+
+  {
+    name: 'Évaluations',
+    href: '/evaluations',
+    icon: ClipboardCheck,
+    description: 'Évaluation des livrables & projets',
+    roles: [
+      'admin',
+      'organizer',
+      'trainer',
+      'learner',
+    ],
+  },
+
+  // ===================================================
+  // UTILISATEURS
+  // Admin uniquement
+  // ===================================================
+
   {
     name: 'Utilisateurs',
     href: '/users',
     icon: Users,
     description: 'Gestion des utilisateurs',
+    roles: ['admin'],
   },
 ]
+
+// =====================================================
+// PROPS
+// =====================================================
 
 interface ProgrammeSidebarProps {
   onCloseMobile?: () => void
 }
+
+// =====================================================
+// SIDEBAR
+// =====================================================
 
 export const ProgrammeSidebar: React.FC<
   ProgrammeSidebarProps
@@ -77,9 +180,25 @@ export const ProgrammeSidebar: React.FC<
 
   const { logout, user } = useAuth()
 
-  // ─────────────────────────────────────────────
+  // ===================================================
+  // RÔLE
+  // ===================================================
+
+  const role = user?.role as UserRole | undefined
+
+  // ===================================================
+  // ITEMS ACCESSIBLES SELON LE RÔLE
+  // ===================================================
+
+  const visibleItems = SIDEBAR_ITEMS.filter(
+    (item) =>
+      role !== undefined &&
+      item.roles.includes(role),
+  )
+
+  // ===================================================
   // DÉCONNEXION
-  // ─────────────────────────────────────────────
+  // ===================================================
 
   const handleLogout = async () => {
     try {
@@ -89,9 +208,9 @@ export const ProgrammeSidebar: React.FC<
     }
   }
 
-  // ─────────────────────────────────────────────
+  // ===================================================
   // UTILISATEUR
-  // ─────────────────────────────────────────────
+  // ===================================================
 
   const userInitials =
     user?.first_name && user?.last_name
@@ -106,8 +225,23 @@ export const ProgrammeSidebar: React.FC<
   const userEmail =
     user?.email || 'admin@xarala.co'
 
+  // ===================================================
+  // PROFIL ACTIF
+  // ===================================================
+
   const isProfileActive =
     location.pathname === '/profile'
+
+  // ===================================================
+  // LABEL DU RÔLE
+  // ===================================================
+
+  const roleLabel: Record<UserRole, string> = {
+    admin: 'Administrateur',
+    organizer: 'Organisateur',
+    trainer: 'Formateur',
+    learner: 'Apprenant',
+  }
 
   return (
     <aside
@@ -214,15 +348,20 @@ export const ProgrammeSidebar: React.FC<
 
           <nav className="space-y-1">
 
-            {SIDEBAR_ITEMS.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon
 
               const isActive =
-                item.href === '/admin/dashboard'
-                  ? location.pathname === '/admin/dashboard'
+                item.href === '/dashboard'
+                  ? location.pathname === '/dashboard' ||
+                    location.pathname === '/admin/dashboard'
                   : item.href === '/programmes'
-                    ? location.pathname.startsWith('/programmes')
-                    : location.pathname.startsWith(item.href)
+                    ? location.pathname.startsWith(
+                        '/programmes',
+                      )
+                    : location.pathname.startsWith(
+                        item.href,
+                      )
 
               return (
                 <NavLink
@@ -539,6 +678,22 @@ export const ProgrammeSidebar: React.FC<
             >
               {userEmail}
             </p>
+
+            {role && (
+              <p
+                className="
+                  mt-0.5
+                  truncate
+                  text-[9px]
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-[#FF6B0B]
+                "
+              >
+                {roleLabel[role]}
+              </p>
+            )}
 
           </div>
 

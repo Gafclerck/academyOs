@@ -62,6 +62,7 @@ import Profile from '@/pages/users/Profile'
 
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import ProjetEditPage from '@/pages/projets/ProjetEditPage'
+import EvaluationsPage from '@/pages/evaluations/EvaluationsPage'
 
 const AppRoutes = () => {
   return (
@@ -134,14 +135,19 @@ const AppRoutes = () => {
           {/* ==================================================
               5. PROJETS
           ================================================== */}
-          
 
+          <Route path="/projets" element={<ProjetListPage />} />
           <Route path="/programmes/:id/projets" element={<ProjetListPage />} />
           <Route path="/programmes/:id/projets/new" element={<ProjetCreatePage />} />
           <Route path="/projets/new" element={<ProjetCreatePage />} />
           <Route path="/projets/:id" element={<ProjetDetailPage />} />
           <Route path="/projets/:id/edit" element={<ProjetEditPage />} />
 
+
+          {/* ÉVALUATIONS */}
+          <Route path="/evaluations/*" element={<EvaluationsPage />} />
+
+          
 
           {/* ==================================================
               6. UTILISATEURS
