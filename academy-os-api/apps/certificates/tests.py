@@ -1,4 +1,5 @@
 ﻿import factory
+from unittest.mock import patch
 from django.test import TestCase
 
 from apps.certificates.models import Certificate
@@ -8,6 +9,9 @@ from apps.core.tests.factories import UserFactory
 from apps.users.models import User
 
 CERTIFICATES_URL = "/api/v1/certificates/"
+
+# Bytes factices > 1000 pour satisfaire les assertions de taille sur le PDF mocké.
+FAKE_PDF_BYTES = b"%PDF-1.4\n" + b"x" * 1100
 
 
 class CertificateFactory(factory.django.DjangoModelFactory):
@@ -109,6 +113,7 @@ class CertificateDetailEndpointTests(AuthAPITestCase):
         assert response.status_code == 404
 
 
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificateGenerateEndpointTests(AuthAPITestCase):
     """Tests de l'endpoint POST /certificates/generate/."""
 
@@ -117,7 +122,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         self.admin = UserFactory(admin=True)
 
     # Vérifie qu'un administrateur peut déclencher la génération d'un certificat.
-    def test_admin_can_generate_certificate(self):
+    def test_admin_can_generate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         response = self.auth(self.admin).post(
             f"{CERTIFICATES_URL}generate/",
@@ -128,7 +133,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert response.data["status"] == Certificate.StatusCertificateEnum.PENDING
 
     # Vérifie qu'un utilisateur non-admin ne peut pas déclencher la génération.
-    def test_non_admin_cannot_generate_certificate(self):
+    def test_non_admin_cannot_generate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         learner = UserFactory()
         response = self.auth(learner).post(
@@ -139,7 +144,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert response.status_code == 403
 
     # Vérifie que générer deux fois pour la même inscription ne crée pas de doublon.
-    def test_generating_twice_does_not_duplicate_certificate(self):
+    def test_generating_twice_does_not_duplicate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         url = f"{CERTIFICATES_URL}generate/"
         data = {"enrollment_id": str(enrollment.id)}
@@ -153,6 +158,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert Certificate.objects.filter(inscription=enrollment).count() == 1
 
 
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificatePdfGenerationTests(TestCase):
     """Tests du service de génération du PDF de certificat."""
 
@@ -168,7 +174,7 @@ class CertificatePdfGenerationTests(TestCase):
             pass
 
     # Vérifie que la génération du PDF crée un fichier non vide et met à jour file_path.
-    def test_generate_certificate_pdf_creates_file(self):
+    def test_generate_certificate_pdf_creates_file(self, mock_render):
         from apps.certificates.services import generate_certificate_pdf
         from django.core.files.storage import default_storage
         from django.utils import timezone
@@ -188,6 +194,7 @@ class CertificatePdfGenerationTests(TestCase):
         self.assertGreater(len(content), 1000)
 
 
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificateEmailTaskTests(AuthAPITestCase):
     """Tests de bout en bout : generation -> Celery -> email avec piece jointe."""
 
@@ -196,7 +203,7 @@ class CertificateEmailTaskTests(AuthAPITestCase):
         self.admin = UserFactory(admin=True)
 
     # Vérifie que générer un certificat déclenche bien l'envoi d'un email avec le PDF joint.
-    def test_generate_certificate_sends_email_with_attachment(self):
+    def test_generate_certificate_sends_email_with_attachment(self, mock_render):
         from django.core import mail
 
         enrollment = EnrollmentFactory()
@@ -218,7 +225,7 @@ class CertificateEmailTaskTests(AuthAPITestCase):
         assert len(attachment_content) > 1000
 
     # Vérifie qu'un deuxième appel sur la même inscription ne renvoie pas d'email.
-    def test_generating_twice_does_not_resend_email(self):
+    def test_generating_twice_does_not_resend_email(self, mock_render):
         from django.core import mail
 
         enrollment = EnrollmentFactory()

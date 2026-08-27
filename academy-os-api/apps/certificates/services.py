@@ -34,6 +34,17 @@ def generate_certificate(enrollment):
     return certificate, created
 
 
+def _render_pdf_bytes(html_content):
+    """Rend HTML → PDF via WeasyPrint.
+
+    Fonction isolée pour permettre le mock unitaire sans installer les
+    dépendances système (GTK, Pango, Cairo) dans les tests CI/Windows.
+    """
+    from weasyprint import HTML
+
+    return HTML(string=html_content).write_pdf()
+
+
 def generate_certificate_pdf(certificate):
     """Génère le fichier PDF d'un certificat à partir du template HTML
     et le sauvegarde via le système de stockage Django (local ou S3
@@ -42,8 +53,6 @@ def generate_certificate_pdf(certificate):
     Ne modifie pas le statut du certificat : cette fonction ne fait que
     produire et stocker le fichier, la décision d'envoi reste séparée.
     """
-    from weasyprint import HTML
-
     inscription = certificate.inscription
     verification_url = f"{settings.FRONTEND_URL}/certificats/{certificate.id}"
 
@@ -59,7 +68,7 @@ def generate_certificate_pdf(certificate):
         },
     )
 
-    pdf_bytes = HTML(string=html_content).write_pdf()
+    pdf_bytes = _render_pdf_bytes(html_content)
 
     file_name = f"certificates/{certificate.id}.pdf"
     saved_path = default_storage.save(file_name, ContentFile(pdf_bytes))

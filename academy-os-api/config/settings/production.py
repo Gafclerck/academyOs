@@ -23,3 +23,12 @@ if env("STORAGE_BACKEND", default="local") != "s3":
 if env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend") == \
         "django.core.mail.backends.console.EmailBackend":
     raise ImproperlyConfigured("EMAIL_BACKEND doit être le backend SMTP en production.")
+
+# En production, WeasyPrint doit être installé pour la génération de certificats PDF.
+try:
+    import weasyprint  # noqa: F401
+except ImportError:
+    raise ImproperlyConfigured(
+        "WeasyPrint doit être installé en production pour la génération de certificats PDF. "
+        "Installez-le via pip et les dépendances système (pango, cairo, harfbuzz, gdk-pixbuf)."
+    )

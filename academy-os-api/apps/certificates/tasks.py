@@ -2,6 +2,7 @@ import logging
 
 from celery import shared_task
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -28,11 +29,14 @@ def send_certificate_email_task(self, certificate_id):
             "inscription__user", "inscription__cohort__program"
         ).get(pk=certificate_id)
 
+        # La date d'envoi doit être fixée AVANT le rendu PDF pour que le
+        # template l'affiche correctement (et non None).
+        certificate.date_envoi = timezone.now()
+
         certificate = generate_certificate_pdf(certificate)
 
         certificate.status = Certificate.StatusCertificateEnum.SENT
-        certificate.date_envoi = timezone.now()
-        certificate.save(update_fields=["status", "date_envoi"])
+        certificate.save(update_fields=["status", "date_envoi", "file_path"])
 
         learner = certificate.inscription.user
         program_title = certificate.inscription.cohort.program.title
