@@ -37,10 +37,13 @@ from .services import add_users_to_cohort, assign_mentor
     destroy=extend_schema(summary="Delete an intake", tags=["Intakes"]),
 )
 class IntakeViewSet(viewsets.ModelViewSet):
-    """CRUD sur les intakes.
+    """CRUD sur les intakes (sessions/rentrées globales).
 
     - Écriture : réservée aux administrateurs.
-    - Lecture : ouverte à tous les utilisateurs authentifiés.
+    - Lecture : filtrée selon le rôle.
+      - Admin/Organizer : toutes les rentrées.
+      - Formateur : rentrées des cohortes où il est affecté.
+      - Apprenant : rentrées des cohortes où il est inscrit.
     """
 
     queryset = Intake.objects.all()
@@ -50,6 +53,24 @@ class IntakeViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve"):
             return [permissions.IsAuthenticated()]
         return [IsAdmin()]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+            return super().get_queryset()
+        if user.role == User.Role.TRAINER:
+            intake_ids = TrainerAssignment.objects.filter(
+                user=user,
+                status=TrainerAssignment.StatusEnum.ACTIVE,
+            ).values_list("cohort__intake_id", flat=True)
+            return super().get_queryset().filter(id__in=intake_ids)
+        if user.role == User.Role.LEARNER:
+            intake_ids = Enrollment.objects.filter(
+                user=user,
+                status=Enrollment.StatusEnum.ACTIVE,
+            ).values_list("cohort__intake_id", flat=True)
+            return super().get_queryset().filter(id__in=intake_ids)
+        return super().get_queryset().none()
 
 
 @extend_schema_view(

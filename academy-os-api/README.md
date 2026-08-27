@@ -139,9 +139,9 @@ Légende des accès :
 | | `PATCH` | `/api/v1/programs/<id>/` | ❌ | ❌ | ❌ | ❌ | ✅ | — | Modifier un programme |
 | | `DELETE` | `/api/v1/programs/<id>/` | ❌ | ❌ | ❌ | ❌ | ✅ | — | Supprimer un programme |
 | | `GET` | `/api/v1/programs/<id>/stats/` | ❌ | ❌ | ❌ | ✅ | ✅ | — | Synthèse multi-cohortes du programme |
-| **Intakes** | `GET` | `/api/v1/intakes/` | ❌ | ✅ | ✅ | ✅ | ✅ | — | Liste des sessions/périodes globales |
+| **Intakes** | `GET` | `/api/v1/intakes/` | ❌ | 🔍 | 🔍 | ✅ | ✅ | — | Filtré : rentrées des cohortes où l'utilisateur est inscrit/affecté |
 | | `POST` | `/api/v1/intakes/` | ❌ | ❌ | ❌ | ❌ | ✅ | — | Créer une session institutionnelle |
-| | `GET` | `/api/v1/intakes/<id>/` | ❌ | ✅ | ✅ | ✅ | ✅ | — | Détail d'une session |
+| | `GET` | `/api/v1/intakes/<id>/` | ❌ | 🔍 | 🔍 | ✅ | ✅ | — | Détail d'une session autorisée |
 | | `PATCH` | `/api/v1/intakes/<id>/` | ❌ | ❌ | ❌ | ❌ | ✅ | — | Modifier une session |
 | | `DELETE` | `/api/v1/intakes/<id>/` | ❌ | ❌ | ❌ | ❌ | ✅ | — | Supprimer une session |
 | **Cohortes** | `GET` | `/api/v1/cohorts/` | ❌ | 🔍 | 🔍 | ✅ | ✅ | — | Filtré : cohortes où l'utilisateur est inscrit/affecté |
@@ -255,9 +255,10 @@ Légende des accès :
 
 | Méthode | Route | Permissions | Corps / Filtres | Description |
 |---|---|---|---|---|
-| `GET` | `/api/v1/intakes/` | Authentifié | Paginé | Liste des sessions globales institutionnelles |
+| `GET` | `/api/v1/intakes/` | Authentifié (filtré selon rôle) | Paginé | Liste des rentrées (Admin/Orga : toutes ; Formateur/Apprenant : leurs cohortes) |
 | `POST` | `/api/v1/intakes/` | Admin | `{"name", "start_date", "status"}` | Créer une session (`draft`, `active`, `completed`, `archived`) |
-| `GET` / `PATCH` / `DELETE` | `/api/v1/intakes/<id>/` | GET : Authentifié / Écriture : Admin | — | Détail / Modification / Suppression |
+| `GET` | `/api/v1/intakes/<id>/` | Authentifié (filtré) | — | Détail d'une session autorisée |
+| `PATCH` / `DELETE` | `/api/v1/intakes/<id>/` | Admin | — | Modification / Suppression d'une session |
 | `GET` | `/api/v1/cohorts/` | Authentifié (filtré) | `?intake=<uuid>`, `?program=<uuid>` | Liste des cohortes (filtrée selon affectation/inscription) |
 | `POST` | `/api/v1/cohorts/` | Admin | `{"name", "program", "intake", "status", "start_date", "end_date"}` | Créer une cohorte rattachée |
 | `GET` / `PATCH` / `DELETE` | `/api/v1/cohorts/<id>/` | GET : Authentifié / Écriture : Admin | — | Détail / Modification / Suppression |
