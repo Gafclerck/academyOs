@@ -4,14 +4,14 @@ from django.db import models
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status, viewsets
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.cohorts.models import Cohort, TrainerAssignment
 from apps.evaluations.models import Deliverable, EvaluationCriterion, ProjectAssignment
-from apps.evaluations.permissions import CanGradeEvaluation, CanViewEvaluation
+from apps.evaluations.permissions import CanGradeEvaluation, CanSubmitDeliverable, CanViewCohortStats, CanViewEvaluation
 from apps.evaluations.serializers import (
     CohortStatsSerializer,
     DashboardStatsSerializer,
@@ -208,7 +208,7 @@ class ProjectAssignmentViewSet(viewsets.ModelViewSet):
 class DeliverableSubmitView(APIView):
     """POST /api/v1/assignments/<assignment_id>/deliverables/submit/ - Soumettre un livrable (apprenant)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CanSubmitDeliverable]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
@@ -242,25 +242,10 @@ class DeliverableListView(generics.ListAPIView):
     """GET /api/v1/assignments/<assignment_id>/deliverables/ - Lister les livrables d'une assignation."""
 
     serializer_class = DeliverableSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CanViewEvaluation]
 
     def get_queryset(self):
         assignment = get_object_or_404(ProjectAssignment, pk=self.kwargs["assignment_id"])
-        user = self.request.user
-        if not (user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
-            if user.role == User.Role.LEARNER:
-                if assignment.enrollment.user_id != user.id:
-                    raise PermissionDenied("Vous n'avez pas accès aux livrables de cette assignation.")
-            elif user.role == User.Role.TRAINER:
-                if not TrainerAssignment.objects.filter(
-                    cohort=assignment.enrollment.cohort, user=user, status=TrainerAssignment.StatusEnum.ACTIVE
-                ).exists():
-                    raise PermissionDenied(
-                        "Vous n'êtes pas formateur affecté à la cohorte de cette assignation."
-                    )
-            else:
-                raise PermissionDenied("Accès refusé.")
-
         return Deliverable.objects.filter(assignment=assignment).select_related(
             "assignment__project",
             "assignment__enrollment__user",
@@ -269,13 +254,9 @@ class DeliverableListView(generics.ListAPIView):
             "reviewed_by",
         ).prefetch_related("attachments", "criterion_scores__criterion")
 
-    @extend_schema(
-        summary="Lister les livrables d'une assignation",
-        description="Retourne la liste versionnée des livrables soumis pour une assignation donnée.",
-        responses={200: DeliverableSerializer(many=True)},
-        tags=["Evaluations"],
-    )
     def get(self, request, *args, **kwargs):
+        assignment = get_object_or_404(ProjectAssignment, pk=self.kwargs["assignment_id"])
+        self.check_object_permissions(request, assignment)
         return super().get(request, *args, **kwargs)
 
 
@@ -290,29 +271,7 @@ class DeliverableDetailView(generics.RetrieveAPIView):
         "reviewed_by",
     ).prefetch_related("attachments", "criterion_scores__criterion")
     serializer_class = DeliverableSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    @extend_schema(summary="Détail d'un livrable", tags=["Evaluations"])
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
-    def get_object(self):
-        obj = super().get_object()
-        user = self.request.user
-        if user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
-            return obj
-        if user.role == User.Role.LEARNER:
-            if obj.assignment.enrollment.user_id != user.id:
-                raise PermissionDenied("Vous n'avez pas accès à ce livrable.")
-        elif user.role == User.Role.TRAINER:
-            cohort = obj.assignment.enrollment.cohort
-            if not TrainerAssignment.objects.filter(
-                cohort=cohort, user=user, status=TrainerAssignment.StatusEnum.ACTIVE
-            ).exists():
-                raise PermissionDenied(
-                    "Vous n'êtes pas formateur affecté à la cohorte de ce livrable."
-                )
-        return obj
+    permission_classes = [CanViewEvaluation]
 
 
 class DeliverableReviewView(APIView):
@@ -375,6 +334,8 @@ class DashboardStatsView(APIView):
 class CohortStatsView(APIView):
     """GET /api/v1/cohorts/<cohort_id>/stats/ - Statistiques & progression d'une cohorte."""
 
+    permission_classes = [CanViewCohortStats]
+
     @extend_schema(
         summary="Statistiques et progression d'une cohorte",
         description="Fournit la progression moyenne, le taux de validation, les indicateurs par projet et par compétence pour une cohorte donnée.",
@@ -383,22 +344,6 @@ class CohortStatsView(APIView):
     )
     def get(self, request, cohort_id):
         cohort = get_object_or_404(Cohort.objects.select_related("program"), pk=cohort_id)
-
-        user = request.user
-        if not (user and user.is_authenticated):
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        if not (user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
-            if user.role == User.Role.TRAINER:
-                is_assigned = TrainerAssignment.objects.filter(
-                    cohort=cohort,
-                    user=user,
-                    status=TrainerAssignment.StatusEnum.ACTIVE,
-                ).exists()
-                if not is_assigned:
-                    raise PermissionDenied("Vous n'êtes pas affecté à cette cohorte.")
-            else:
-                raise PermissionDenied("Accès réservé aux administrateurs et formateurs de la cohorte.")
-
+        self.check_object_permissions(request, cohort)
         stats_data = get_cohort_stats(cohort)
         return Response(stats_data, status=status.HTTP_200_OK)

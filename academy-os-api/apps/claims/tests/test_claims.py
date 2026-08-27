@@ -23,11 +23,14 @@ CLAIMS_URL = "/api/v1/claims/"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _make_enrollment(learner=None, status=Enrollment.StatusEnum.COMPLETED):
+def _make_enrollment(learner=None, status=Enrollment.StatusEnum.COMPLETED, cohort=None):
     """Crée une inscription terminée avec un learner."""
     if learner is None:
         learner = UserFactory()
-    enrollment = EnrollmentFactory(user=learner, status=status)
+    kwargs = {"user": learner, "status": status}
+    if cohort is not None:
+        kwargs["cohort"] = cohort
+    enrollment = EnrollmentFactory(**kwargs)
     return enrollment, learner
 
 
@@ -368,3 +371,118 @@ class ClaimUpdateEndpointTests(AuthAPITestCase):
                 notification_type=Notification.TypeEnum.CLAIM_UPDATED,
             ).exists()
         )
+
+
+class ClaimDeleteEndpointTests(AuthAPITestCase):
+    """Tests DELETE /api/v1/claims/<uuid>/"""
+
+    def test_learner_can_delete_own_pending_claim(self):
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+        self.assertEqual(claim.status, Claim.StatusEnum.PENDING)
+        self.auth(learner)
+        resp = self.client.delete(f"{CLAIMS_URL}{claim.id}/")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Claim.objects.filter(pk=claim.id).exists())
+
+    def test_learner_cannot_delete_in_progress_claim(self):
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+        admin = UserFactory(role=User.Role.ADMIN)
+        update_claim_status(claim, Claim.StatusEnum.IN_PROGRESS, handled_by=admin)
+        self.auth(learner)
+        resp = self.client.delete(f"{CLAIMS_URL}{claim.id}/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_learner_cannot_delete_others_claim(self):
+        enrollment1, learner1 = _make_enrollment()
+        cert1 = _make_certificate(enrollment1)
+        claim1 = create_claim(learner1, cert1.id, "Réclamation")
+        _, learner2 = _make_enrollment()
+        self.auth(learner2)
+        resp = self.client.delete(f"{CLAIMS_URL}{claim1.id}/")
+        self.assertIn(resp.status_code, [403, 404])
+
+    def test_admin_can_delete_any_claim(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+        self.auth(admin)
+        resp = self.client.delete(f"{CLAIMS_URL}{claim.id}/")
+        self.assertEqual(resp.status_code, 204)
+
+    def test_trainer_cannot_delete_claim(self):
+        trainer = UserFactory(trainer=True)
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+        self.auth(trainer)
+        resp = self.client.delete(f"{CLAIMS_URL}{claim.id}/")
+        self.assertEqual(resp.status_code, 403)
+
+
+class ClaimTrainerAccessTests(AuthAPITestCase):
+    """Tests trainer read access to claims."""
+
+    def test_trainer_can_list_claims_in_assigned_cohort(self):
+        from apps.cohorts.tests.factories import CohortFactory, TrainerAssignmentFactory
+
+        trainer = UserFactory(trainer=True)
+        cohort = CohortFactory()
+        TrainerAssignmentFactory(user=trainer, cohort=cohort)
+        enrollment, learner = _make_enrollment(cohort=cohort)
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+
+        self.auth(trainer)
+        resp = self.client.get(CLAIMS_URL)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 1)
+
+    def test_trainer_cannot_see_claims_in_other_cohorts(self):
+        from apps.cohorts.tests.factories import CohortFactory, EnrollmentFactory, TrainerAssignmentFactory
+
+        trainer = UserFactory(trainer=True)
+        my_cohort = CohortFactory()
+        TrainerAssignmentFactory(user=trainer, cohort=my_cohort)
+        other_cohort = CohortFactory()
+        enrollment, learner = _make_enrollment()
+        # Enroll learner in other_cohort, not my_cohort
+        EnrollmentFactory(user=learner, cohort=other_cohort)
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+
+        self.auth(trainer)
+        resp = self.client.get(CLAIMS_URL)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 0)
+
+    def test_trainer_cannot_create_claim(self):
+        trainer = UserFactory(trainer=True)
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        self.auth(trainer)
+        resp = self.post_json(CLAIMS_URL, {
+            "certificate": str(certificate.id),
+            "message": "Test",
+        })
+        self.assertEqual(resp.status_code, 403)
+
+    def test_trainer_cannot_update_claim(self):
+        from apps.cohorts.tests.factories import CohortFactory, TrainerAssignmentFactory
+
+        trainer = UserFactory(trainer=True)
+        cohort = CohortFactory()
+        TrainerAssignmentFactory(user=trainer, cohort=cohort)
+        enrollment, learner = _make_enrollment(cohort=cohort)
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Réclamation")
+
+        self.auth(trainer)
+        resp = self.patch_json(f"{CLAIMS_URL}{claim.id}/", {
+            "status": "in_progress",
+        })
+        self.assertEqual(resp.status_code, 403)

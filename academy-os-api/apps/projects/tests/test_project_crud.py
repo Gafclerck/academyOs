@@ -7,6 +7,7 @@ from django.db import IntegrityError
 from apps.attachments.models import Attachment
 from apps.core.tests.base import AuthAPITestCase
 from apps.core.tests.factories import UserFactory
+from apps.cohorts.tests.factories import CohortFactory, EnrollmentFactory, TrainerAssignmentFactory
 from apps.programs.tests.factories import ProgramFactory
 
 from ..models import Project
@@ -262,6 +263,11 @@ class ProjectAdminCrudTests(AuthAPITestCase):
     # Vérifie les permissions RBAC pour les rôles non-admin
     def test_non_admin_can_read_but_cannot_mutate(self):
         project = ProjectFactory()
+        # Learner needs enrollment to see the project
+        cohort = CohortFactory(program=project.program)
+        EnrollmentFactory(user=self.learner, cohort=cohort)
+        # Trainer needs assignment to see the project
+        TrainerAssignmentFactory(user=self.trainer, cohort=cohort)
 
         # Learner peut lire
         assert self.auth(self.learner).get(PROJECTS_URL).status_code == 200
@@ -278,6 +284,19 @@ class ProjectAdminCrudTests(AuthAPITestCase):
             {"file": file},
             format="multipart",
         ).status_code == 403
+
+        # Trainer can read
+        assert self.auth(self.trainer).get(PROJECTS_URL).status_code == 200
+        assert self.auth(self.trainer).get(f"{PROJECTS_URL}{project.id}/").status_code == 200
+
+        # Trainer cannot mutate
+        assert self.auth(self.trainer).post(PROJECTS_URL, {"title": "X"}, format="json").status_code == 403
+
+    def test_learner_without_enrollment_sees_no_projects(self):
+        ProjectFactory()
+        response = self.auth(self.learner).get(PROJECTS_URL)
+        assert response.status_code == 200
+        assert response.data["count"] == 0
 
     def test_unauthenticated_cannot_access(self):
         project = ProjectFactory()

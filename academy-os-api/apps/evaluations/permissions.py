@@ -88,3 +88,44 @@ class CanViewEvaluation(permissions.BasePermission):
             return enrollment.user_id == user.id
 
         return False
+
+
+class CanViewCohortStats(permissions.BasePermission):
+    """Permission de consultation des statistiques d'une cohorte.
+
+    - Les administrateurs et organisateurs peuvent tout consulter.
+    - Les formateurs peuvent consulter les stats des cohortes auxquelles ils sont affectés.
+    - Les apprenants n'ont pas accès aux stats de cohorte.
+    """
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if not (user and user.is_authenticated):
+            return False
+        if user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+            return True
+        if user.role == User.Role.TRAINER:
+            return TrainerAssignment.objects.filter(
+                cohort=obj,
+                user=user,
+                status=TrainerAssignment.StatusEnum.ACTIVE,
+            ).exists()
+        return False
+
+
+class CanSubmitDeliverable(permissions.BasePermission):
+    """Permission de soumission de livrable.
+
+    Seuls les apprenants (et les superusers) peuvent soumettre des livrables.
+    La vérification de la propriété (apprenant assigné) est faite dans le service.
+    """
+
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated):
+            return False
+        if request.user.is_superuser:
+            return True
+        return request.user.role == User.Role.LEARNER

@@ -417,3 +417,41 @@ class AutoAssignmentTests(AuthAPITestCase):
 
         a2 = ProjectAssignment.objects.get(enrollment=enrollment, project=self.project2)
         self.assertEqual(a2.status, ProjectAssignment.StatusEnum.PENDING)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests Permissions Soumission
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DeliverableSubmitPermissionTests(AuthAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.admin = UserFactory(admin=True)
+        self.trainer = UserFactory(trainer=True)
+        self.learner = UserFactory()
+        self.cohort = CohortFactory()
+        self.enrollment = EnrollmentFactory(user=self.learner, cohort=self.cohort)
+        self.project = ProjectFactory(
+            program=self.cohort.program,
+            status=Project.StatusProjectEnum.PUBLISHED,
+        )
+        self.assignment = ProjectAssignment.objects.create(
+            enrollment=self.enrollment,
+            project=self.project,
+            status=ProjectAssignment.StatusEnum.IN_PROGRESS,
+        )
+
+    def test_learner_can_submit_deliverable(self):
+        url = f"{ASSIGNMENTS_URL}{self.assignment.id}/deliverables/submit/"
+        resp = self.auth(self.learner).post(url, {"comments": "Voici"}, format="json")
+        self.assertEqual(resp.status_code, 201)
+
+    def test_trainer_cannot_submit_deliverable(self):
+        url = f"{ASSIGNMENTS_URL}{self.assignment.id}/deliverables/submit/"
+        resp = self.auth(self.trainer).post(url, {"comments": "Test"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_admin_cannot_submit_deliverable(self):
+        url = f"{ASSIGNMENTS_URL}{self.assignment.id}/deliverables/submit/"
+        resp = self.auth(self.admin).post(url, {"comments": "Test"}, format="json")
+        self.assertEqual(resp.status_code, 403)

@@ -3,10 +3,12 @@ from rest_framework import permissions, status as http_status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from apps.cohorts.models import TrainerAssignment
 from apps.users.models import User
 from apps.users.permissions import IsAdminOrOrganizer, IsLearner
 
 from .models import Claim
+from .permissions import CanDeleteClaim
 from .serializers import ClaimCreateSerializer, ClaimDetailSerializer, ClaimUpdateSerializer
 from .services import create_claim, update_claim_status
 
@@ -71,8 +73,10 @@ class ClaimViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [IsLearner()]
-        if self.action in ("update", "partial_update", "destroy"):
+        if self.action in ("update", "partial_update"):
             return [IsAdminOrOrganizer()]
+        if self.action == "destroy":
+            return [CanDeleteClaim()]
         return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
@@ -93,6 +97,18 @@ class ClaimViewSet(viewsets.ModelViewSet):
                 "learner",
                 "handled_by",
             ).all()
+        elif user.role == User.Role.TRAINER:
+            assigned_cohort_ids = TrainerAssignment.objects.filter(
+                user=user,
+                status=TrainerAssignment.StatusEnum.ACTIVE,
+            ).values_list("cohort_id", flat=True)
+            queryset = Claim.objects.select_related(
+                "certificate__inscription__cohort__program",
+                "learner",
+                "handled_by",
+            ).filter(
+                certificate__inscription__cohort_id__in=assigned_cohort_ids
+            )
         elif user.role == User.Role.LEARNER:
             queryset = Claim.objects.select_related(
                 "certificate__inscription__cohort__program",
@@ -120,6 +136,8 @@ class ClaimViewSet(viewsets.ModelViewSet):
             User.Role.ADMIN,
             User.Role.ORGANIZER,
         ):
+            return obj
+        if user.role == User.Role.TRAINER:
             return obj
         if obj.learner_id != user.id:
             raise PermissionDenied("Vous n'avez pas accès à cette réclamation.")

@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 from apps.attachments.models import Attachment
 from apps.attachments.serializers import AttachmentSerializer, AttachmentUploadSerializer
 from apps.attachments.services import create_attachments
+from apps.cohorts.models import Enrollment, TrainerAssignment
+from apps.users.models import User
 from apps.users.permissions import IsAdmin
 
 from .models import Project
@@ -99,6 +101,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        user = self.request.user
+
+        if user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+            pass
+        elif user.role == User.Role.TRAINER:
+            program_ids = TrainerAssignment.objects.filter(
+                user=user,
+                status=TrainerAssignment.StatusEnum.ACTIVE,
+            ).values_list("cohort__program_id", flat=True)
+            queryset = queryset.filter(program_id__in=program_ids)
+        elif user.role == User.Role.LEARNER:
+            program_ids = Enrollment.objects.filter(
+                user=user,
+                status=Enrollment.StatusEnum.ACTIVE,
+            ).values_list("cohort__program_id", flat=True)
+            queryset = queryset.filter(program_id__in=program_ids)
+        else:
+            return queryset.none()
 
         program_param = self.request.query_params.get("program")
         if program_param:
