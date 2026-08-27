@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Star, Loader2, FileText } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSoumissionsByProjet, createReview } from '@/services/soumissionService';
+import { getDeliverables, reviewDeliverable } from '@/services/evaluations/evaluationService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,14 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 export const ProjetReviewPage: React.FC = () => {
-  const { projetId } = useParams<{ projetId: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: soumissions = [], isLoading } = useQuery({
-    queryKey: ['soumissions', projetId],
-    queryFn: () => getSoumissionsByProjet(projetId || ''),
-    enabled: !!projetId,
+    queryKey: ['deliverables', id],
+    queryFn: () => getDeliverables({ project: id }),
+    enabled: !!id,
   });
 
   const [selectedSoumission, setSelectedSoumission] = useState<string | null>(null);
@@ -29,20 +29,19 @@ export const ProjetReviewPage: React.FC = () => {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: (payload: { soumission_id: string; score: number; feedback: string }) =>
-      createReview({
-        soumission_id: payload.soumission_id,
+    mutationFn: (payload: { deliverable_id: string; score: number; feedback: string; status?: 'validated' | 'rejected' }) =>
+      reviewDeliverable(payload.deliverable_id, {
+        status: payload.status || 'validated',
         score: payload.score,
         feedback: payload.feedback,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['soumissions'] });
-      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['deliverables'] });
       toast.success('Review enregistrée');
       setSelectedSoumission(null);
       setReviewForm({ score: 0, feedback: '' });
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err?.message || 'Erreur lors de la review'),
   });
 
   const handleReview = (soumissionId: string) => {

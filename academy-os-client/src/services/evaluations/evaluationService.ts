@@ -64,6 +64,20 @@ export const deleteAssignment = async (
 // LIVRABLES
 // =====================================================
 
+export const getDeliverables = async (params?: {
+  status?: string
+  cohort?: string
+  project?: string
+  assignment?: string
+  user?: string
+}): Promise<Deliverable[]> => {
+  const response = await api.get('/deliverables/', {
+    params,
+  })
+
+  return response.data.results ?? response.data
+}
+
 export const getAssignmentDeliverables = async (
   assignmentId: string,
 ): Promise<Deliverable[]> => {
