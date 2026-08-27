@@ -284,3 +284,7 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
 
+# ─── Certificates Configuration ─────────────────────────────────────────────
+CERTIFICATE_ACHIEVEMENT_THRESHOLD = env.float('CERTIFICATE_ACHIEVEMENT_THRESHOLD', default=80.0)
+
+

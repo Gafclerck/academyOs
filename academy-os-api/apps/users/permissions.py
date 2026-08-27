@@ -1,4 +1,4 @@
-from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.permissions import BasePermission
 
 class HasRole(BasePermission):
     """Permission de base : autorise si user.role est dans allowed_roles.
@@ -36,10 +36,4 @@ class IsAdminOrTrainer(HasRole):
 class IsAdminOrOrganizerOrTrainer(HasRole):
     allowed_roles = ("admin", "organizer", "trainer")
 
-class ReadOnlyOrHasRole(HasRole):
-    """Exemple : lecture ouverte à tous les authentifiés, écriture réservée à allowed_roles."""
 
-    def has_permission(self, request, view):
-        if request.method in SAFE_METHODS:
-            return bool(request.user and request.user.is_authenticated)
-        return super().has_permission(request, view)

@@ -417,3 +417,100 @@ class AutoAssignmentTests(AuthAPITestCase):
 
         a2 = ProjectAssignment.objects.get(enrollment=enrollment, project=self.project2)
         self.assertEqual(a2.status, ProjectAssignment.StatusEnum.PENDING)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests Permissions Soumission
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DeliverableSubmitPermissionTests(AuthAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.admin = UserFactory(admin=True)
+        self.trainer = UserFactory(trainer=True)
+        self.learner = UserFactory()
+        self.cohort = CohortFactory()
+        self.enrollment = EnrollmentFactory(user=self.learner, cohort=self.cohort)
+        self.project = ProjectFactory(
+            program=self.cohort.program,
+            status=Project.StatusProjectEnum.PUBLISHED,
+        )
+        self.assignment = ProjectAssignment.objects.create(
+            enrollment=self.enrollment,
+            project=self.project,
+            status=ProjectAssignment.StatusEnum.IN_PROGRESS,
+        )
+
+    def test_learner_can_submit_deliverable(self):
+        url = f"{ASSIGNMENTS_URL}{self.assignment.id}/deliverables/submit/"
+        resp = self.auth(self.learner).post(url, {"comments": "Voici"}, format="json")
+        self.assertEqual(resp.status_code, 201)
+
+    def test_trainer_cannot_submit_deliverable(self):
+        url = f"{ASSIGNMENTS_URL}{self.assignment.id}/deliverables/submit/"
+        resp = self.auth(self.trainer).post(url, {"comments": "Test"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_admin_cannot_submit_deliverable(self):
+        url = f"{ASSIGNMENTS_URL}{self.assignment.id}/deliverables/submit/"
+        resp = self.auth(self.admin).post(url, {"comments": "Test"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+
+class DeliverableReviewCertificateThresholdTests(AuthAPITestCase):
+    """Vérifie le déclenchement du certificat à 80% et la complétion à 100% lors des reviews."""
+
+    def setUp(self):
+        super().setUp()
+        from apps.certificates.models import Certificate
+        from apps.evaluations.services import review_deliverable, submit_deliverable
+
+        self.trainer = UserFactory(trainer=True)
+        self.learner = UserFactory()
+        self.program = ProgramFactory()
+        self.projects = [
+            ProjectFactory(program=self.program, order=i, status=Project.StatusProjectEnum.PUBLISHED)
+            for i in range(1, 6)
+        ]  # 5 projets publiés
+        self.cohort = CohortFactory(program=self.program)
+        TrainerAssignmentFactory(cohort=self.cohort, user=self.trainer)
+        self.enrollment = EnrollmentFactory(cohort=self.cohort, user=self.learner, status=Enrollment.StatusEnum.ACTIVE)
+
+        # Créer les assignations
+        self.assignments = create_assignments_for_enrollment(self.enrollment)
+
+    def test_review_triggers_certificate_at_80_percent_and_completes_at_100_percent(self):
+        from apps.certificates.models import Certificate
+        from apps.evaluations.services import review_deliverable, submit_deliverable
+
+        # 1. Valider les 3 premiers projets (60%) -> Pas de certificat
+        for i in range(3):
+            a = self.assignments[i]
+            d = submit_deliverable(a, self.learner, {"comments": f"P{i+1}"})
+            review_deliverable(d, self.trainer, Deliverable.StatusEnum.VALIDATED, score=Decimal("18.00"))
+
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, Enrollment.StatusEnum.ACTIVE)
+        self.assertFalse(Certificate.objects.filter(inscription=self.enrollment).exists())
+
+        # 2. Valider le 4ème projet (4/5 = 80%) -> Certificat PENDING créé, inscription reste ACTIVE
+        a4 = self.assignments[3]
+        d4 = submit_deliverable(a4, self.learner, {"comments": "P4"})
+        review_deliverable(d4, self.trainer, Deliverable.StatusEnum.VALIDATED, score=Decimal("19.00"))
+
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, Enrollment.StatusEnum.ACTIVE)  # Toujours active pour faire le projet 5 !
+        self.assertTrue(Certificate.objects.filter(inscription=self.enrollment).exists())
+        cert = Certificate.objects.get(inscription=self.enrollment)
+        self.assertEqual(cert.status, Certificate.StatusCertificateEnum.PENDING)
+
+        # 3. Valider le 5ème projet (5/5 = 100%) -> Inscription COMPLETED
+        a5 = self.assignments[4]
+        d5 = submit_deliverable(a5, self.learner, {"comments": "P5"})
+        review_deliverable(d5, self.trainer, Deliverable.StatusEnum.VALIDATED, score=Decimal("20.00"))
+
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, Enrollment.StatusEnum.COMPLETED)
+        # Le certificat n'a pas été dupliqué
+        self.assertEqual(Certificate.objects.filter(inscription=self.enrollment).count(), 1)
+

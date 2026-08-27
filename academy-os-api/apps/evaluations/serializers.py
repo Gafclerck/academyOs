@@ -401,6 +401,15 @@ class LearnerProgressItemSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
+class LearnerAtRiskItemSerializer(serializers.Serializer):
+    enrollment_id = serializers.UUIDField()
+    user_id = serializers.UUIDField()
+    full_name = serializers.CharField()
+    email = serializers.EmailField()
+    progress_percentage = serializers.FloatField()
+    reason = serializers.CharField()
+
+
 class CohortStatsSerializer(serializers.Serializer):
     """Schéma OpenAPI pour les statistiques détaillées d'une cohorte."""
 
@@ -409,8 +418,8 @@ class CohortStatsSerializer(serializers.Serializer):
     program_id = serializers.UUIDField()
     program_name = serializers.CharField()
     status = serializers.CharField()
-    start_date = serializers.DateField()
-    end_date = serializers.DateField()
+    start_date = serializers.DateField(allow_null=True)
+    end_date = serializers.DateField(allow_null=True)
 
     total_learners = serializers.IntegerField()
     active_learners = serializers.IntegerField()
@@ -431,3 +440,168 @@ class CohortStatsSerializer(serializers.Serializer):
     projects_stats = ProjectStatItemSerializer(many=True)
     competency_stats = CompetencyStatItemSerializer(many=True)
     learners_progress = LearnerProgressItemSerializer(many=True)
+    learners_at_risk_count = serializers.IntegerField(default=0)
+    learners_at_risk = LearnerAtRiskItemSerializer(many=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERIALIZERS DASHBOARD APPRENANT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class LearnerCurrentProjectSerializer(serializers.Serializer):
+    assignment_id = serializers.UUIDField()
+    project_id = serializers.UUIDField()
+    title = serializers.CharField()
+    order = serializers.IntegerField()
+    description = serializers.CharField(allow_blank=True)
+    status = serializers.CharField()
+    deadline = serializers.DateTimeField(allow_null=True)
+
+
+class LearnerRecentDeliverableSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    assignment_id = serializers.UUIDField()
+    project_title = serializers.CharField()
+    version = serializers.IntegerField()
+    status = serializers.CharField()
+    score = serializers.FloatField(allow_null=True)
+    feedback = serializers.CharField()
+    submitted_at = serializers.DateTimeField(allow_null=True)
+    reviewed_at = serializers.DateTimeField(allow_null=True)
+    reviewed_by_name = serializers.CharField(allow_null=True)
+
+
+class LearnerCompetencyScoreSerializer(serializers.Serializer):
+    competency_name = serializers.CharField()
+    average_score = serializers.FloatField(allow_null=True)
+    latest_level = serializers.CharField()
+
+
+class LearnerDashboardSerializer(serializers.Serializer):
+    """Schéma OpenAPI pour le tableau de bord Apprenant."""
+
+    has_enrollment = serializers.BooleanField()
+    enrollment_id = serializers.UUIDField(allow_null=True)
+    cohort_id = serializers.UUIDField(allow_null=True)
+    cohort_name = serializers.CharField(allow_null=True)
+    program_name = serializers.CharField(allow_null=True)
+    mentor_name = serializers.CharField(allow_null=True)
+    mentor_email = serializers.EmailField(allow_null=True)
+
+    total_projects = serializers.IntegerField()
+    validated_projects = serializers.IntegerField()
+    progress_percentage = serializers.FloatField()
+    average_score = serializers.FloatField(allow_null=True)
+
+    current_project = LearnerCurrentProjectSerializer(allow_null=True)
+    recent_deliverables = LearnerRecentDeliverableSerializer(many=True)
+    competency_scores = LearnerCompetencyScoreSerializer(many=True)
+    certificate_status = serializers.CharField(allow_null=True)
+    certificate_id = serializers.UUIDField(allow_null=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERIALIZERS DASHBOARD FORMATEUR
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TrainerPendingReviewSerializer(serializers.Serializer):
+    deliverable_id = serializers.UUIDField()
+    assignment_id = serializers.UUIDField()
+    learner_id = serializers.UUIDField()
+    learner_name = serializers.CharField()
+    learner_email = serializers.EmailField()
+    cohort_id = serializers.UUIDField()
+    cohort_name = serializers.CharField()
+    project_title = serializers.CharField()
+    version = serializers.IntegerField()
+    submitted_at = serializers.DateTimeField(allow_null=True)
+    repo_url = serializers.CharField(allow_blank=True)
+    live_url = serializers.CharField(allow_blank=True)
+
+
+class TrainerCohortSummarySerializer(serializers.Serializer):
+    cohort_id = serializers.UUIDField()
+    cohort_name = serializers.CharField()
+    program_name = serializers.CharField()
+    status = serializers.CharField()
+    start_date = serializers.DateField(allow_null=True)
+    end_date = serializers.DateField(allow_null=True)
+    learners_count = serializers.IntegerField()
+    average_progress = serializers.FloatField()
+
+
+class TrainerRecentReviewSerializer(serializers.Serializer):
+    deliverable_id = serializers.UUIDField()
+    learner_name = serializers.CharField()
+    cohort_name = serializers.CharField()
+    project_title = serializers.CharField()
+    status = serializers.CharField()
+    score = serializers.FloatField(allow_null=True)
+    reviewed_at = serializers.DateTimeField(allow_null=True)
+
+
+class TrainerDashboardSerializer(serializers.Serializer):
+    """Schéma OpenAPI pour le tableau de bord Formateur."""
+
+    total_assigned_cohorts = serializers.IntegerField()
+    total_students = serializers.IntegerField()
+    direct_mentees_count = serializers.IntegerField()
+    pending_reviews_count = serializers.IntegerField()
+    pending_reviews = TrainerPendingReviewSerializer(many=True)
+    cohorts_summary = TrainerCohortSummarySerializer(many=True)
+    recent_reviews = TrainerRecentReviewSerializer(many=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERIALIZERS PROGRESSION DÉTAILLÉE APPRENANT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class EnrollmentAssignmentItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    project_id = serializers.UUIDField()
+    project_title = serializers.CharField()
+    project_order = serializers.IntegerField()
+    status = serializers.CharField()
+    final_score = serializers.FloatField(allow_null=True)
+    assigned_at = serializers.DateTimeField(allow_null=True)
+    deadline = serializers.DateTimeField(allow_null=True)
+    deliverables_count = serializers.IntegerField()
+    latest_deliverable_status = serializers.CharField(allow_null=True)
+    latest_deliverable_version = serializers.IntegerField(allow_null=True)
+
+
+class EnrollmentCompetencyItemSerializer(serializers.Serializer):
+    competency_name = serializers.CharField()
+    average_score = serializers.FloatField(allow_null=True)
+    level = serializers.CharField()
+
+
+class EnrollmentProgressSerializer(serializers.Serializer):
+    """Schéma OpenAPI pour la fiche de progression complète d'un apprenant."""
+
+    enrollment_id = serializers.UUIDField()
+    user_id = serializers.UUIDField()
+    user_full_name = serializers.CharField()
+    user_email = serializers.EmailField()
+    cohort_id = serializers.UUIDField()
+    cohort_name = serializers.CharField()
+    program_id = serializers.UUIDField()
+    program_name = serializers.CharField()
+    status = serializers.CharField()
+    enrolled_at = serializers.DateTimeField(allow_null=True)
+    mentor_name = serializers.CharField(allow_null=True)
+    mentor_email = serializers.EmailField(allow_null=True)
+
+    total_projects = serializers.IntegerField()
+    validated_projects = serializers.IntegerField()
+    progress_percentage = serializers.FloatField()
+    average_score = serializers.FloatField(allow_null=True)
+
+    is_at_risk = serializers.BooleanField()
+    risk_reason = serializers.CharField(allow_null=True)
+
+    assignments = EnrollmentAssignmentItemSerializer(many=True)
+    competency_stats = EnrollmentCompetencyItemSerializer(many=True)
+    certificate_status = serializers.CharField(allow_null=True)
+    certificate_id = serializers.UUIDField(allow_null=True)
+

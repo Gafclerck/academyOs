@@ -2,6 +2,7 @@ import logging
 
 from celery import shared_task
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -14,25 +15,54 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_certificate_email_task(self, certificate_id):
-    """Tâche Celery asynchrone : génère le PDF du certificat, le marque
-    comme envoyé, et envoie l'email de félicitations avec le PDF en
-    pièce jointe.
-
-    Séparée de send_email_async (apps.users.tasks) car celle-ci ne gère
-    pas les pièces jointes -- éviter de modifier un fichier partagé par
-    toute la squad pour un besoin propre aux certificats.
+def generate_certificate_pdf_task(self, certificate_id):
+    """Tâche Celery asynchrone non-bloquante : génère le PDF du certificat
+    et le stocke (local/S3).
     """
     try:
         certificate = Certificate.objects.select_related(
             "inscription__user", "inscription__cohort__program"
         ).get(pk=certificate_id)
 
-        certificate = generate_certificate_pdf(certificate)
+        # Si le fichier PDF a déjà été généré et existe sur le stockage, ne pas réécrire
+        if certificate.file_path and default_storage.exists(certificate.file_path):
+            logger.info("Le PDF du certificat %s existe déjà sur le stockage.", certificate_id)
+            return str(certificate.id)
 
-        certificate.status = Certificate.StatusCertificateEnum.SENT
+        generate_certificate_pdf(certificate)
+        logger.info("PDF du certificat %s généré avec succès en tâche de fond.", certificate.id)
+        return str(certificate.id)
+
+    except Certificate.DoesNotExist:
+        logger.error("Certificat introuvable pour la génération PDF : %s", certificate_id)
+    except Exception as exc:
+        logger.error(
+            "Erreur lors de la génération PDF du certificat %s : %s. Nouvelle tentative dans %ss...",
+            certificate_id, exc, self.default_retry_delay,
+        )
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_certificate_email_task(self, certificate_id):
+    """Tâche Celery asynchrone : marque le certificat comme envoyé, et
+    envoie l'email de félicitations avec le PDF existant en pièce jointe.
+
+    Le PDF est généré une seule et unique fois. Cette tâche ne le
+    régénère pas s'il existe déjà sur le stockage.
+    """
+    try:
+        certificate = Certificate.objects.select_related(
+            "inscription__user", "inscription__cohort__program"
+        ).get(pk=certificate_id)
+
+        # Si le PDF n'a pas encore été généré (cas de secours), le produire une première fois
+        if not certificate.file_path or not default_storage.exists(certificate.file_path):
+            certificate = generate_certificate_pdf(certificate)
+
         certificate.date_envoi = timezone.now()
-        certificate.save(update_fields=["status", "date_envoi"])
+        certificate.status = Certificate.StatusCertificateEnum.SENT
+        certificate.save(update_fields=["status", "date_envoi", "updated_at"])
 
         learner = certificate.inscription.user
         program_title = certificate.inscription.cohort.program.title

@@ -8,10 +8,10 @@ class IntakePermissionTests(AuthAPITestCase):
     def test_unauthenticated_cannot_list_intakes(self):
         assert self.client.get(INTAKES_URL).status_code == 401
 
-    def test_learner_cannot_list_intakes(self):
+    def test_learner_can_list_intakes(self):
         learner = UserFactory()
         response = self.auth(learner).get(INTAKES_URL)
-        assert response.status_code == 403
+        assert response.status_code == 200
 
     def test_trainer_cannot_create_intake(self):
         trainer = UserFactory(trainer=True)

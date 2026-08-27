@@ -11,3 +11,5 @@ staticfiles/
 htmlcov/
 .pytest_cache/
 CLASSE.md
+GEMINI.md
+AGENTS.md

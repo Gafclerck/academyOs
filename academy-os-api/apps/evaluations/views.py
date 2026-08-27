@@ -9,22 +9,28 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.cohorts.models import Cohort, TrainerAssignment
+from apps.cohorts.models import Cohort, Enrollment, TrainerAssignment
 from apps.evaluations.models import Deliverable, EvaluationCriterion, ProjectAssignment
-from apps.evaluations.permissions import CanGradeEvaluation, CanViewEvaluation
+from apps.evaluations.permissions import CanGradeEvaluation, CanSubmitDeliverable, CanViewCohortStats, CanViewEvaluation
 from apps.evaluations.serializers import (
     CohortStatsSerializer,
     DashboardStatsSerializer,
     DeliverableReviewSerializer,
     DeliverableSerializer,
     DeliverableSubmitSerializer,
+    EnrollmentProgressSerializer,
     EvaluationCriterionSerializer,
+    LearnerDashboardSerializer,
     ProjectAssignmentCreateSerializer,
     ProjectAssignmentSerializer,
+    TrainerDashboardSerializer,
 )
 from apps.evaluations.services import (
     get_cohort_stats,
     get_dashboard_stats,
+    get_enrollment_progress,
+    get_learner_dashboard_stats,
+    get_trainer_dashboard_stats,
     review_deliverable,
     submit_deliverable,
 )
@@ -208,7 +214,7 @@ class ProjectAssignmentViewSet(viewsets.ModelViewSet):
 class DeliverableSubmitView(APIView):
     """POST /api/v1/assignments/<assignment_id>/deliverables/submit/ - Soumettre un livrable (apprenant)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CanSubmitDeliverable]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
@@ -242,25 +248,10 @@ class DeliverableListView(generics.ListAPIView):
     """GET /api/v1/assignments/<assignment_id>/deliverables/ - Lister les livrables d'une assignation."""
 
     serializer_class = DeliverableSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [CanViewEvaluation]
 
     def get_queryset(self):
         assignment = get_object_or_404(ProjectAssignment, pk=self.kwargs["assignment_id"])
-        user = self.request.user
-        if not (user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
-            if user.role == User.Role.LEARNER:
-                if assignment.enrollment.user_id != user.id:
-                    raise PermissionDenied("Vous n'avez pas accès aux livrables de cette assignation.")
-            elif user.role == User.Role.TRAINER:
-                if not TrainerAssignment.objects.filter(
-                    cohort=assignment.enrollment.cohort, user=user, status=TrainerAssignment.StatusEnum.ACTIVE
-                ).exists():
-                    raise PermissionDenied(
-                        "Vous n'êtes pas formateur affecté à la cohorte de cette assignation."
-                    )
-            else:
-                raise PermissionDenied("Accès refusé.")
-
         return Deliverable.objects.filter(assignment=assignment).select_related(
             "assignment__project",
             "assignment__enrollment__user",
@@ -269,13 +260,9 @@ class DeliverableListView(generics.ListAPIView):
             "reviewed_by",
         ).prefetch_related("attachments", "criterion_scores__criterion")
 
-    @extend_schema(
-        summary="Lister les livrables d'une assignation",
-        description="Retourne la liste versionnée des livrables soumis pour une assignation donnée.",
-        responses={200: DeliverableSerializer(many=True)},
-        tags=["Evaluations"],
-    )
     def get(self, request, *args, **kwargs):
+        assignment = get_object_or_404(ProjectAssignment, pk=self.kwargs["assignment_id"])
+        self.check_object_permissions(request, assignment)
         return super().get(request, *args, **kwargs)
 
 
@@ -290,29 +277,7 @@ class DeliverableDetailView(generics.RetrieveAPIView):
         "reviewed_by",
     ).prefetch_related("attachments", "criterion_scores__criterion")
     serializer_class = DeliverableSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    @extend_schema(summary="Détail d'un livrable", tags=["Evaluations"])
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
-    def get_object(self):
-        obj = super().get_object()
-        user = self.request.user
-        if user.is_staff or user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
-            return obj
-        if user.role == User.Role.LEARNER:
-            if obj.assignment.enrollment.user_id != user.id:
-                raise PermissionDenied("Vous n'avez pas accès à ce livrable.")
-        elif user.role == User.Role.TRAINER:
-            cohort = obj.assignment.enrollment.cohort
-            if not TrainerAssignment.objects.filter(
-                cohort=cohort, user=user, status=TrainerAssignment.StatusEnum.ACTIVE
-            ).exists():
-                raise PermissionDenied(
-                    "Vous n'êtes pas formateur affecté à la cohorte de ce livrable."
-                )
-        return obj
+    permission_classes = [CanViewEvaluation]
 
 
 class DeliverableReviewView(APIView):
@@ -375,6 +340,8 @@ class DashboardStatsView(APIView):
 class CohortStatsView(APIView):
     """GET /api/v1/cohorts/<cohort_id>/stats/ - Statistiques & progression d'une cohorte."""
 
+    permission_classes = [CanViewCohortStats]
+
     @extend_schema(
         summary="Statistiques et progression d'une cohorte",
         description="Fournit la progression moyenne, le taux de validation, les indicateurs par projet et par compétence pour une cohorte donnée.",
@@ -383,22 +350,169 @@ class CohortStatsView(APIView):
     )
     def get(self, request, cohort_id):
         cohort = get_object_or_404(Cohort.objects.select_related("program"), pk=cohort_id)
+        self.check_object_permissions(request, cohort)
+        stats_data = get_cohort_stats(cohort)
+        return Response(stats_data, status=status.HTTP_200_OK)
 
-        user = request.user
-        if not (user and user.is_authenticated):
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Lister tous les livrables (file de correction / historique)",
+        description="Liste paginée des livrables, filtrable par `status` ('submitted', 'validated', 'rejected'), `cohort` (UUID), `project` (UUID), `assignment` (UUID), `user` (UUID). Les formateurs voient les livrables de leurs cohortes, les apprenants voient leurs propres soumissions.",
+        parameters=[
+            OpenApiParameter("status", str, OpenApiParameter.QUERY, description="Filtrer par statut ('submitted', 'validated', 'rejected')."),
+            OpenApiParameter("cohort", str, OpenApiParameter.QUERY, description="Filtrer par UUID de cohorte."),
+            OpenApiParameter("project", str, OpenApiParameter.QUERY, description="Filtrer par UUID de projet."),
+            OpenApiParameter("assignment", str, OpenApiParameter.QUERY, description="Filtrer par UUID d'assignation."),
+            OpenApiParameter("user", str, OpenApiParameter.QUERY, description="Filtrer par UUID d'apprenant."),
+        ],
+        tags=["Evaluations"],
+    ),
+)
+class DeliverableListRootView(generics.ListAPIView):
+    """GET /api/v1/deliverables/ - Liste globale des livrables pour file de correction et historique."""
+
+    serializer_class = DeliverableSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = (
+            Deliverable.objects.select_related(
+                "assignment__project",
+                "assignment__enrollment__user",
+                "assignment__enrollment__cohort",
+                "submitted_by",
+                "reviewed_by",
+            )
+            .prefetch_related("attachments", "criterion_scores__criterion")
+            .all()
+        )
 
         if not (user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER)):
             if user.role == User.Role.TRAINER:
-                is_assigned = TrainerAssignment.objects.filter(
-                    cohort=cohort,
+                assigned_cohort_ids = TrainerAssignment.objects.filter(
                     user=user,
                     status=TrainerAssignment.StatusEnum.ACTIVE,
-                ).exists()
-                if not is_assigned:
-                    raise PermissionDenied("Vous n'êtes pas affecté à cette cohorte.")
+                ).values_list("cohort_id", flat=True)
+                queryset = queryset.filter(assignment__enrollment__cohort_id__in=assigned_cohort_ids)
+            elif user.role == User.Role.LEARNER:
+                queryset = queryset.filter(submitted_by=user)
             else:
-                raise PermissionDenied("Accès réservé aux administrateurs et formateurs de la cohorte.")
+                return queryset.none()
 
-        stats_data = get_cohort_stats(cohort)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+
+        cohort_param = self.request.query_params.get("cohort")
+        if cohort_param:
+            try:
+                cohort_uuid = UUID(cohort_param)
+            except ValueError:
+                raise ValidationError({"cohort": ["UUID invalide."]})
+            queryset = queryset.filter(assignment__enrollment__cohort_id=cohort_uuid)
+
+        project_param = self.request.query_params.get("project")
+        if project_param:
+            try:
+                project_uuid = UUID(project_param)
+            except ValueError:
+                raise ValidationError({"project": ["UUID invalide."]})
+            queryset = queryset.filter(assignment__project_id=project_uuid)
+
+        assignment_param = self.request.query_params.get("assignment")
+        if assignment_param:
+            try:
+                assignment_uuid = UUID(assignment_param)
+            except ValueError:
+                raise ValidationError({"assignment": ["UUID invalide."]})
+            queryset = queryset.filter(assignment_id=assignment_uuid)
+
+        user_param = self.request.query_params.get("user")
+        if user_param:
+            try:
+                user_uuid = UUID(user_param)
+            except ValueError:
+                raise ValidationError({"user": ["UUID invalide."]})
+            queryset = queryset.filter(submitted_by_id=user_uuid)
+
+        return queryset.order_by("-submitted_at")
+
+
+class LearnerDashboardView(APIView):
+    """GET /api/v1/dashboard/learner/ - Tableau de bord personnalisé de l'apprenant."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary="Dashboard Apprenant",
+        description="Fournit la synthèse de progression de l'apprenant connecté : % d'avancement, projets validés/total, projet actif, mentor, derniers livrables et compétences. Filtrable par `cohort` (UUID).",
+        parameters=[
+            OpenApiParameter("cohort", str, OpenApiParameter.QUERY, description="Filtrer par UUID de cohorte spécifique."),
+        ],
+        responses={200: LearnerDashboardSerializer},
+        tags=["Dashboard"],
+    )
+    def get(self, request):
+        cohort_param = request.query_params.get("cohort")
+        cohort_uuid = None
+        if cohort_param:
+            try:
+                cohort_uuid = UUID(cohort_param)
+            except ValueError:
+                raise ValidationError({"cohort": ["UUID invalide."]})
+        stats_data = get_learner_dashboard_stats(request.user, cohort_id=cohort_uuid)
         return Response(stats_data, status=status.HTTP_200_OK)
+
+
+class TrainerDashboardView(APIView):
+    """GET /api/v1/dashboard/trainer/ - Tableau de bord consolidé pour le formateur."""
+
+    permission_classes = [IsAdminOrOrganizerOrTrainer]
+
+    @extend_schema(
+        summary="Dashboard Formateur",
+        description="Fournit la vue consolidée multi-cohortes pour le formateur : total étudiants, mentorés, livrables en attente de correction, et résumé par cohorte. Les administrateurs et organisateurs peuvent inspecter le dashboard d'un formateur spécifique via `?trainer=<uuid>`.",
+        parameters=[
+            OpenApiParameter("trainer", str, OpenApiParameter.QUERY, description="Filtrer par UUID de formateur (Admin / Organisateur uniquement)."),
+        ],
+        responses={200: TrainerDashboardSerializer},
+        tags=["Dashboard"],
+    )
+    def get(self, request):
+        target_user = request.user
+        trainer_param = request.query_params.get("trainer")
+        if trainer_param:
+            if request.user.is_superuser or request.user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+                try:
+                    trainer_uuid = UUID(trainer_param)
+                except ValueError:
+                    raise ValidationError({"trainer": ["UUID invalide."]})
+                target_user = get_object_or_404(User.objects.filter(role=User.Role.TRAINER), pk=trainer_uuid)
+            elif str(request.user.id) != trainer_param:
+                raise PermissionDenied("Vous ne pouvez pas consulter le dashboard d'un autre formateur.")
+        stats_data = get_trainer_dashboard_stats(target_user)
+        return Response(stats_data, status=status.HTTP_200_OK)
+
+
+class EnrollmentProgressView(APIView):
+    """GET /api/v1/enrollments/<enrollment_id>/progress/ - Fiche de progression détaillée d'un apprenant."""
+
+    permission_classes = [CanViewEvaluation]
+
+    @extend_schema(
+        summary="Fiche de progression détaillée d'un apprenant",
+        description="Fournit le détail complet de l'avancement d'un apprenant au sein d'une cohorte (assignations, historique des livrables, compétences, statut à risque).",
+        responses={200: EnrollmentProgressSerializer},
+        tags=["Cohorts"],
+    )
+    def get(self, request, enrollment_id):
+        enrollment = get_object_or_404(
+            Enrollment.objects.select_related("user", "cohort__program", "mentor__user"),
+            pk=enrollment_id,
+        )
+        self.check_object_permissions(request, enrollment)
+        progress_data = get_enrollment_progress(enrollment)
+        return Response(progress_data, status=status.HTTP_200_OK)
+

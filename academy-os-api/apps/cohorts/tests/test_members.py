@@ -23,6 +23,29 @@ class EnrollmentEndpointTests(AuthAPITestCase):
         learner = UserFactory()
         assert self.auth(learner).get(self.url).status_code == 403
 
+    def test_assigned_trainer_can_list_enrollments(self):
+        trainer = UserFactory(trainer=True)
+        TrainerAssignmentFactory(cohort=self.cohort, user=trainer)
+        learner = UserFactory()
+        EnrollmentFactory(cohort=self.cohort, user=learner)
+        response = self.auth(trainer).get(self.url)
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+
+    def test_unassigned_trainer_cannot_list_enrollments(self):
+        trainer = UserFactory(trainer=True)
+        response = self.auth(trainer).get(self.url)
+        assert response.status_code == 403
+
+    def test_assigned_trainer_cannot_post_enrollments(self):
+        trainer = UserFactory(trainer=True)
+        TrainerAssignmentFactory(cohort=self.cohort, user=trainer)
+        learner = UserFactory()
+        response = self.auth(trainer).post(
+            self.url, {"emails": [learner.email]}, format="json"
+        )
+        assert response.status_code == 403
+
     def test_organizer_can_add_learners(self):
         learner = UserFactory()
         response = self.auth(self.organizer).post(
@@ -127,6 +150,29 @@ class TrainerAssignmentEndpointTests(AuthAPITestCase):
     def test_admin_can_access(self):
         admin = UserFactory(admin=True)
         assert self.auth(admin).get(self.url).status_code == 200
+
+    def test_enrolled_learner_can_list_cohort_trainers(self):
+        learner = UserFactory()
+        EnrollmentFactory(cohort=self.cohort, user=learner, status=Enrollment.StatusEnum.ACTIVE)
+        trainer = UserFactory(trainer=True)
+        TrainerAssignmentFactory(cohort=self.cohort, user=trainer)
+        response = self.auth(learner).get(self.url)
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+
+    def test_unenrolled_learner_cannot_list_cohort_trainers(self):
+        learner = UserFactory()
+        response = self.auth(learner).get(self.url)
+        assert response.status_code == 403
+
+    def test_enrolled_learner_cannot_post_trainer_assignments(self):
+        learner = UserFactory()
+        EnrollmentFactory(cohort=self.cohort, user=learner, status=Enrollment.StatusEnum.ACTIVE)
+        trainer = UserFactory(trainer=True)
+        response = self.auth(learner).post(
+            self.url, {"emails": [trainer.email]}, format="json"
+        )
+        assert response.status_code == 403
 
     def test_email_error_isolated_in_batch(self):
         from unittest.mock import patch

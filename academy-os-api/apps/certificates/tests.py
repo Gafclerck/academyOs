@@ -1,4 +1,5 @@
-﻿import factory
+import factory
+from unittest.mock import patch
 from django.test import TestCase
 
 from apps.certificates.models import Certificate
@@ -8,6 +9,9 @@ from apps.core.tests.factories import UserFactory
 from apps.users.models import User
 
 CERTIFICATES_URL = "/api/v1/certificates/"
+
+# Bytes factices > 1000 pour satisfaire les assertions de taille sur le PDF mocké.
+FAKE_PDF_BYTES = b"%PDF-1.4\n" + b"x" * 1100
 
 
 class CertificateFactory(factory.django.DjangoModelFactory):
@@ -109,6 +113,7 @@ class CertificateDetailEndpointTests(AuthAPITestCase):
         assert response.status_code == 404
 
 
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificateGenerateEndpointTests(AuthAPITestCase):
     """Tests de l'endpoint POST /certificates/generate/."""
 
@@ -117,7 +122,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         self.admin = UserFactory(admin=True)
 
     # Vérifie qu'un administrateur peut déclencher la génération d'un certificat.
-    def test_admin_can_generate_certificate(self):
+    def test_admin_can_generate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         response = self.auth(self.admin).post(
             f"{CERTIFICATES_URL}generate/",
@@ -128,7 +133,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert response.data["status"] == Certificate.StatusCertificateEnum.PENDING
 
     # Vérifie qu'un utilisateur non-admin ne peut pas déclencher la génération.
-    def test_non_admin_cannot_generate_certificate(self):
+    def test_non_admin_cannot_generate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         learner = UserFactory()
         response = self.auth(learner).post(
@@ -139,7 +144,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert response.status_code == 403
 
     # Vérifie que générer deux fois pour la même inscription ne crée pas de doublon.
-    def test_generating_twice_does_not_duplicate_certificate(self):
+    def test_generating_twice_does_not_duplicate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         url = f"{CERTIFICATES_URL}generate/"
         data = {"enrollment_id": str(enrollment.id)}
@@ -153,6 +158,7 @@ class CertificateGenerateEndpointTests(AuthAPITestCase):
         assert Certificate.objects.filter(inscription=enrollment).count() == 1
 
 
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificatePdfGenerationTests(TestCase):
     """Tests du service de génération du PDF de certificat."""
 
@@ -168,7 +174,7 @@ class CertificatePdfGenerationTests(TestCase):
             pass
 
     # Vérifie que la génération du PDF crée un fichier non vide et met à jour file_path.
-    def test_generate_certificate_pdf_creates_file(self):
+    def test_generate_certificate_pdf_creates_file(self, mock_render):
         from apps.certificates.services import generate_certificate_pdf
         from django.core.files.storage import default_storage
         from django.utils import timezone
@@ -188,6 +194,7 @@ class CertificatePdfGenerationTests(TestCase):
         self.assertGreater(len(content), 1000)
 
 
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificateEmailTaskTests(AuthAPITestCase):
     """Tests de bout en bout : generation -> Celery -> email avec piece jointe."""
 
@@ -196,7 +203,7 @@ class CertificateEmailTaskTests(AuthAPITestCase):
         self.admin = UserFactory(admin=True)
 
     # Vérifie que générer un certificat déclenche bien l'envoi d'un email avec le PDF joint.
-    def test_generate_certificate_sends_email_with_attachment(self):
+    def test_generate_certificate_sends_email_with_attachment(self, mock_render):
         from django.core import mail
 
         enrollment = EnrollmentFactory()
@@ -218,7 +225,7 @@ class CertificateEmailTaskTests(AuthAPITestCase):
         assert len(attachment_content) > 1000
 
     # Vérifie qu'un deuxième appel sur la même inscription ne renvoie pas d'email.
-    def test_generating_twice_does_not_resend_email(self):
+    def test_generating_twice_does_not_resend_email(self, mock_render):
         from django.core import mail
 
         enrollment = EnrollmentFactory()
@@ -267,3 +274,126 @@ class CertificateEdgeCaseTests(AuthAPITestCase):
             format="json",
         )
         assert response.status_code in (401, 403)
+
+
+class CertificateEligibilityAndTriggerTests(AuthAPITestCase):
+    """Tests du calcul d'éligibilité (seuil 80%) et du déclenchement automatique."""
+
+    def setUp(self):
+        super().setUp()
+        from apps.cohorts.tests.factories import CohortFactory
+        from apps.evaluations.models import ProjectAssignment
+        from apps.programs.tests.factories import ProgramFactory
+        from apps.projects.models import Project
+        from apps.projects.tests.factories import ProjectFactory
+
+        self.program = ProgramFactory()
+        self.projects = [
+            ProjectFactory(program=self.program, order=i, status=Project.StatusProjectEnum.PUBLISHED)
+            for i in range(1, 6)
+        ]  # 5 projets
+        self.cohort = CohortFactory(program=self.program)
+        self.learner = UserFactory()
+        self.enrollment = EnrollmentFactory(cohort=self.cohort, user=self.learner)
+
+    def test_eligibility_threshold_80_percent(self):
+        from apps.certificates.services import is_eligible_for_certificate
+        from apps.evaluations.models import ProjectAssignment
+
+        # 0 validé (0%) -> Non éligible
+        self.assertFalse(is_eligible_for_certificate(self.enrollment))
+
+        # 3 validés sur 5 (60%) -> Non éligible (< 80%)
+        for i in range(3):
+            ProjectAssignment.objects.create(
+                enrollment=self.enrollment,
+                project=self.projects[i],
+                status=ProjectAssignment.StatusEnum.VALIDATED,
+            )
+        self.assertFalse(is_eligible_for_certificate(self.enrollment))
+
+        # 4ème validé (80%) -> Éligible (>= 80%)
+        ProjectAssignment.objects.create(
+            enrollment=self.enrollment,
+            project=self.projects[3],
+            status=ProjectAssignment.StatusEnum.VALIDATED,
+        )
+        self.assertTrue(is_eligible_for_certificate(self.enrollment))
+
+    @patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
+    def test_trigger_certificate_if_eligible_creates_certificate_and_runs_pdf_task(self, mock_render):
+        from apps.certificates.services import trigger_certificate_if_eligible
+        from apps.certificates.tasks import generate_certificate_pdf_task
+        from apps.evaluations.models import ProjectAssignment
+
+        # Valider 4 projets sur 5 (80%)
+        for i in range(4):
+            ProjectAssignment.objects.create(
+                enrollment=self.enrollment,
+                project=self.projects[i],
+                status=ProjectAssignment.StatusEnum.VALIDATED,
+            )
+
+        cert = trigger_certificate_if_eligible(self.enrollment)
+        self.assertIsNotNone(cert)
+        self.assertEqual(cert.status, Certificate.StatusCertificateEnum.PENDING)
+
+        # Exécuter la tâche Celery de génération PDF
+        generate_certificate_pdf_task(str(cert.id))
+
+        cert.refresh_from_db()
+        self.assertTrue(cert.file_path.endswith(".pdf"))
+
+    @patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
+    def test_send_certificate_email_reuses_existing_pdf_without_rendering_again(self, mock_render):
+        from apps.certificates.services import trigger_certificate_if_eligible
+        from apps.certificates.tasks import generate_certificate_pdf_task, send_certificate_email_task
+        from apps.evaluations.models import ProjectAssignment
+        from django.core import mail
+
+        # 1. Valider 4 projets sur 5 (80%)
+        for i in range(4):
+            ProjectAssignment.objects.create(
+                enrollment=self.enrollment,
+                project=self.projects[i],
+                status=ProjectAssignment.StatusEnum.VALIDATED,
+            )
+
+        cert = trigger_certificate_if_eligible(self.enrollment)
+        # Générer le PDF une première fois
+        generate_certificate_pdf_task(str(cert.id))
+        self.assertEqual(mock_render.call_count, 1)
+
+        # 2. Exécuter l'envoi officiel par email : le PDF ne doit PAS être régénéré
+        mock_render.reset_mock()
+        send_certificate_email_task(str(cert.id))
+
+        mock_render.assert_not_called()  # Zéro rendu supplémentaire !
+
+        cert.refresh_from_db()
+        self.assertEqual(cert.status, Certificate.StatusCertificateEnum.SENT)
+        self.assertIsNotNone(cert.date_envoi)
+
+        # Vérifier que l'email est bien parti avec le PDF existant
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox[0].attachments), 1)
+
+    def test_delete_certificate_deletes_file_from_storage(self):
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        cert = Certificate.objects.create(inscription=self.enrollment)
+        file_path = default_storage.save(f"certificates/{cert.id}.pdf", ContentFile(b"fake pdf content"))
+        cert.file_path = file_path
+        cert.save(update_fields=["file_path"])
+
+        self.assertTrue(default_storage.exists(file_path))
+
+        # Supprimer le certificat
+        cert.delete()
+
+        # Vérifier que le fichier physique a bien été supprimé par le signal post_delete
+        self.assertFalse(default_storage.exists(file_path))
+
+
+

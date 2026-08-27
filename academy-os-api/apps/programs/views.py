@@ -1,9 +1,15 @@
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import viewsets
+from rest_framework import permissions, status, viewsets
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from apps.users.permissions import IsAdmin
+from apps.cohorts.models import Enrollment, TrainerAssignment
+from apps.users.models import User
+from apps.users.permissions import IsAdmin, IsAdminOrOrganizer
 from .models import Program
-from .serializers import ProgramSerializer
+from .serializers import ProgramSerializer, ProgramStatsSerializer
+from .services import get_program_stats
 
 
 @extend_schema_view(
@@ -15,8 +21,55 @@ from .serializers import ProgramSerializer
     destroy=extend_schema(summary="Supprimer un programme", tags=["Programs"]),
 )
 class ProgramViewSet(viewsets.ModelViewSet):
-    """CRUD complet sur les programmes - Réservé aux administrateurs."""
+    """CRUD sur les programmes.
+
+    - Écriture : réservée aux administrateurs.
+    - Lecture : filtrée selon le rôle.
+      - Admin/Organizer : tous les programmes.
+      - Formateur : programmes des cohortes où il est affecté.
+      - Apprenant : programmes des cohortes où il est inscrit.
+    """
 
     queryset = Program.objects.all()
     serializer_class = ProgramSerializer
-    permission_classes = [IsAdmin]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+            return super().get_queryset()
+        if user.role == User.Role.TRAINER:
+            program_ids = TrainerAssignment.objects.filter(
+                user=user,
+                status=TrainerAssignment.StatusEnum.ACTIVE,
+            ).values_list("cohort__program_id", flat=True)
+            return super().get_queryset().filter(id__in=program_ids)
+        if user.role == User.Role.LEARNER:
+            program_ids = Enrollment.objects.filter(
+                user=user,
+                status=Enrollment.StatusEnum.ACTIVE,
+            ).values_list("cohort__program_id", flat=True)
+            return super().get_queryset().filter(id__in=program_ids)
+        return super().get_queryset().none()
+
+
+class ProgramStatsView(APIView):
+    """GET /api/v1/programs/<program_id>/stats/ - Statistiques consolidées d'un programme."""
+
+    permission_classes = [IsAdminOrOrganizer]
+
+    @extend_schema(
+        summary="Statistiques consolidées d'un programme",
+        description="Fournit la synthèse multi-cohortes pour un programme de formation (taux de complétion, validation, indicateurs par projet et par cohorte).",
+        responses={200: ProgramStatsSerializer},
+        tags=["Programs"],
+    )
+    def get(self, request, program_id):
+        program = get_object_or_404(Program, pk=program_id)
+        stats_data = get_program_stats(program)
+        return Response(stats_data, status=status.HTTP_200_OK)
+

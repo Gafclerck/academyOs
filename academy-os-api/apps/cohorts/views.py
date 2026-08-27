@@ -2,7 +2,7 @@ from uuid import UUID
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import generics, status
+from rest_framework import generics, permissions, status
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
@@ -12,6 +12,10 @@ from rest_framework.views import APIView
 from apps.users.models import User
 from apps.users.permissions import IsAdmin, IsAdminOrOrganizer
 from .models import Cohort, Enrollment, Intake, TrainerAssignment
+from .permissions import (
+    CanViewOrManageCohortEnrollments,
+    CanViewOrManageTrainerAssignments,
+)
 from .serializers import (
     AddEmailsSerializer,
     AssignMentorSerializer,
@@ -33,11 +37,19 @@ from .services import add_users_to_cohort, assign_mentor
     destroy=extend_schema(summary="Delete an intake", tags=["Intakes"]),
 )
 class IntakeViewSet(viewsets.ModelViewSet):
-    """Full CRUD on intakes."""
+    """CRUD sur les intakes.
+
+    - Écriture : réservée aux administrateurs.
+    - Lecture : ouverte à tous les utilisateurs authentifiés.
+    """
 
     queryset = Intake.objects.all()
     serializer_class = IntakeSerializer
-    permission_classes = [IsAdmin]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
 
 
 @extend_schema_view(
@@ -49,15 +61,45 @@ class IntakeViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(summary="Delete a cohort", tags=["Cohorts"]),
 )
 class CohortViewSet(viewsets.ModelViewSet):
-    """Full CRUD on cohorts."""
+    """CRUD sur les cohortes.
+
+    - Écriture : réservée aux administrateurs.
+    - Lecture : filtrée selon le rôle.
+      - Admin/Organizer : toutes les cohortes.
+      - Formateur : cohortes où il est affecté.
+      - Apprenant : cohortes où il est inscrit.
+    """
 
     queryset = Cohort.objects.select_related("intake", "program").all()
     serializer_class = CohortSerializer
-    permission_classes = [IsAdmin]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
 
     def get_queryset(self):
         """Liste les cohortes, filtrable par `intake` et `program` (UUID)."""
         queryset = super().get_queryset()
+        user = self.request.user
+
+        if user.is_superuser or user.role in (User.Role.ADMIN, User.Role.ORGANIZER):
+            pass
+        elif user.role == User.Role.TRAINER:
+            cohort_ids = TrainerAssignment.objects.filter(
+                user=user,
+                status=TrainerAssignment.StatusEnum.ACTIVE,
+            ).values_list("cohort_id", flat=True)
+            queryset = queryset.filter(id__in=cohort_ids)
+        elif user.role == User.Role.LEARNER:
+            cohort_ids = Enrollment.objects.filter(
+                user=user,
+                status=Enrollment.StatusEnum.ACTIVE,
+            ).values_list("cohort_id", flat=True)
+            queryset = queryset.filter(id__in=cohort_ids)
+        else:
+            return queryset.none()
+
         for param, field in (("intake", "intake_id"), ("program", "program_id")):
             raw = self.request.query_params.get(param)
             if raw:
@@ -117,6 +159,7 @@ class _MembersBaseView(generics.ListCreateAPIView):
     ),
 )
 class EnrollmentListCreateView(_MembersBaseView):
+    permission_classes = [CanViewOrManageCohortEnrollments]
     expected_role = User.Role.LEARNER
     model = Enrollment
     serializer_class = EnrollmentSerializer
@@ -142,6 +185,7 @@ class EnrollmentListCreateView(_MembersBaseView):
     ),
 )
 class TrainerAssignmentListCreateView(_MembersBaseView):
+    permission_classes = [CanViewOrManageTrainerAssignments]
     expected_role = User.Role.TRAINER
     model = TrainerAssignment
     serializer_class = TrainerAssignmentSerializer
