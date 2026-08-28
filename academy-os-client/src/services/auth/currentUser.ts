@@ -4,7 +4,7 @@ import type { User } from '@/types/auth'
 export const getCurrentUserService = async (): Promise<User> => {
   const response = await API.get<User>('auth/me/')
 
-  return response.data
+  return response.data 
 }
 
 export const updateMeService = async (

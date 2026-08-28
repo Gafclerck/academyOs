@@ -20,7 +20,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import ThemeToggle from '@/components/theme-toggle'
 
 import logoXarala from '@/assets/logo-xarala.png'
 
@@ -30,6 +29,7 @@ import {
 } from '@/lib/schemas'
 
 import { forgotPassword } from '@/services/auth/forgotPassword'
+import ThemeToggle from '@/components/theme-toggle'
 
 // ─────────────────────────────────────────────
 // ANIMATIONS
@@ -328,13 +328,7 @@ const ForgotPassword = () => {
               />
             </motion.div>
 
-            <p
-              className="
-                mt-2 text-sm
-                text-slate-500
-                dark:text-slate-400
-              "
-            >
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               La technologie dans votre langue.
             </p>
           </motion.div>

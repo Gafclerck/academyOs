@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -43,9 +42,9 @@ export const CohorteListPage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  /* ============================================================
-     UTILISATEUR CONNECTÉ
-  ============================================================ */
+  // ==========================================================
+  // UTILISATEUR CONNECTÉ
+  // ==========================================================
 
   const role = user?.role
 
@@ -54,9 +53,9 @@ export const CohorteListPage: React.FC = () => {
   const isTrainer = role === 'trainer'
   const isLearner = role === 'learner'
 
-  /* ============================================================
-     PERSONNALISATION
-  ============================================================ */
+  // ==========================================================
+  // PERSONNALISATION
+  // ==========================================================
 
   const pageTitle = isAdmin
     ? 'Cohortes'
@@ -74,11 +73,20 @@ export const CohorteListPage: React.FC = () => {
         ? 'Retrouvez les cohortes qui vous sont assignées.'
         : 'Retrouvez les informations relatives à votre parcours.'
 
-  const showCreateButton = isAdmin || isOrganizer
+  // ==========================================================
+  // CRÉATION
+  // ==========================================================
+  // Seul l'administrateur peut créer une cohorte.
+  //
+  // IMPORTANT :
+  // L'organisateur ne doit PAS voir le bouton "Nouvelle cohorte".
+  // ==========================================================
 
-  /* ============================================================
-     COHORTES
-  ============================================================ */
+  const showCreateButton = isAdmin
+
+  // ==========================================================
+  // COHORTES
+  // ==========================================================
 
   const {
     data: cohortes = [],
@@ -89,36 +97,36 @@ export const CohorteListPage: React.FC = () => {
     isFetching,
   } = useCohortes()
 
-  /* ============================================================
-     PROGRAMMES
-  ============================================================ */
+  // ==========================================================
+  // PROGRAMMES
+  // ==========================================================
 
   const {
     data: programmes = [],
     isLoading: programmesLoading,
   } = useProgrammes()
 
-  /* ============================================================
-     RENTRÉES
-  ============================================================ */
+  // ==========================================================
+  // RENTRÉES
+  // ==========================================================
 
   const {
     data: rentrees = [],
     isLoading: rentreesLoading,
   } = useRentrees()
 
-  /* ============================================================
-     LOADING
-  ============================================================ */
+  // ==========================================================
+  // LOADING
+  // ==========================================================
 
   const isLoading =
     cohortesLoading ||
     programmesLoading ||
     rentreesLoading
 
-  /* ============================================================
-     MAP PROGRAMMES
-  ============================================================ */
+  // ==========================================================
+  // MAP PROGRAMMES
+  // ==========================================================
 
   const programmeMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -133,9 +141,9 @@ export const CohorteListPage: React.FC = () => {
     return map
   }, [programmes])
 
-  /* ============================================================
-     MAP RENTRÉES
-  ============================================================ */
+  // ==========================================================
+  // MAP RENTRÉES
+  // ==========================================================
 
   const rentreeMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -150,9 +158,9 @@ export const CohorteListPage: React.FC = () => {
     return map
   }, [rentrees])
 
-  /* ============================================================
-     KPI
-  ============================================================ */
+  // ==========================================================
+  // KPI
+  // ==========================================================
 
   const totalCohortes = cohortes.length
 
@@ -167,9 +175,9 @@ export const CohorteListPage: React.FC = () => {
       cohorte.status === 'upcoming',
   ).length
 
-  /* ============================================================
-     TABLE ADMIN / ORGANIZER
-  ============================================================ */
+  // ==========================================================
+  // TABLE ADMIN / ORGANIZER
+  // ==========================================================
 
   const columns = useMemo<
     ColumnDef<Cohorte>[]
@@ -219,6 +227,10 @@ export const CohorteListPage: React.FC = () => {
         },
       },
 
+      // ======================================================
+      // PROGRAMME
+      // ======================================================
+
       {
         accessorKey: 'program',
 
@@ -247,6 +259,10 @@ export const CohorteListPage: React.FC = () => {
           )
         },
       },
+
+      // ======================================================
+      // RENTRÉE
+      // ======================================================
 
       {
         accessorKey: 'intake',
@@ -277,6 +293,10 @@ export const CohorteListPage: React.FC = () => {
         },
       },
 
+      // ======================================================
+      // DÉBUT
+      // ======================================================
+
       {
         accessorKey: 'start_date',
 
@@ -297,6 +317,10 @@ export const CohorteListPage: React.FC = () => {
           </span>
         ),
       },
+
+      // ======================================================
+      // FIN
+      // ======================================================
 
       {
         accessorKey: 'end_date',
@@ -319,6 +343,10 @@ export const CohorteListPage: React.FC = () => {
         ),
       },
 
+      // ======================================================
+      // STATUT
+      // ======================================================
+
       {
         accessorKey: 'status',
 
@@ -330,6 +358,10 @@ export const CohorteListPage: React.FC = () => {
           />
         ),
       },
+
+      // ======================================================
+      // ACTIONS
+      // ======================================================
 
       {
         id: 'actions',
@@ -382,9 +414,9 @@ export const CohorteListPage: React.FC = () => {
     ],
   )
 
-  /* ============================================================
-     VUE APPRENANT
-  ============================================================ */
+  // ==========================================================
+  // VUE APPRENANT
+  // ==========================================================
 
   const maCohorte = isLearner
     ? cohortes[0]
@@ -406,9 +438,9 @@ export const CohorteListPage: React.FC = () => {
         )
       : undefined)
 
-  /* ============================================================
-     RENDER
-  ============================================================ */
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <div className="space-y-6">
@@ -438,10 +470,6 @@ export const CohorteListPage: React.FC = () => {
               />
             ) : isOrganizer ? (
               <BriefcaseBusiness
-                className="size-4 text-[#FF6B0B]"
-              />
-            ) : isTrainer ? (
-              <GraduationCap
                 className="size-4 text-[#FF6B0B]"
               />
             ) : (
@@ -494,6 +522,11 @@ export const CohorteListPage: React.FC = () => {
 
         </div>
 
+        {/* ====================================================
+            NOUVELLE COHORTE
+            ADMIN UNIQUEMENT
+        ==================================================== */}
+
         {showCreateButton && (
           <Button
             onClick={() =>
@@ -512,6 +545,7 @@ export const CohorteListPage: React.FC = () => {
             "
           >
             <Plus className="mr-2 size-4" />
+
             Nouvelle cohorte
           </Button>
         )}
@@ -626,6 +660,10 @@ export const CohorteListPage: React.FC = () => {
             </div>
           </div>
 
+          {/* ==================================================
+              KPI
+          ================================================== */}
+
           <div
             className="
               grid
@@ -655,6 +693,10 @@ export const CohorteListPage: React.FC = () => {
               icon={Calendar}
             />
           </div>
+
+          {/* ==================================================
+              TABLE
+          ================================================== */}
 
           <DataTable
             columns={columns}
@@ -1520,6 +1562,7 @@ const LearnerView: React.FC<
           dark:bg-white/[0.02]
         "
       >
+
         <div
           className="
             flex
@@ -1559,6 +1602,7 @@ const LearnerView: React.FC<
           Vous n’êtes actuellement associé
           à aucune cohorte.
         </p>
+
       </div>
     )
   }
@@ -1675,6 +1719,10 @@ const LearnerView: React.FC<
 
         </div>
 
+        {/* ==================================================
+            INFORMATIONS
+        ================================================== */}
+
         <div
           className="
             mt-8
@@ -1708,6 +1756,10 @@ const LearnerView: React.FC<
           />
 
         </div>
+
+        {/* ==================================================
+            PÉRIODE DE FORMATION
+        ================================================== */}
 
         <div
           className="
@@ -2233,4 +2285,3 @@ const formatDate = (
 }
 
 export default CohorteListPage
-
