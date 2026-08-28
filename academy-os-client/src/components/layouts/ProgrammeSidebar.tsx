@@ -128,6 +128,21 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
 
   // ===================================================
+  // GESTION CERTIFICATS (Admin / Organisateur)
+  // ===================================================
+
+  {
+    name: 'Certificats',
+    href: '/gestion-certificats',
+    icon: Award,
+    description: "Gestion & envoi des certificats",
+    roles: [
+      'admin',
+      'organizer',
+    ],
+  },
+
+  // ===================================================
   // UTILISATEURS
   // Admin uniquement
   // ===================================================
