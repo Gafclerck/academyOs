@@ -1,4 +1,4 @@
-
+import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -8,11 +8,16 @@ import {
   Loader2,
   AlertCircle,
   Users,
-  BookOpen,
-  ChevronRight,
+  GraduationCap,
+  CalendarDays,
 } from 'lucide-react'
 
-import { getRentreeById } from '@/services/rentrees/rentreeService'
+import { useAuth } from '@/context/AuthContext'
+
+import {
+  getRentreeById,
+} from '@/services/rentrees/rentreeService'
+
 import { getCohortes } from '@/services/cohortes/cohorteService'
 
 import type { Rentree } from '@/types/rentree'
@@ -20,37 +25,87 @@ import type { Cohorte } from '@/types/cohorte'
 
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/button'
-import { useEffect, useState } from 'react'
+
+/* ============================================================
+   PAGE
+============================================================ */
 
 export const RentreeDetailPage: React.FC = () => {
   const navigate = useNavigate()
-  const { id } = useParams<{ id: string }>()
 
-  // ============================================================
-  // ÉTAT
-  // ============================================================
+  const { id } = useParams<{
+    id: string
+  }>()
 
-  const [rentree, setRentree] = useState<Rentree | null>(null)
-  const [cohortes, setCohortes] = useState<Cohorte[]>([])
+  const { user } = useAuth()
 
-  const [loading, setLoading] = useState(true)
-  const [loadingCohortes, setLoadingCohortes] = useState(true)
+  /* ============================================================
+     UTILISATEUR CONNECTÉ
+  ============================================================ */
 
-  const [error, setError] = useState<string | null>(null)
-  const [cohortesError, setCohortesError] = useState<string | null>(null)
+  const role = user?.role
 
-  // ============================================================
-  // CHARGEMENT RENTRÉE + COHORTES
-  // ============================================================
+  const isAdmin = role === 'admin'
+  const isOrganizer = role === 'organizer'
+  const isTrainer = role === 'trainer'
+  const isLearner = role === 'learner'
 
-  useEffect(() => {
+  /*
+   * Admin et Organizer peuvent modifier.
+   *
+   * Trainer et Learner sont en consultation.
+   */
+  const canEdit =
+    isAdmin ||
+    isOrganizer
+
+  /*
+   * Le contenu du header dépend du rôle.
+   */
+  const pageDescription = isAdmin
+    ? 'Consultez et gérez les informations de cette rentrée académique.'
+    : isOrganizer
+      ? 'Gérez les informations et les cohortes associées à cette rentrée.'
+      : isTrainer
+        ? 'Consultez les informations de la rentrée et les cohortes qui vous sont accessibles.'
+        : 'Retrouvez les informations de votre parcours de formation.'
+
+  /* ============================================================
+     ÉTAT
+  ============================================================ */
+
+  const [rentree, setRentree] =
+    React.useState<Rentree | null>(null)
+
+  const [cohortes, setCohortes] =
+    React.useState<Cohorte[]>([])
+
+  const [loading, setLoading] =
+    React.useState(true)
+
+  const [loadingCohortes, setLoadingCohortes] =
+    React.useState(true)
+
+  const [error, setError] =
+    React.useState<string | null>(null)
+
+  const [cohortesError, setCohortesError] =
+    React.useState<string | null>(null)
+
+  /* ============================================================
+     CHARGEMENT
+  ============================================================ */
+
+  React.useEffect(() => {
     const loadData = async () => {
       if (!id) {
         setError(
-          "Identifiant de la rentrée introuvable.",
+          'Identifiant de la rentrée introuvable.',
         )
+
         setLoading(false)
         setLoadingCohortes(false)
+
         return
       }
 
@@ -61,55 +116,83 @@ export const RentreeDetailPage: React.FC = () => {
         setError(null)
         setCohortesError(null)
 
-        // --------------------------------------------------------
-        // RÉCUPÉRATION RENTRÉE
-        // --------------------------------------------------------
+        /* ======================================================
+           RENTRÉE
+        ====================================================== */
 
-        const rentreeData = await getRentreeById(id)
+        const rentreeData =
+          await getRentreeById(id)
 
         if (!rentreeData) {
-          setError('Rentrée introuvable.')
+          setError(
+            'Rentrée introuvable.',
+          )
+
           return
         }
 
         setRentree(rentreeData)
 
-        // --------------------------------------------------------
-        // RÉCUPÉRATION DES COHORTES
-        // --------------------------------------------------------
+        /* ======================================================
+           COHORTES
+           
+           Le backend gère déjà le filtrage selon
+           l'utilisateur connecté.
+        ====================================================== */
 
-        const allCohortes = await getCohortes()
+        try {
+          const allCohortes =
+            await getCohortes()
 
-        console.log(
-          '🔥 TOUTES LES COHORTES :',
-          allCohortes,
-        )
+          /*
+           * On conserve ici uniquement le lien
+           * avec la rentrée courante.
+           *
+           * Le filtrage utilisateur reste côté backend.
+           */
+          const linkedCohortes =
+            allCohortes.filter(
+              (cohorte) => {
+                const intakeId =
+                  cohorte.intake ??
+                  (
+                    cohorte as Cohorte & {
+                      intake_id?: string | number
+                    }
+                  ).intake_id
 
-        // --------------------------------------------------------
-        // FILTRE :
-        //
-        // Cohorte.intake === Rentree.id
-        // --------------------------------------------------------
+                return (
+                  String(intakeId) ===
+                  String(rentreeData.id)
+                )
+              },
+            )
 
-        const linkedCohortes = allCohortes.filter(
-          (cohorte) =>
-            String(cohorte.intake) === String(rentreeData.id),
-        )
+          setCohortes(
+            linkedCohortes,
+          )
+        } catch (cohortError) {
+          console.error(
+            '[RentreeDetailPage] Erreur cohortes:',
+            cohortError,
+          )
 
-        console.log(
-          '🔥 COHORTES DE LA RENTRÉE :',
-          linkedCohortes,
-        )
-
-        setCohortes(linkedCohortes)
+          setCohortesError(
+            cohortError instanceof Error
+              ? cohortError.message
+              : 'Impossible de récupérer les cohortes.',
+          )
+        }
       } catch (err) {
         console.error(
-          'Erreur chargement détail rentrée :',
+          '[RentreeDetailPage] Erreur:',
           err,
         )
 
         setError(
-          'Impossible de récupérer les informations de la rentrée.',
+          err instanceof Error
+            ? err.message
+            : 'Impossible de récupérer les informations de la rentrée.',
         )
       } finally {
         setLoading(false)
@@ -120,15 +203,35 @@ export const RentreeDetailPage: React.FC = () => {
     loadData()
   }, [id])
 
-  // ============================================================
-  // LOADING PRINCIPAL
-  // ============================================================
+  /* ============================================================
+     LOADING
+  ============================================================ */
 
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
-          <Loader2 className="size-5 animate-spin" />
+      <div
+        className="
+          flex
+          min-h-[400px]
+          items-center
+          justify-center
+        "
+      >
+        <div
+          className="
+            flex
+            items-center
+            gap-3
+            text-slate-500
+            dark:text-slate-400
+          "
+        >
+          <Loader2
+            className="
+              size-5
+              animate-spin
+            "
+          />
 
           <span>
             Chargement de la rentrée...
@@ -138,9 +241,9 @@ export const RentreeDetailPage: React.FC = () => {
     )
   }
 
-  // ============================================================
-  // ERREUR RENTRÉE
-  // ============================================================
+  /* ============================================================
+     ERREUR
+  ============================================================ */
 
   if (error || !rentree) {
     return (
@@ -148,27 +251,71 @@ export const RentreeDetailPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => navigate('/rentrees')}
-          className="flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#FF6B0B]"
+          onClick={() =>
+            navigate('/rentrees')
+          }
+          className="
+            flex
+            items-center
+            gap-2
+            text-sm
+            font-medium
+            text-slate-500
+            transition
+            hover:text-[#FF6B0B]
+          "
         >
           <ArrowLeft className="size-4" />
 
           Retour aux rentrées
         </button>
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 dark:border-red-500/20 dark:bg-red-500/10">
+        <div
+          className="
+            rounded-2xl
+            border
+            border-red-200
+            bg-red-50
+            p-6
+            dark:border-red-500/20
+            dark:bg-red-500/10
+          "
+        >
           <div className="flex items-start gap-3">
 
-            <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-500" />
+            <AlertCircle
+              className="
+                mt-0.5
+                size-5
+                shrink-0
+                text-red-500
+              "
+            />
 
             <div>
-              <p className="font-semibold text-red-700 dark:text-red-400">
+
+              <p
+                className="
+                  font-semibold
+                  text-red-700
+                  dark:text-red-400
+                "
+              >
                 Impossible de charger la rentrée
               </p>
 
-              <p className="mt-1 text-sm text-red-600 dark:text-red-300">
-                {error ?? 'Rentrée introuvable.'}
+              <p
+                className="
+                  mt-1
+                  text-sm
+                  text-red-600
+                  dark:text-red-300
+                "
+              >
+                {error ??
+                  'Rentrée introuvable.'}
               </p>
+
             </div>
 
           </div>
@@ -178,59 +325,207 @@ export const RentreeDetailPage: React.FC = () => {
     )
   }
 
-  // ============================================================
-  // NOMBRE DE COHORTES
-  // ============================================================
+  /* ============================================================
+     VARIABLES
+  ============================================================ */
 
-  const nombreCohortes = cohortes.length
+  const nombreCohortes =
+    cohortes.length
 
-  // ============================================================
-  // RENDU
-  // ============================================================
+  const rentreeName =
+    rentree.name ||
+    'Rentrée sans nom'
+
+  /* ============================================================
+     RENDER
+  ============================================================ */
 
   return (
     <div className="space-y-6">
 
       {/* ======================================================
-          HEADER
+          RETOUR
       ====================================================== */}
 
-      <div>
+      <button
+        type="button"
+        onClick={() =>
+          navigate('/rentrees')
+        }
+        className="
+          flex
+          items-center
+          gap-2
+          text-sm
+          font-medium
+          text-slate-500
+          transition
+          hover:text-[#FF6B0B]
+        "
+      >
+        <ArrowLeft className="size-4" />
 
-        <button
-          type="button"
-          onClick={() => navigate('/rentrees')}
-          className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#FF6B0B]"
+        Retour aux rentrées
+      </button>
+
+      {/* ======================================================
+          HERO
+      ====================================================== */}
+
+      <div
+        className="
+          relative
+          overflow-hidden
+          rounded-3xl
+          border
+          border-slate-200
+          bg-white
+          p-6
+          shadow-sm
+          dark:border-white/10
+          dark:bg-[#151528]
+          sm:p-8
+        "
+      >
+
+        {/* DECORATION */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -right-16
+            -top-16
+            size-48
+            rounded-full
+            bg-[#FF6B0B]/10
+            blur-2xl
+          "
+        />
+
+        <div
+          className="
+            relative
+            flex
+            flex-col
+            gap-6
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
         >
-          <ArrowLeft className="size-4" />
 
-          Retour aux rentrées
-        </button>
+          {/* INFORMATIONS */}
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
 
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              {rentree.name || 'Rentrée sans nom'}
-            </h1>
+            <div
+              className="
+                flex
+                size-14
+                shrink-0
+                items-center
+                justify-center
+                rounded-2xl
+                bg-[#FF6B0B]/10
+                ring-8
+                ring-[#FF6B0B]/5
+              "
+            >
 
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Détails de la rentrée académique
-            </p>
+              {isLearner ? (
+                <GraduationCap
+                  className="
+                    size-7
+                    text-[#FF6B0B]
+                  "
+                />
+              ) : (
+                <CalendarDays
+                  className="
+                    size-7
+                    text-[#FF6B0B]
+                  "
+                />
+              )}
+
+            </div>
+
+            <div className="min-w-0">
+
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  items-center
+                  gap-3
+                "
+              >
+
+                <h1
+                  className="
+                    text-2xl
+                    font-extrabold
+                    tracking-tight
+                    text-slate-900
+                    dark:text-white
+                    sm:text-3xl
+                  "
+                >
+                  {rentreeName}
+                </h1>
+
+                <StatusBadge
+                  status={rentree.status}
+                />
+
+              </div>
+
+              <p
+                className="
+                  mt-2
+                  max-w-2xl
+                  text-sm
+                  leading-6
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                {pageDescription}
+              </p>
+
+            </div>
+
           </div>
 
-          <Button
-            onClick={() =>
-              navigate(
-                `/rentrees/${rentree.id}/edit`,
-              )
-            }
-            className="rounded-xl bg-[#FF6B0B] font-semibold text-white shadow-md shadow-[#FF6B0B]/20 hover:bg-[#e85f08]"
-          >
-            <Pencil className="mr-2 size-4" />
+          {/* ACTION */}
 
-            Modifier
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={() =>
+                navigate(
+                  `/rentrees/${rentree.id}/edit`,
+                )
+              }
+              className="
+                h-11
+                rounded-xl
+                bg-[#FF6B0B]
+                px-5
+                font-semibold
+                text-white
+                shadow-lg
+                shadow-[#FF6B0B]/20
+                hover:bg-[#e85f08]
+              "
+            >
+
+              <Pencil className="mr-2 size-4" />
+
+              Modifier
+
+            </Button>
+          )}
 
         </div>
 
@@ -240,28 +535,82 @@ export const RentreeDetailPage: React.FC = () => {
           INFORMATIONS PRINCIPALES
       ====================================================== */}
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div
+        className="
+          grid
+          gap-4
+          md:grid-cols-3
+        "
+      >
 
         {/* ====================================================
             NOM
         ==================================================== */}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+        <div
+          className="
+            group
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            p-5
+            transition
+            hover:-translate-y-0.5
+            hover:shadow-md
+            dark:border-white/10
+            dark:bg-[#151528]
+          "
+        >
 
-          <div className="flex items-start gap-4">
+          <div className="flex items-center gap-4">
 
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10">
-              <Calendar className="size-6 text-[#FF6B0B]" />
+            <div
+              className="
+                flex
+                size-11
+                shrink-0
+                items-center
+                justify-center
+                rounded-xl
+                bg-[#FF6B0B]/10
+              "
+            >
+
+              <Calendar
+                className="
+                  size-5
+                  text-[#FF6B0B]
+                "
+              />
+
             </div>
 
             <div className="min-w-0">
 
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Nom de la rentrée
+              <p
+                className="
+                  text-xs
+                  font-medium
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
+                Rentrée
               </p>
 
-              <p className="mt-1 break-words text-lg font-bold text-slate-900 dark:text-white">
-                {rentree.name || 'Sans nom'}
+              <p
+                className="
+                  mt-1
+                  truncate
+                  text-base
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                {rentreeName}
               </p>
 
             </div>
@@ -274,17 +623,56 @@ export const RentreeDetailPage: React.FC = () => {
             STATUT
         ==================================================== */}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+        <div
+          className="
+            group
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            p-5
+            transition
+            hover:-translate-y-0.5
+            hover:shadow-md
+            dark:border-white/10
+            dark:bg-[#151528]
+          "
+        >
 
-          <div className="flex items-start gap-4">
+          <div className="flex items-center gap-4">
 
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-              <Clock className="size-6 text-blue-500" />
+            <div
+              className="
+                flex
+                size-11
+                shrink-0
+                items-center
+                justify-center
+                rounded-xl
+                bg-blue-500/10
+              "
+            >
+
+              <Clock
+                className="
+                  size-5
+                  text-blue-500
+                "
+              />
+
             </div>
 
             <div>
 
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              <p
+                className="
+                  text-xs
+                  font-medium
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
                 Statut
               </p>
 
@@ -304,21 +692,68 @@ export const RentreeDetailPage: React.FC = () => {
             COHORTES
         ==================================================== */}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+        <div
+          className="
+            group
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            p-5
+            transition
+            hover:-translate-y-0.5
+            hover:shadow-md
+            dark:border-white/10
+            dark:bg-[#151528]
+          "
+        >
 
-          <div className="flex items-start gap-4">
+          <div className="flex items-center gap-4">
 
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-              <Users className="size-6 text-emerald-500" />
+            <div
+              className="
+                flex
+                size-11
+                shrink-0
+                items-center
+                justify-center
+                rounded-xl
+                bg-emerald-500/10
+              "
+            >
+
+              <Users
+                className="
+                  size-5
+                  text-emerald-500
+                "
+              />
+
             </div>
 
             <div>
 
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              <p
+                className="
+                  text-xs
+                  font-medium
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
                 Cohortes
               </p>
 
-              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+              <p
+                className="
+                  mt-1
+                  text-xl
+                  font-extrabold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
                 {loadingCohortes
                   ? '...'
                   : nombreCohortes}
@@ -333,359 +768,398 @@ export const RentreeDetailPage: React.FC = () => {
       </div>
 
       {/* ======================================================
-          INFORMATIONS RENTRÉE
+          PÉRIODE
       ====================================================== */}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+      <div
+        className="
+          overflow-hidden
+          rounded-2xl
+          border
+          border-slate-200
+          bg-white
+          dark:border-white/10
+          dark:bg-[#151528]
+        "
+      >
 
-        <div className="flex items-center gap-2">
+        <div
+          className="
+            border-b
+            border-slate-200
+            px-6
+            py-5
+            dark:border-white/10
+          "
+        >
 
-          <Calendar className="size-5 text-[#FF6B0B]" />
+          <div className="flex items-center gap-3">
 
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Informations de la rentrée
-          </h2>
+            <div
+              className="
+                flex
+                size-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-[#FF6B0B]/10
+              "
+            >
+
+              <Calendar
+                className="
+                  size-5
+                  text-[#FF6B0B]
+                "
+              />
+
+            </div>
+
+            <div>
+
+              <h2
+                className="
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                Période de formation
+              </h2>
+
+              <p
+                className="
+                  text-sm
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Dates de la rentrée académique
+              </p>
+
+            </div>
+
+          </div>
 
         </div>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-3">
+        <div
+          className="
+            grid
+            gap-6
+            p-6
+            sm:grid-cols-2
+          "
+        >
 
-          {/* DATE DE DÉBUT */}
+          {/* DÉBUT */}
 
-          <div>
+          <div
+            className="
+              rounded-xl
+              bg-slate-50
+              p-4
+              dark:bg-white/[0.03]
+            "
+          >
 
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <p
+              className="
+                text-xs
+                font-semibold
+                uppercase
+                tracking-wide
+                text-slate-400
+              "
+            >
               Date de début
             </p>
 
-            <div className="mt-2 flex items-center gap-3">
+            <div
+              className="
+                mt-2
+                flex
+                items-center
+                gap-3
+              "
+            >
 
-              <div className="flex size-10 items-center justify-center rounded-lg bg-[#FF6B0B]/10">
-                <Calendar className="size-5 text-[#FF6B0B]" />
-              </div>
+              <Calendar
+                className="
+                  size-5
+                  text-[#FF6B0B]
+                "
+              />
 
-              <p className="text-base font-semibold text-slate-900 dark:text-white">
-                {formatDate(rentree.start_date)}
+              <p
+                className="
+                  text-base
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                {formatDate(
+                  rentree.start_date,
+                )}
               </p>
 
             </div>
 
           </div>
 
-          {/* IDENTIFIANT */}
 
-          <div>
+          
 
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Identifiant
-            </p>
 
-            <p className="mt-2 break-all text-sm font-medium text-slate-700 dark:text-slate-300">
-              {rentree.id}
-            </p>
 
-          </div>
-
-          {/* STATUT */}
-
-          <div>
-
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Statut
-            </p>
-
-            <div className="mt-2">
-              <StatusBadge
-                status={rentree.status}
-              />
-            </div>
-
-          </div>
+     
 
         </div>
 
       </div>
 
       {/* ======================================================
-          COHORTES DE LA RENTRÉE
+          COHORTES
       ====================================================== */}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-          <div>
-
-            <div className="flex items-center gap-2">
-
-              <Users className="size-5 text-[#FF6B0B]" />
-
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Cohortes de la rentrée
-              </h2>
-
-            </div>
-
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Les cohortes associées à cette rentrée académique.
-            </p>
-
-          </div>
-
-          <div className="rounded-full bg-[#FF6B0B]/10 px-3 py-1 text-sm font-semibold text-[#FF6B0B]">
-            {nombreCohortes}{' '}
-            {nombreCohortes > 1
-              ? 'cohortes'
-              : 'cohorte'}
-          </div>
-
-        </div>
-
-        {/* ----------------------------------------------------
-            CHARGEMENT COHORTES
-        ---------------------------------------------------- */}
-
-        {loadingCohortes && (
-          <div className="flex min-h-[180px] items-center justify-center">
-
-            <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-
-              <Loader2 className="size-5 animate-spin" />
-
-              Chargement des cohortes...
-
-            </div>
-
-          </div>
-        )}
-
-        {/* ----------------------------------------------------
-            ERREUR COHORTES
-        ---------------------------------------------------- */}
-
-        {!loadingCohortes && cohortesError && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
-
-            <div className="flex items-center gap-3">
-
-              <AlertCircle className="size-5 text-red-500" />
-
-              <p className="text-sm text-red-600 dark:text-red-300">
-                {cohortesError}
-              </p>
-
-            </div>
-
-          </div>
-        )}
-
-        {/* ----------------------------------------------------
-            AUCUNE COHORTE
-        ---------------------------------------------------- */}
-
-        {!loadingCohortes &&
-          !cohortesError &&
-          cohortes.length === 0 && (
-            <div className="mt-6 flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-white/10">
-
-              <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 dark:bg-white/5">
-
-                <Users className="size-6 text-slate-400" />
-
-              </div>
-
-              <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Aucune cohorte
-              </p>
-
-              <p className="mt-1 text-center text-sm text-slate-400">
-                Aucune cohorte n'est encore associée à cette rentrée.
-              </p>
-
-            </div>
-          )}
-
-        {/* ----------------------------------------------------
-            LISTE DES COHORTES
-        ---------------------------------------------------- */}
-
-        {!loadingCohortes &&
-          !cohortesError &&
-          cohortes.length > 0 && (
-            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-              {cohortes.map((cohorte) => (
-                <button
-                  key={cohorte.id}
-                  type="button"
-                  onClick={() =>
-                    navigate(
-                      `/cohortes/${cohorte.id}`,
-                    )
-                  }
-                  className="group rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-[#FF6B0B]/40 hover:bg-white hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-[#151528]"
-                >
-
-                  <div className="flex items-start justify-between gap-4">
-
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10">
-                      <BookOpen className="size-5 text-[#FF6B0B]" />
-                    </div>
-
-                    <ChevronRight className="mt-1 size-5 text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#FF6B0B]" />
-
-                  </div>
-
-                  <div className="mt-4">
-
-                    <h3 className="font-bold text-slate-900 dark:text-white">
-                      {cohorte.name || 'Cohorte sans nom'}
-                    </h3>
-
-                    {cohorte.description && (
-                      <p className="mt-1 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
-                        {cohorte.description}
-                      </p>
-                    )}
-
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-
-                    <StatusBadge
-                      status={cohorte.status}
-                    />
-
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 dark:border-white/10">
-
-                    <div>
-
-                      <p className="text-xs text-slate-400">
-                        Apprenants
-                      </p>
-
-                      <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
-                        {cohorte.members_count ??
-                          cohorte.enrollments_count ??
-                          0}
-                      </p>
-
-                    </div>
-
-                    <div>
-
-                      <p className="text-xs text-slate-400">
-                        Projets
-                      </p>
-
-                      <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
-                        {cohorte.projects_count ?? 0}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </button>
-              ))}
-
-            </div>
-          )}
-
-      </div>
+    
 
       {/* ======================================================
           INFORMATIONS TECHNIQUES
+          
+          UNIQUEMENT ADMIN / ORGANIZER
       ====================================================== */}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#151528]">
+      {canEdit && (
+        <div
+          className="
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            p-6
+            dark:border-white/10
+            dark:bg-[#151528]
+          "
+        >
 
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-          Informations complémentaires
-        </h2>
+          <div className="flex items-center gap-3">
 
-        <div className="mt-6 grid gap-6 md:grid-cols-3">
+            <div
+              className="
+                flex
+                size-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-slate-100
+                dark:bg-white/5
+              "
+            >
 
-          {/* DATE CRÉATION */}
+              <Clock
+                className="
+                  size-5
+                  text-slate-500
+                "
+              />
 
-          <div>
+            </div>
 
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Créée le
-            </p>
+            <div>
 
-            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-              {formatDateTime(
-                rentree.created_at,
-              )}
-            </p>
+              <h2
+                className="
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                Informations complémentaires
+              </h2>
+
+              <p
+                className="
+                  text-sm
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Informations administratives de la rentrée.
+              </p>
+
+            </div>
 
           </div>
 
-          {/* DATE MODIFICATION */}
+          <div
+            className="
+              mt-6
+              grid
+              gap-6
+              md:grid-cols-3
+            "
+          >
 
-          <div>
+            {/* CRÉATION */}
 
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Dernière modification
-            </p>
+            <div>
 
-            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-              {formatDateTime(
-                rentree.updated_at,
-              )}
-            </p>
+              <p
+                className="
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
+                Créée le
+              </p>
 
-          </div>
+              <p
+                className="
+                  mt-2
+                  text-sm
+                  font-semibold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                {formatDateTime(
+                  rentree.created_at,
+                )}
+              </p>
 
-          {/* ID */}
+            </div>
 
-          <div>
+            {/* MODIFICATION */}
 
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Identifiant
-            </p>
+            <div>
 
-            <p className="mt-1 break-all text-sm font-semibold text-slate-900 dark:text-white">
-              {rentree.id}
-            </p>
+              <p
+                className="
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
+                Dernière modification
+              </p>
+
+              <p
+                className="
+                  mt-2
+                  text-sm
+                  font-semibold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                {formatDateTime(
+                  rentree.updated_at,
+                )}
+              </p>
+
+            </div>
+
+            {/* ID */}
+
+            <div>
+
+              <p
+                className="
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
+                Identifiant
+              </p>
+
+              <p
+                className="
+                  mt-2
+                  break-all
+                  text-sm
+                  font-semibold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                {rentree.id}
+              </p>
+
+            </div>
 
           </div>
 
         </div>
-
-      </div>
+      )}
 
       {/* ======================================================
-          ACTIONS
+          ACTIONS BAS DE PAGE
       ====================================================== */}
 
-      <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-6 dark:border-white/10">
+      <div
+        className="
+          flex
+          flex-wrap
+          justify-end
+          gap-3
+          border-t
+          border-slate-200
+          pt-6
+          dark:border-white/10
+        "
+      >
 
         <Button
           variant="outline"
-          onClick={() => navigate('/rentrees')}
-          className="rounded-xl"
+          onClick={() =>
+            navigate('/rentrees')
+          }
+          className="
+            rounded-xl
+            font-semibold
+          "
         >
+
           <ArrowLeft className="mr-2 size-4" />
 
           Retour
+
         </Button>
 
-        <Button
-          onClick={() =>
-            navigate(
-              `/rentrees/${rentree.id}/edit`,
-            )
-          }
-          className="rounded-xl bg-[#FF6B0B] font-semibold text-white hover:bg-[#e85f08]"
-        >
-          <Pencil className="mr-2 size-4" />
+        {canEdit && (
+          <Button
+            onClick={() =>
+              navigate(
+                `/rentrees/${rentree.id}/edit`,
+              )
+            }
+            className="
+              rounded-xl
+              bg-[#FF6B0B]
+              font-semibold
+              text-white
+              shadow-md
+              shadow-[#FF6B0B]/20
+              hover:bg-[#e85f08]
+            "
+          >
 
-          Modifier la rentrée
-        </Button>
+            <Pencil className="mr-2 size-4" />
+
+            Modifier la rentrée
+
+          </Button>
+        )}
 
       </div>
 
@@ -693,9 +1167,9 @@ export const RentreeDetailPage: React.FC = () => {
   )
 }
 
-// ============================================================
-// FORMAT DATE
-// ============================================================
+/* ============================================================
+   FORMAT DATE
+============================================================ */
 
 const formatDate = (
   date?: string | null,
@@ -704,15 +1178,30 @@ const formatDate = (
     return '—'
   }
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    const [year, month, day] = date.split('-')
+  /*
+   * Évite les problèmes de timezone
+   * avec les dates YYYY-MM-DD.
+   */
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(date)
+  ) {
+    const [
+      year,
+      month,
+      day,
+    ] = date.split('-')
 
     return `${day}/${month}/${year}`
   }
 
-  const parsedDate = new Date(date)
+  const parsedDate =
+    new Date(date)
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (
+    Number.isNaN(
+      parsedDate.getTime(),
+    )
+  ) {
     return date
   }
 
@@ -726,9 +1215,9 @@ const formatDate = (
   )
 }
 
-// ============================================================
-// FORMAT DATE + HEURE
-// ============================================================
+/* ============================================================
+   FORMAT DATE + HEURE
+============================================================ */
 
 const formatDateTime = (
   date?: string | null,
@@ -737,9 +1226,14 @@ const formatDateTime = (
     return '—'
   }
 
-  const parsedDate = new Date(date)
+  const parsedDate =
+    new Date(date)
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (
+    Number.isNaN(
+      parsedDate.getTime(),
+    )
+  ) {
     return date
   }
 
