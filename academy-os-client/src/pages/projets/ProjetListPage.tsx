@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useEffect,
@@ -14,15 +15,11 @@ import {
   FolderOpen,
   GraduationCap,
   Loader2,
-  Pencil,
-  Plus,
   ShieldCheck,
-  Trash2,
   AlertCircle,
   Users,
   ClipboardList,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
 import { useAuth } from '@/context/AuthContext'
 import api from '@/api/api'
@@ -101,7 +98,7 @@ export const ProjetListPage: React.FC = () => {
   const { user } = useAuth()
 
   /* ==========================================================
-     PERMISSIONS
+     RÔLE
   ========================================================== */
 
   const role = user?.role
@@ -111,24 +108,15 @@ export const ProjetListPage: React.FC = () => {
   const isTrainer = role === 'trainer'
   const isLearner = role === 'learner'
 
-  /*
-   * Admin et Organizer peuvent gérer les projets.
-   *
-   * Le backend doit également effectuer
-   * cette vérification.
-   */
-  const canManageProjects =
-    isAdmin || isOrganizer
-
   /* ==========================================================
      TEXTES SELON LE RÔLE
   ========================================================== */
 
   const programmeDescription =
     isAdmin
-      ? 'Gérez les projets associés à ce programme.'
+      ? 'Consultez les projets associés à ce programme.'
       : isOrganizer
-        ? 'Gérez les projets et leur organisation dans ce programme.'
+        ? 'Consultez les projets et leur organisation dans ce programme.'
         : isTrainer
           ? 'Consultez les projets associés à ce programme.'
           : 'Découvrez les projets de votre parcours de formation.'
@@ -144,9 +132,6 @@ export const ProjetListPage: React.FC = () => {
     useState(true)
 
   const [error, setError] =
-    useState<string | null>(null)
-
-  const [deletingId, setDeletingId] =
     useState<string | null>(null)
 
   /* ==========================================================
@@ -261,17 +246,6 @@ export const ProjetListPage: React.FC = () => {
     navigate('/programmes')
   }
 
-  const handleCreateProject = () => {
-    if (programmeId) {
-      navigate(
-        `/programmes/${programmeId}/projets/new`,
-      )
-      return
-    }
-
-    navigate('/programmes')
-  }
-
   const handleViewProject = (
     projectId: string,
   ) => {
@@ -283,77 +257,6 @@ export const ProjetListPage: React.FC = () => {
     }
 
     navigate('/programmes')
-  }
-
-  const handleEditProject = (
-    projectId: string,
-  ) => {
-    if (programmeId) {
-      navigate(
-        `/programmes/${programmeId}/projets/${projectId}/edit`,
-      )
-      return
-    }
-
-    navigate('/programmes')
-  }
-
-  /* ==========================================================
-     SUPPRESSION
-  ========================================================== */
-
-  const handleDelete = async (
-    project: Project,
-  ) => {
-    /*
-     * Protection frontend.
-     *
-     * Le backend doit également vérifier
-     * les permissions.
-     */
-    if (!canManageProjects) {
-      return
-    }
-
-    const confirmed =
-      window.confirm(
-        `Voulez-vous vraiment supprimer le projet "${project.title}" ?`,
-      )
-
-    if (!confirmed) {
-      return
-    }
-
-    try {
-      setDeletingId(project.id)
-
-      await api.delete(
-        `/projects/${project.id}/`,
-      )
-
-      setProjects(
-        (current) =>
-          current.filter(
-            (item) =>
-              item.id !== project.id,
-          ),
-      )
-
-      toast.success(
-        'Projet supprimé avec succès.',
-      )
-    } catch (err) {
-      console.error(
-        '[ProjetListPage] Erreur suppression:',
-        err,
-      )
-
-      toast.error(
-        'Impossible de supprimer le projet.',
-      )
-    } finally {
-      setDeletingId(null)
-    }
   }
 
   /* ==========================================================
@@ -564,9 +467,7 @@ export const ProjetListPage: React.FC = () => {
       </button>
 
       {/* ======================================================
-          ======================================================
           HEADER LEARNER
-          ======================================================
       ====================================================== */}
 
       {isLearner ? (
@@ -591,8 +492,6 @@ export const ProjetListPage: React.FC = () => {
             sm:p-8
           "
         >
-
-          {/* DECORATION */}
 
           <div
             className="
@@ -711,8 +610,6 @@ export const ProjetListPage: React.FC = () => {
               </div>
 
             </div>
-
-            {/* COMPTEUR */}
 
             <div
               className="
@@ -857,8 +754,6 @@ export const ProjetListPage: React.FC = () => {
                   Projets
                 </h1>
 
-                {/* ADMIN */}
-
                 {isAdmin && (
                   <span
                     className="
@@ -875,15 +770,10 @@ export const ProjetListPage: React.FC = () => {
                       dark:text-purple-400
                     "
                   >
-                    <ShieldCheck
-                      className="size-3.5"
-                    />
-
+                    <ShieldCheck className="size-3.5" />
                     Administration
                   </span>
                 )}
-
-                {/* ORGANIZER */}
 
                 {isOrganizer && (
                   <span
@@ -901,15 +791,10 @@ export const ProjetListPage: React.FC = () => {
                       dark:text-blue-400
                     "
                   >
-                    <Users
-                      className="size-3.5"
-                    />
-
+                    <Users className="size-3.5" />
                     Organisation
                   </span>
                 )}
-
-                {/* TRAINER */}
 
                 {isTrainer && (
                   <span
@@ -927,10 +812,7 @@ export const ProjetListPage: React.FC = () => {
                       dark:text-emerald-400
                     "
                   >
-                    <GraduationCap
-                      className="size-3.5"
-                    />
-
+                    <GraduationCap className="size-3.5" />
                     Formateur
                   </span>
                 )}
@@ -966,29 +848,7 @@ export const ProjetListPage: React.FC = () => {
 
           </div>
 
-          {/* NOUVEAU PROJET */}
-
-          {canManageProjects && (
-            <Button
-              onClick={handleCreateProject}
-              className="
-                shrink-0
-                rounded-xl
-                bg-[#FF6B0B]
-                px-5
-                font-semibold
-                text-white
-                shadow-lg
-                shadow-[#FF6B0B]/20
-                hover:bg-[#e85f08]
-              "
-            >
-              <Plus className="mr-2 size-4" />
-
-              Nouveau projet
-            </Button>
-          )}
-
+          {/* Aucun bouton de création */}
         </div>
       )}
 
@@ -1266,10 +1126,7 @@ export const ProjetListPage: React.FC = () => {
               "
             >
               Vous pouvez consulter les projets
-              associés à ce programme. La création,
-              la modification et la suppression des
-              projets sont réservées aux administrateurs
-              et organisateurs.
+              associés à ce programme.
             </p>
 
           </div>
@@ -1284,8 +1141,6 @@ export const ProjetListPage: React.FC = () => {
       {isLearner ? (
 
         <div className="space-y-5">
-
-          {/* HEADER DE SECTION */}
 
           <div
             className="
@@ -1377,8 +1232,6 @@ export const ProjetListPage: React.FC = () => {
 
           </div>
 
-          {/* EMPTY LEARNER */}
-
           {sortedProjects.length === 0 ? (
 
             <div
@@ -1447,10 +1300,6 @@ export const ProjetListPage: React.FC = () => {
 
           ) : (
 
-            /* =================================================
-               CARTES LEARNER
-            ================================================= */
-
             <div
               className="
                 grid
@@ -1495,8 +1344,6 @@ export const ProjetListPage: React.FC = () => {
                       "
                     >
 
-                      {/* BARRE SUPÉRIEURE */}
-
                       <div
                         className="
                           absolute
@@ -1511,8 +1358,6 @@ export const ProjetListPage: React.FC = () => {
                       />
 
                       <div className="p-6">
-
-                        {/* TOP */}
 
                         <div
                           className="
@@ -1552,8 +1397,6 @@ export const ProjetListPage: React.FC = () => {
                           />
 
                         </div>
-
-                        {/* TITRE */}
 
                         <div className="mt-5">
 
@@ -1605,8 +1448,6 @@ export const ProjetListPage: React.FC = () => {
 
                         </div>
 
-                        {/* INFOS */}
-
                         <div
                           className="
                             mt-5
@@ -1619,8 +1460,6 @@ export const ProjetListPage: React.FC = () => {
                             dark:border-white/10
                           "
                         >
-
-                          {/* DATE */}
 
                           <div
                             className="
@@ -1684,8 +1523,6 @@ export const ProjetListPage: React.FC = () => {
 
                           </div>
 
-                          {/* RESSOURCES */}
-
                           <div
                             className="
                               flex
@@ -1746,8 +1583,6 @@ export const ProjetListPage: React.FC = () => {
                           </div>
 
                         </div>
-
-                        {/* ACTION */}
 
                         <Button
                           onClick={() =>
@@ -1963,26 +1798,6 @@ export const ProjetListPage: React.FC = () => {
                 à ce programme.
               </p>
 
-              {canManageProjects && (
-                <Button
-                  onClick={
-                    handleCreateProject
-                  }
-                  className="
-                    mt-5
-                    rounded-xl
-                    bg-[#FF6B0B]
-                    font-semibold
-                    text-white
-                    hover:bg-[#e85f08]
-                  "
-                >
-                  <Plus className="mr-2 size-4" />
-
-                  Créer le premier projet
-                </Button>
-              )}
-
             </div>
 
           ) : (
@@ -1996,7 +1811,7 @@ export const ProjetListPage: React.FC = () => {
               <table
                 className="
                   w-full
-                  min-w-[950px]
+                  min-w-[800px]
                 "
               >
 
@@ -2306,7 +2121,7 @@ export const ProjetListPage: React.FC = () => {
 
                         </td>
 
-                        {/* ACTIONS */}
+                        {/* ACTION */}
 
                         <td className="px-5 py-5">
 
@@ -2314,11 +2129,8 @@ export const ProjetListPage: React.FC = () => {
                             className="
                               flex
                               justify-end
-                              gap-2
                             "
                           >
-
-                            {/* VOIR */}
 
                             <Button
                               variant="outline"
@@ -2342,66 +2154,6 @@ export const ProjetListPage: React.FC = () => {
                                 className="size-4"
                               />
                             </Button>
-
-                            {/* MODIFIER */}
-
-                            {canManageProjects && (
-                              <Button
-                                variant="outline"
-                                onClick={() =>
-                                  handleEditProject(
-                                    project.id,
-                                  )
-                                }
-                                className="
-                                  rounded-xl
-                                "
-                                title="Modifier"
-                              >
-                                <Pencil
-                                  className="size-4"
-                                />
-                              </Button>
-                            )}
-
-                            {/* SUPPRIMER */}
-
-                            {canManageProjects && (
-                              <Button
-                                variant="outline"
-                                disabled={
-                                  deletingId ===
-                                  project.id
-                                }
-                                onClick={() =>
-                                  handleDelete(
-                                    project,
-                                  )
-                                }
-                                className="
-                                  rounded-xl
-                                  text-red-500
-                                  hover:bg-red-50
-                                  hover:text-red-600
-                                  dark:hover:bg-red-500/10
-                                "
-                                title="Supprimer"
-                              >
-                                {deletingId ===
-                                project.id ? (
-                                  <Loader2
-                                    className="
-                                      size-4
-                                      animate-spin
-                                    "
-                                  />
-                                ) : (
-                                  <Trash2
-                                    className="size-4"
-                                  />
-                                )}
-                              </Button>
-                            )}
 
                           </div>
 
@@ -2538,10 +2290,7 @@ export const ProjetListPage: React.FC = () => {
                 "
               >
                 Vous pouvez consulter les projets
-                associés à ce programme. La création,
-                la modification et la suppression des
-                projets sont réservées aux administrateurs
-                et organisateurs.
+                associés à ce programme.
               </p>
 
             </div>
@@ -2619,4 +2368,3 @@ export const ProjetListPage: React.FC = () => {
 }
 
 export default ProjetListPage
-

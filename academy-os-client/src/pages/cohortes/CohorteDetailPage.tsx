@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -84,14 +85,22 @@ const CohorteDetailPage: React.FC = () => {
   }>()
 
   /* ============================================================
-     RÔLE UTILISATEUR
-     Le formateur a un accès en lecture seule : aucune action de
-     gestion (édition, ajout d'apprenant, attribution de mentor).
+     RÔLES
   ============================================================ */
 
+  // Admin et organisateur peuvent gérer les membres.
+  // Le formateur reste en lecture seule.
   const canManage =
-    user?.role === 'admin' || user?.role === 'organizer'
+    user?.role === 'admin' ||
+    user?.role === 'organizer'
 
+  // Seul l'admin peut modifier les informations
+  // générales de la cohorte.
+  const canEditCohorte =
+    user?.role === 'admin'
+
+  // Admin, organisateur et formateur peuvent consulter
+  // les évaluations.
   const canViewEvaluations =
     user?.role === 'admin' ||
     user?.role === 'organizer' ||
@@ -111,7 +120,9 @@ const CohorteDetailPage: React.FC = () => {
     React.useState<any[]>([])
 
   const [activeTab, setActiveTab] =
-    React.useState<'stats' | 'members' | 'deliverables'>('stats')
+    React.useState<
+      'stats' | 'members' | 'deliverables'
+    >('stats')
 
   /* ============================================================
      ÉTATS MEMBRES
@@ -838,7 +849,20 @@ const CohorteDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ACTIONS COHORTE — masquées pour le formateur (lecture seule) */}
+          {/* ==================================================
+              ACTIONS COHORTE
+              
+              Admin :
+              - Ajouter apprenant
+              - Modifier
+
+              Organisateur :
+              - Ajouter apprenant
+              - PAS de Modifier
+
+              Formateur :
+              - aucune action
+          ================================================== */}
 
           {canManage && (
             <div
@@ -868,23 +892,27 @@ const CohorteDetailPage: React.FC = () => {
                 Ajouter un apprenant
               </Button>
 
-              <Button
-                onClick={() =>
-                  navigate(
-                    `/cohortes/${cohorte.id}/edit`,
-                  )
-                }
-                className="
-                  rounded-xl
-                  bg-[#FF6B0B]
-                  font-semibold
-                  text-white
-                  hover:bg-[#e85f08]
-                "
-              >
-                <Pencil className="mr-2 size-4" />
-                Modifier
-              </Button>
+              {/* MODIFIER UNIQUEMENT POUR ADMIN */}
+
+              {canEditCohorte && (
+                <Button
+                  onClick={() =>
+                    navigate(
+                      `/cohortes/${cohorte.id}/edit`,
+                    )
+                  }
+                  className="
+                    rounded-xl
+                    bg-[#FF6B0B]
+                    font-semibold
+                    text-white
+                    hover:bg-[#e85f08]
+                  "
+                >
+                  <Pencil className="mr-2 size-4" />
+                  Modifier
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -1129,7 +1157,9 @@ const CohorteDetailPage: React.FC = () => {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() =>
+                setActiveTab(tab.id)
+              }
               className={`
                 flex-1
                 rounded-xl
@@ -1151,948 +1181,986 @@ const CohorteDetailPage: React.FC = () => {
         </div>
 
         {/* ======================================================
-            CONTENU SELON ONGLET
+            ONGLET STATISTIQUES
         ====================================================== */}
 
         {activeTab === 'stats' && (
           <CohortStatsTab
-            cohortId={cohorte.id ?? id ?? ''}
+            cohortId={
+              cohorte.id ??
+              id ??
+              ''
+            }
           />
         )}
 
-        {canViewEvaluations && activeTab === 'deliverables' && (
-          <CohortDeliverablesTab
-            cohortId={cohorte.id ?? id ?? ''}
-            cohortName={cohortName}
-          />
-        )}
+        {/* ======================================================
+            ONGLET ÉVALUATIONS
+        ====================================================== */}
+
+        {canViewEvaluations &&
+          activeTab === 'deliverables' && (
+            <CohortDeliverablesTab
+              cohortId={
+                cohorte.id ??
+                id ??
+                ''
+              }
+              cohortName={cohortName}
+            />
+          )}
+
+        {/* ======================================================
+            ONGLET MEMBRES
+        ====================================================== */}
 
         {activeTab === 'members' && (
           <>
-        {/* ======================================================
-            ERREUR MEMBRES
-        ====================================================== */}
 
-        {membersError && (
-          <div
-            className="
-              flex
-              items-start
-              gap-3
-              rounded-2xl
-              border
-              border-red-200
-              bg-red-50
-              p-4
-              dark:border-red-500/20
-              dark:bg-red-500/10
-            "
-          >
-            <AlertCircle
+            {/* ==================================================
+                ERREUR MEMBRES
+            ================================================== */}
+
+            {membersError && (
+              <div
+                className="
+                  flex
+                  items-start
+                  gap-3
+                  rounded-2xl
+                  border
+                  border-red-200
+                  bg-red-50
+                  p-4
+                  dark:border-red-500/20
+                  dark:bg-red-500/10
+                "
+              >
+                <AlertCircle
+                  className="
+                    mt-0.5
+                    size-5
+                    shrink-0
+                    text-red-500
+                  "
+                />
+
+                <div>
+
+                  <p
+                    className="
+                      font-semibold
+                      text-red-700
+                      dark:text-red-400
+                    "
+                  >
+                    Impossible de charger les membres
+                  </p>
+
+                  <p
+                    className="
+                      mt-1
+                      text-sm
+                      text-red-600
+                      dark:text-red-300
+                    "
+                  >
+                    {membersError}
+                  </p>
+
+                </div>
+              </div>
+            )}
+
+            {/* ==================================================
+                TABLEAU APPRENANTS
+            ================================================== */}
+
+            <div
               className="
-                mt-0.5
-                size-5
-                shrink-0
-                text-red-500
+                overflow-hidden
+                rounded-2xl
+                border
+                border-slate-200
+                bg-white
+                shadow-sm
+                dark:border-white/10
+                dark:bg-[#1f1f38]
               "
-            />
+            >
 
-            <div>
-
-              <p
-                className="
-                  font-semibold
-                  text-red-700
-                  dark:text-red-400
-                "
-              >
-                Impossible de charger les membres
-              </p>
-
-              <p
-                className="
-                  mt-1
-                  text-sm
-                  text-red-600
-                  dark:text-red-300
-                "
-              >
-                {membersError}
-              </p>
-
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================
-            TABLEAU APPRENANTS
-        ====================================================== */}
-
-        <div
-          className="
-            overflow-hidden
-            rounded-2xl
-            border
-            border-slate-200
-            bg-white
-            shadow-sm
-            dark:border-white/10
-            dark:bg-[#1f1f38]
-          "
-        >
-
-          {/* HEADER */}
-
-          <div
-            className="
-              flex
-              flex-col
-              gap-3
-              border-b
-              border-slate-200
-              p-5
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-              dark:border-white/10
-            "
-          >
-            <div className="flex items-center gap-3">
+              {/* HEADER */}
 
               <div
                 className="
                   flex
-                  size-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-[#FF6B0B]/10
+                  flex-col
+                  gap-3
+                  border-b
+                  border-slate-200
+                  p-5
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  dark:border-white/10
                 "
               >
-                <Users
-                  className="
-                    size-5
-                    text-[#FF6B0B]
-                  "
-                />
-              </div>
+                <div className="flex items-center gap-3">
 
-              <div>
-
-                <h2
-                  className="
-                    font-bold
-                    text-slate-900
-                    dark:text-white
-                  "
-                >
-                  Apprenants
-                </h2>
-
-                <p
-                  className="
-                    text-sm
-                    text-slate-500
-                    dark:text-slate-400
-                  "
-                >
-                  {enrollments.length} apprenant(s)
-                  inscrit(s)
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* Ajout masqué pour le formateur (lecture seule) */}
-
-            {canManage && (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  navigate(
-                    `/cohortes/${cohorte.id}/inviter-apprenant`,
-                  )
-                }
-                className="
-                  gap-2
-                  border-[#FF6B0B]
-                  text-[#FF6B0B]
-                  hover:bg-[#FF6B0B]/10
-                "
-              >
-                <UserPlus className="size-4" />
-                Ajouter
-              </Button>
-            )}
-          </div>
-
-          {/* TABLE */}
-
-          {enrollments.length === 0 ? (
-            <div className="p-10 text-center">
-
-              <Users
-                className="
-                  mx-auto
-                  size-10
-                  text-slate-300
-                  dark:text-slate-600
-                "
-              />
-
-              <p
-                className="
-                  mt-3
-                  font-semibold
-                  text-slate-700
-                  dark:text-slate-300
-                "
-              >
-                Aucun apprenant inscrit
-              </p>
-
-              <p
-                className="
-                  mt-1
-                  text-sm
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Ajoutez des apprenants à cette
-                cohorte pour les voir apparaître ici.
-              </p>
-
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-
-              <table className="w-full min-w-[1000px]">
-
-                <thead>
-                  <tr
+                  <div
                     className="
-                      border-b
-                      border-slate-200
-                      bg-slate-50/70
-                      dark:border-white/10
-                      dark:bg-white/[0.03]
+                      flex
+                      size-10
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-[#FF6B0B]/10
                     "
                   >
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Apprenant
-                    </th>
+                    <Users
+                      className="
+                        size-5
+                        text-[#FF6B0B]
+                      "
+                    />
+                  </div>
 
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Email
-                    </th>
+                  <div>
 
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Mentor
-                    </th>
+                    <h2
+                      className="
+                        font-bold
+                        text-slate-900
+                        dark:text-white
+                      "
+                    >
+                      Apprenants
+                    </h2>
 
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Statut
-                    </th>
+                    <p
+                      className="
+                        text-sm
+                        text-slate-500
+                        dark:text-slate-400
+                      "
+                    >
+                      {enrollments.length} apprenant(s)
+                      inscrit(s)
+                    </p>
 
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Inscription
-                    </th>
+                  </div>
 
-                    {canManage && (
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Action
-                      </th>
-                    )}
-                  </tr>
-                </thead>
+                </div>
 
-                <tbody
-                  className="
-                    divide-y
-                    divide-slate-200
-                    dark:divide-white/10
-                  "
-                >
-                  {enrollments.map(
-                    (enrollment) => {
-                      const user =
-                        enrollment.user
+                {/* AJOUT APPRENANT :
+                    ADMIN + ORGANIZER
+                    FORMATEUR : MASQUÉ
+                */}
 
-                      const fullName =
-                        user.full_name ||
-                        `${user.first_name ?? ''} ${
-                          user.last_name ?? ''
-                        }`.trim() ||
-                        'Utilisateur'
+                {canManage && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      navigate(
+                        `/cohortes/${cohorte.id}/inviter-apprenant`,
+                      )
+                    }
+                    className="
+                      gap-2
+                      border-[#FF6B0B]
+                      text-[#FF6B0B]
+                      hover:bg-[#FF6B0B]/10
+                    "
+                  >
+                    <UserPlus className="size-4" />
+                    Ajouter
+                  </Button>
+                )}
 
-                      const mentor =
-                        enrollment.mentor
+              </div>
 
-                      const mentorName =
-                        mentor?.user?.full_name ||
-                        `${mentor?.user?.first_name ?? ''} ${
-                          mentor?.user?.last_name ?? ''
-                        }`.trim()
+              {/* TABLE */}
 
-                      return (
-                        <tr
-                          key={enrollment.id}
-                          className="
-                            transition
-                            hover:bg-slate-50
-                            dark:hover:bg-white/[0.03]
-                          "
-                        >
+              {enrollments.length === 0 ? (
+                <div className="p-10 text-center">
 
-                          {/* APPRENANT */}
+                  <Users
+                    className="
+                      mx-auto
+                      size-10
+                      text-slate-300
+                      dark:text-slate-600
+                    "
+                  />
 
-                          <td className="px-5 py-4">
+                  <p
+                    className="
+                      mt-3
+                      font-semibold
+                      text-slate-700
+                      dark:text-slate-300
+                    "
+                  >
+                    Aucun apprenant inscrit
+                  </p>
 
-                            <div className="flex items-center gap-3">
+                  <p
+                    className="
+                      mt-1
+                      text-sm
+                      text-slate-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Ajoutez des apprenants à cette
+                    cohorte pour les voir apparaître ici.
+                  </p>
 
-                              <div
-                                className="
-                                  flex
-                                  size-10
-                                  shrink-0
-                                  items-center
-                                  justify-center
-                                  rounded-full
-                                  bg-[#FF6B0B]/10
-                                  font-bold
-                                  text-[#FF6B0B]
-                                "
-                              >
-                                {(
-                                  user.first_name ||
-                                  fullName
-                                )
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
 
-                              <div>
+                  <table className="w-full min-w-[1000px]">
 
-                                <p
-                                  className="
-                                    font-semibold
-                                    text-slate-900
-                                    dark:text-white
-                                  "
-                                >
-                                  {fullName}
-                                </p>
+                    <thead>
+                      <tr
+                        className="
+                          border-b
+                          border-slate-200
+                          bg-slate-50/70
+                          dark:border-white/10
+                          dark:bg-white/[0.03]
+                        "
+                      >
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Apprenant
+                        </th>
 
-                                <p
-                                  className="
-                                    text-xs
-                                    text-slate-500
-                                    dark:text-slate-400
-                                  "
-                                >
-                                  Apprenant
-                                </p>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Email
+                        </th>
 
-                              </div>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Mentor
+                        </th>
 
-                            </div>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Statut
+                        </th>
 
-                          </td>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Inscription
+                        </th>
 
-                          {/* EMAIL */}
+                        {canManage && (
+                          <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Action
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
 
-                          <td className="px-5 py-4">
+                    <tbody
+                      className="
+                        divide-y
+                        divide-slate-200
+                        dark:divide-white/10
+                      "
+                    >
+                      {enrollments.map(
+                        (enrollment) => {
+                          const enrollmentUser =
+                            enrollment.user
 
-                            <div
+                          const fullName =
+                            enrollmentUser.full_name ||
+                            `${enrollmentUser.first_name ?? ''} ${
+                              enrollmentUser.last_name ?? ''
+                            }`.trim() ||
+                            'Utilisateur'
+
+                          const mentor =
+                            enrollment.mentor
+
+                          const mentorName =
+                            mentor?.user?.full_name ||
+                            `${mentor?.user?.first_name ?? ''} ${
+                              mentor?.user?.last_name ?? ''
+                            }`.trim()
+
+                          return (
+                            <tr
+                              key={enrollment.id}
                               className="
-                                flex
-                                items-center
-                                gap-2
-                                text-sm
-                                text-slate-600
-                                dark:text-slate-300
+                                transition
+                                hover:bg-slate-50
+                                dark:hover:bg-white/[0.03]
                               "
                             >
-                              <Mail className="size-4 text-slate-400" />
 
-                              {user.email}
+                              {/* APPRENANT */}
 
-                            </div>
+                              <td className="px-5 py-4">
 
-                          </td>
+                                <div className="flex items-center gap-3">
 
-                          {/* MENTOR */}
+                                  <div
+                                    className="
+                                      flex
+                                      size-10
+                                      shrink-0
+                                      items-center
+                                      justify-center
+                                      rounded-full
+                                      bg-[#FF6B0B]/10
+                                      font-bold
+                                      text-[#FF6B0B]
+                                    "
+                                  >
+                                    {(
+                                      enrollmentUser.first_name ||
+                                      fullName
+                                    )
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </div>
 
-                          <td className="px-5 py-4">
+                                  <div>
 
-                            {mentor && mentorName ? (
-                              <div className="flex items-center gap-2">
+                                    <p
+                                      className="
+                                        font-semibold
+                                        text-slate-900
+                                        dark:text-white
+                                      "
+                                    >
+                                      {fullName}
+                                    </p>
+
+                                    <p
+                                      className="
+                                        text-xs
+                                        text-slate-500
+                                        dark:text-slate-400
+                                      "
+                                    >
+                                      Apprenant
+                                    </p>
+
+                                  </div>
+
+                                </div>
+
+                              </td>
+
+                              {/* EMAIL */}
+
+                              <td className="px-5 py-4">
 
                                 <div
                                   className="
                                     flex
-                                    size-8
                                     items-center
-                                    justify-center
-                                    rounded-full
-                                    bg-purple-50
-                                    text-xs
-                                    font-bold
-                                    text-purple-600
-                                    dark:bg-purple-500/10
-                                    dark:text-purple-400
+                                    gap-2
+                                    text-sm
+                                    text-slate-600
+                                    dark:text-slate-300
                                   "
                                 >
-                                  {(
-                                    mentor.user.first_name ||
-                                    mentorName
-                                  )
-                                    .charAt(0)
-                                    .toUpperCase()}
+                                  <Mail className="size-4 text-slate-400" />
+
+                                  {enrollmentUser.email}
+
                                 </div>
 
-                                <div>
+                              </td>
 
-                                  <p
-                                    className="
-                                      text-sm
-                                      font-semibold
-                                      text-slate-800
-                                      dark:text-white
-                                    "
-                                  >
-                                    {mentorName}
-                                  </p>
+                              {/* MENTOR */}
 
-                                  <p
+                              <td className="px-5 py-4">
+
+                                {mentor && mentorName ? (
+                                  <div className="flex items-center gap-2">
+
+                                    <div
+                                      className="
+                                        flex
+                                        size-8
+                                        items-center
+                                        justify-center
+                                        rounded-full
+                                        bg-purple-50
+                                        text-xs
+                                        font-bold
+                                        text-purple-600
+                                        dark:bg-purple-500/10
+                                        dark:text-purple-400
+                                      "
+                                    >
+                                      {(
+                                        mentor.user.first_name ||
+                                        mentorName
+                                      )
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                    </div>
+
+                                    <div>
+
+                                      <p
+                                        className="
+                                          text-sm
+                                          font-semibold
+                                          text-slate-800
+                                          dark:text-white
+                                        "
+                                      >
+                                        {mentorName}
+                                      </p>
+
+                                      <p
+                                        className="
+                                          text-xs
+                                          text-purple-600
+                                          dark:text-purple-400
+                                        "
+                                      >
+                                        Mentor
+                                      </p>
+
+                                    </div>
+
+                                  </div>
+                                ) : (
+                                  <span
                                     className="
+                                      inline-flex
+                                      items-center
+                                      gap-1.5
+                                      rounded-full
+                                      bg-slate-100
+                                      px-2.5
+                                      py-1
                                       text-xs
-                                      text-purple-600
-                                      dark:text-purple-400
+                                      font-medium
+                                      text-slate-500
+                                      dark:bg-white/10
+                                      dark:text-slate-400
                                     "
                                   >
-                                    Mentor
-                                  </p>
+                                    Aucun mentor
+                                  </span>
+                                )}
 
-                                </div>
+                              </td>
 
-                              </div>
-                            ) : (
-                              <span
+                              {/* STATUT */}
+
+                              <td className="px-5 py-4">
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    rounded-full
+                                    bg-emerald-50
+                                    px-2.5
+                                    py-1
+                                    text-xs
+                                    font-semibold
+                                    text-emerald-600
+                                    dark:bg-emerald-500/10
+                                    dark:text-emerald-400
+                                  "
+                                >
+                                  <CheckCircle2 className="size-3.5" />
+
+                                  {enrollment.status ===
+                                  'active'
+                                    ? 'Actif'
+                                    : enrollment.status}
+                                </span>
+
+                              </td>
+
+                              {/* INSCRIPTION */}
+
+                              <td
                                 className="
-                                  inline-flex
-                                  items-center
-                                  gap-1.5
-                                  rounded-full
-                                  bg-slate-100
-                                  px-2.5
-                                  py-1
-                                  text-xs
-                                  font-medium
-                                  text-slate-500
-                                  dark:bg-white/10
-                                  dark:text-slate-400
+                                  px-5
+                                  py-4
+                                  text-sm
+                                  text-slate-600
+                                  dark:text-slate-300
                                 "
                               >
-                                Aucun mentor
-                              </span>
-                            )}
+                                {formatDate(
+                                  enrollment.enrolled_at,
+                                )}
+                              </td>
 
-                          </td>
+                              {/* ACTION MENTOR
+                                  ADMIN + ORGANIZER
+                                  FORMATEUR : MASQUÉ
+                              */}
 
-                          {/* STATUT */}
+                              {canManage && (
+                                <td className="px-5 py-4">
 
-                          <td className="px-5 py-4">
+                                  <div className="flex justify-end">
 
-                            <span
-                              className="
-                                inline-flex
-                                items-center
-                                gap-1.5
-                                rounded-full
-                                bg-emerald-50
-                                px-2.5
-                                py-1
-                                text-xs
-                                font-semibold
-                                text-emerald-600
-                                dark:bg-emerald-500/10
-                                dark:text-emerald-400
-                              "
-                            >
-                              <CheckCircle2 className="size-3.5" />
+                                    <Button
+                                      variant="outline"
+                                      onClick={() =>
+                                        openMentorModal(
+                                          enrollment,
+                                        )
+                                      }
+                                      className="
+                                        gap-2
+                                        rounded-xl
+                                        border-purple-200
+                                        text-purple-600
+                                        hover:bg-purple-50
+                                        hover:text-purple-700
+                                        dark:border-purple-500/30
+                                        dark:text-purple-400
+                                        dark:hover:bg-purple-500/10
+                                      "
+                                    >
+                                      <UserCheck className="size-4" />
 
-                              {enrollment.status ===
-                              'active'
-                                ? 'Actif'
-                                : enrollment.status}
-                            </span>
+                                      {mentor
+                                        ? 'Modifier'
+                                        : 'Attribuer mentor'}
+                                    </Button>
 
-                          </td>
+                                  </div>
 
-                          {/* INSCRIPTION */}
+                                </td>
+                              )}
 
-                          <td
-                            className="
-                              px-5
-                              py-4
-                              text-sm
-                              text-slate-600
-                              dark:text-slate-300
-                            "
-                          >
-                            {formatDate(
-                              enrollment.enrolled_at,
-                            )}
-                          </td>
+                            </tr>
+                          )
+                        },
+                      )}
+                    </tbody>
 
-                          {/* ACTION MENTOR — masquée pour le formateur */}
+                  </table>
 
-                          {canManage && (
-                            <td className="px-5 py-4">
-
-                              <div className="flex justify-end">
-
-                                <Button
-                                  variant="outline"
-                                  onClick={() =>
-                                    openMentorModal(
-                                      enrollment,
-                                    )
-                                  }
-                                  className="
-                                    gap-2
-                                    rounded-xl
-                                    border-purple-200
-                                    text-purple-600
-                                    hover:bg-purple-50
-                                    hover:text-purple-700
-                                    dark:border-purple-500/30
-                                    dark:text-purple-400
-                                    dark:hover:bg-purple-500/10
-                                  "
-                                >
-                                  <UserCheck className="size-4" />
-
-                                  {mentor
-                                    ? 'Modifier'
-                                    : 'Attribuer mentor'}
-                                </Button>
-
-                              </div>
-
-                            </td>
-                          )}
-
-                        </tr>
-                      )
-                    },
-                  )}
-                </tbody>
-
-              </table>
+                </div>
+              )}
 
             </div>
-          )}
 
-        </div>
-
-        {/* ======================================================
-            TABLEAU FORMATEURS
-            LECTURE SEULE — AUCUNE ACTION
-        ====================================================== */}
-
-        <div
-          className="
-            overflow-hidden
-            rounded-2xl
-            border
-            border-slate-200
-            bg-white
-            shadow-sm
-            dark:border-white/10
-            dark:bg-[#1f1f38]
-          "
-        >
-
-          {/* HEADER */}
-
-          <div
-            className="
-              flex
-              items-center
-              justify-between
-              gap-3
-              border-b
-              border-slate-200
-              p-5
-              dark:border-white/10
-            "
-          >
+            {/* ==================================================
+                TABLEAU FORMATEURS
+            ================================================== */}
 
             <div
               className="
-                flex
-                size-10
-                items-center
-                justify-center
-                rounded-xl
-                bg-blue-50
-                dark:bg-blue-500/10
+                overflow-hidden
+                rounded-2xl
+                border
+                border-slate-200
+                bg-white
+                shadow-sm
+                dark:border-white/10
+                dark:bg-[#1f1f38]
               "
             >
-              <GraduationCap
-                className="
-                  size-5
-                  text-blue-600
-                  dark:text-blue-400
-                "
-              />
-            </div>
 
-            <div>
+              {/* HEADER */}
 
-              <h2
+              <div
                 className="
-                  font-bold
-                  text-slate-900
-                  dark:text-white
+                  flex
+                  items-center
+                  justify-between
+                  gap-3
+                  border-b
+                  border-slate-200
+                  p-5
+                  dark:border-white/10
                 "
               >
-                Formateurs
-              </h2>
 
-              <p
-                className="
-                  text-sm
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                {trainerAssignments.length} formateur(s)
-                affecté(s)
-              </p>
+                <div className="flex items-center gap-3">
 
-            </div>
-
-            {canManage && (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  navigate(
-                    `/cohortes/${cohorte.id}/inviter-formateur`,
-                  )
-                }
-                className="
-                  gap-2
-                  border-[#FF6B0B]
-                  text-[#FF6B0B]
-                  hover:bg-[#FF6B0B]/10
-                "
-              >
-                <UserPlus className="size-4" />
-                Ajouter un formateur
-              </Button>
-            )}
-
-          </div>
-
-          {/* TABLE FORMATEURS */}
-
-          {trainerAssignments.length === 0 ? (
-            <div className="p-10 text-center">
-
-              <GraduationCap
-                className="
-                  mx-auto
-                  size-10
-                  text-slate-300
-                  dark:text-slate-600
-                "
-              />
-
-              <p
-                className="
-                  mt-3
-                  font-semibold
-                  text-slate-700
-                  dark:text-slate-300
-                "
-              >
-                Aucun formateur affecté
-              </p>
-
-              <p
-                className="
-                  mt-1
-                  text-sm
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Aucun formateur n'est actuellement
-                affecté à cette cohorte.
-              </p>
-
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-
-              <table className="w-full min-w-[700px]">
-
-                <thead>
-                  <tr
+                  <div
                     className="
-                      border-b
-                      border-slate-200
-                      bg-slate-50/70
-                      dark:border-white/10
-                      dark:bg-white/[0.03]
+                      flex
+                      size-10
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-blue-50
+                      dark:bg-blue-500/10
                     "
                   >
-
-                    <th
+                    <GraduationCap
                       className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
+                        size-5
+                        text-blue-600
+                        dark:text-blue-400
+                      "
+                    />
+                  </div>
+
+                  <div>
+
+                    <h2
+                      className="
+                        font-bold
+                        text-slate-900
+                        dark:text-white
+                      "
+                    >
+                      Formateurs
+                    </h2>
+
+                    <p
+                      className="
+                        text-sm
                         text-slate-500
                         dark:text-slate-400
                       "
                     >
-                      Formateur
-                    </th>
+                      {trainerAssignments.length} formateur(s)
+                      affecté(s)
+                    </p>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
-                      Email
-                    </th>
+                  </div>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
-                      Statut
-                    </th>
+                </div>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
-                      Affectation
-                    </th>
+                {/* AJOUT FORMATEUR :
+                    ADMIN + ORGANIZER
+                    FORMATEUR : MASQUÉ
+                */}
 
-                  </tr>
-                </thead>
+                {canManage && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      navigate(
+                        `/cohortes/${cohorte.id}/inviter-formateur`,
+                      )
+                    }
+                    className="
+                      gap-2
+                      border-[#FF6B0B]
+                      text-[#FF6B0B]
+                      hover:bg-[#FF6B0B]/10
+                    "
+                  >
+                    <UserPlus className="size-4" />
+                    Ajouter un formateur
+                  </Button>
+                )}
 
-                <tbody
-                  className="
-                    divide-y
-                    divide-slate-200
-                    dark:divide-white/10
-                  "
-                >
+              </div>
 
-                  {trainerAssignments.map(
-                    (assignment) => {
-                      const user =
-                        assignment.user
+              {/* TABLE FORMATEURS */}
 
-                      const fullName =
-                        user.full_name ||
-                        `${user.first_name ?? ''} ${
-                          user.last_name ?? ''
-                        }`.trim() ||
-                        'Utilisateur'
+              {trainerAssignments.length === 0 ? (
+                <div className="p-10 text-center">
 
-                      return (
-                        <tr
-                          key={assignment.id}
+                  <GraduationCap
+                    className="
+                      mx-auto
+                      size-10
+                      text-slate-300
+                      dark:text-slate-600
+                    "
+                  />
+
+                  <p
+                    className="
+                      mt-3
+                      font-semibold
+                      text-slate-700
+                      dark:text-slate-300
+                    "
+                  >
+                    Aucun formateur affecté
+                  </p>
+
+                  <p
+                    className="
+                      mt-1
+                      text-sm
+                      text-slate-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Aucun formateur n'est actuellement
+                    affecté à cette cohorte.
+                  </p>
+
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+
+                  <table className="w-full min-w-[700px]">
+
+                    <thead>
+                      <tr
+                        className="
+                          border-b
+                          border-slate-200
+                          bg-slate-50/70
+                          dark:border-white/10
+                          dark:bg-white/[0.03]
+                        "
+                      >
+
+                        <th
                           className="
-                            transition
-                            hover:bg-slate-50
-                            dark:hover:bg-white/[0.03]
+                            px-5
+                            py-3
+                            text-left
+                            text-xs
+                            font-semibold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-slate-400
                           "
                         >
+                          Formateur
+                        </th>
 
-                          {/* FORMATEUR */}
+                        <th
+                          className="
+                            px-5
+                            py-3
+                            text-left
+                            text-xs
+                            font-semibold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-slate-400
+                          "
+                        >
+                          Email
+                        </th>
 
-                          <td className="px-5 py-4">
+                        <th
+                          className="
+                            px-5
+                            py-3
+                            text-left
+                            text-xs
+                            font-semibold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-slate-400
+                          "
+                        >
+                          Statut
+                        </th>
 
-                            <div className="flex items-center gap-3">
+                        <th
+                          className="
+                            px-5
+                            py-3
+                            text-left
+                            text-xs
+                            font-semibold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-slate-400
+                          "
+                        >
+                          Affectation
+                        </th>
 
-                              <div
+                      </tr>
+                    </thead>
+
+                    <tbody
+                      className="
+                        divide-y
+                        divide-slate-200
+                        dark:divide-white/10
+                      "
+                    >
+
+                      {trainerAssignments.map(
+                        (assignment) => {
+                          const assignmentUser =
+                            assignment.user
+
+                          const fullName =
+                            assignmentUser.full_name ||
+                            `${assignmentUser.first_name ?? ''} ${
+                              assignmentUser.last_name ?? ''
+                            }`.trim() ||
+                            'Utilisateur'
+
+                          return (
+                            <tr
+                              key={assignment.id}
+                              className="
+                                transition
+                                hover:bg-slate-50
+                                dark:hover:bg-white/[0.03]
+                              "
+                            >
+
+                              {/* FORMATEUR */}
+
+                              <td className="px-5 py-4">
+
+                                <div className="flex items-center gap-3">
+
+                                  <div
+                                    className="
+                                      flex
+                                      size-10
+                                      shrink-0
+                                      items-center
+                                      justify-center
+                                      rounded-full
+                                      bg-blue-50
+                                      font-bold
+                                      text-blue-600
+                                      dark:bg-blue-500/10
+                                      dark:text-blue-400
+                                    "
+                                  >
+                                    {(
+                                      assignmentUser.first_name ||
+                                      fullName
+                                    )
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </div>
+
+                                  <div>
+
+                                    <p
+                                      className="
+                                        font-semibold
+                                        text-slate-900
+                                        dark:text-white
+                                      "
+                                    >
+                                      {fullName}
+                                    </p>
+
+                                    <p
+                                      className="
+                                        text-xs
+                                        text-slate-500
+                                        dark:text-slate-400
+                                      "
+                                    >
+                                      Formateur
+                                    </p>
+
+                                  </div>
+
+                                </div>
+
+                              </td>
+
+                              {/* EMAIL */}
+
+                              <td className="px-5 py-4">
+
+                                <div
+                                  className="
+                                    flex
+                                    items-center
+                                    gap-2
+                                    text-sm
+                                    text-slate-600
+                                    dark:text-slate-300
+                                  "
+                                >
+                                  <Mail className="size-4 text-slate-400" />
+
+                                  {assignmentUser.email}
+
+                                </div>
+
+                              </td>
+
+                              {/* STATUT */}
+
+                              <td className="px-5 py-4">
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    gap-1.5
+                                    rounded-full
+                                    bg-emerald-50
+                                    px-2.5
+                                    py-1
+                                    text-xs
+                                    font-semibold
+                                    text-emerald-600
+                                    dark:bg-emerald-500/10
+                                    dark:text-emerald-400
+                                  "
+                                >
+                                  <CheckCircle2 className="size-3.5" />
+
+                                  {assignment.status ===
+                                  'active'
+                                    ? 'Actif'
+                                    : assignment.status}
+                                </span>
+
+                              </td>
+
+                              {/* DATE AFFECTATION */}
+
+                              <td
                                 className="
-                                  flex
-                                  size-10
-                                  shrink-0
-                                  items-center
-                                  justify-center
-                                  rounded-full
-                                  bg-blue-50
-                                  font-bold
-                                  text-blue-600
-                                  dark:bg-blue-500/10
-                                  dark:text-blue-400
+                                  px-5
+                                  py-4
+                                  text-sm
+                                  text-slate-600
+                                  dark:text-slate-300
                                 "
                               >
-                                {(
-                                  user.first_name ||
-                                  fullName
-                                )
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
+                                {formatDate(
+                                  assignment.assigned_at,
+                                )}
+                              </td>
 
-                              <div>
+                            </tr>
+                          )
+                        },
+                      )}
 
-                                <p
-                                  className="
-                                    font-semibold
-                                    text-slate-900
-                                    dark:text-white
-                                  "
-                                >
-                                  {fullName}
-                                </p>
+                    </tbody>
 
-                                <p
-                                  className="
-                                    text-xs
-                                    text-slate-500
-                                    dark:text-slate-400
-                                  "
-                                >
-                                  Formateur
-                                </p>
+                  </table>
 
-                              </div>
-
-                            </div>
-
-                          </td>
-
-                          {/* EMAIL */}
-
-                          <td className="px-5 py-4">
-
-                            <div
-                              className="
-                                flex
-                                items-center
-                                gap-2
-                                text-sm
-                                text-slate-600
-                                dark:text-slate-300
-                              "
-                            >
-                              <Mail className="size-4 text-slate-400" />
-
-                              {user.email}
-
-                            </div>
-
-                          </td>
-
-                          {/* STATUT */}
-
-                          <td className="px-5 py-4">
-
-                            <span
-                              className="
-                                inline-flex
-                                items-center
-                                gap-1.5
-                                rounded-full
-                                bg-emerald-50
-                                px-2.5
-                                py-1
-                                text-xs
-                                font-semibold
-                                text-emerald-600
-                                dark:bg-emerald-500/10
-                                dark:text-emerald-400
-                              "
-                            >
-                              <CheckCircle2 className="size-3.5" />
-
-                              {assignment.status ===
-                              'active'
-                                ? 'Actif'
-                                : assignment.status}
-                            </span>
-
-                          </td>
-
-                          {/* DATE AFFECTATION */}
-
-                          <td
-                            className="
-                              px-5
-                              py-4
-                              text-sm
-                              text-slate-600
-                              dark:text-slate-300
-                            "
-                          >
-                            {formatDate(
-                              assignment.assigned_at,
-                            )}
-                          </td>
-
-                        </tr>
-                      )
-                    },
-                  )}
-
-                </tbody>
-
-              </table>
+                </div>
+              )}
 
             </div>
-          )}
 
-        </div>
-        </>)}
+          </>
+        )}
+
       </div>
 
       {/* ========================================================
-          MODAL MENTOR — inutile pour le formateur (canManage requis)
+          MODAL MENTOR
+          
+          Uniquement ADMIN + ORGANIZER
       ======================================================== */}
 
       {canManage &&
@@ -2566,3 +2634,4 @@ const CohorteDetailPage: React.FC = () => {
 }
 
 export default CohorteDetailPage
+

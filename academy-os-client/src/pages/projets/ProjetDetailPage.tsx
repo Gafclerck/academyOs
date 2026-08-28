@@ -1,3 +1,4 @@
+
 import React from 'react'
 import axios from 'axios'
 import {
@@ -26,7 +27,10 @@ import { toast } from 'sonner'
 
 import { useAuth } from '@/context/AuthContext'
 import projetService from '@/services/projets/projetService'
-import type { Projet, ProjetAttachment } from '@/types/projet'
+import type {
+  Projet,
+  ProjetAttachment,
+} from '@/types/projet'
 
 import { Button } from '@/components/ui/button'
 
@@ -126,7 +130,11 @@ const formatDate = (
   try {
     const parsedDate = new Date(date)
 
-    if (Number.isNaN(parsedDate.getTime())) {
+    if (
+      Number.isNaN(
+        parsedDate.getTime(),
+      )
+    ) {
       return date
     }
 
@@ -228,13 +236,16 @@ const getStatusClasses = (
 export const ProjetDetailPage: React.FC = () => {
   const navigate = useNavigate()
 
-  const { projectId: projetId } =
-    useParams<{ projectId: string }>()
+  const {
+    projectId: projetId,
+  } = useParams<{
+    projectId: string
+  }>()
 
   const { user } = useAuth()
 
   /* ==========================================================
-     RÔLE
+     RÔLES
   ========================================================== */
 
   const role = user?.role
@@ -251,9 +262,15 @@ export const ProjetDetailPage: React.FC = () => {
   const isLearner =
     role === 'learner'
 
+  /*
+   * IMPORTANT :
+   * Seul l'administrateur peut gérer le projet.
+   *
+   * L'organisateur est maintenant en lecture seule,
+   * exactement comme le formateur.
+   */
   const canManageProjects =
-    isAdmin ||
-    isOrganizer
+    isAdmin
 
   /* ==========================================================
      STATE PROJET
@@ -294,57 +311,60 @@ export const ProjetDetailPage: React.FC = () => {
   ] = React.useState<string | null>(null)
 
   const fileInputRef =
-    React.useRef<HTMLInputElement | null>(null)
+    React.useRef<HTMLInputElement | null>(
+      null,
+    )
 
   /* ==========================================================
      CHARGER LE PROJET
   ========================================================== */
 
-  const loadProjet = React.useCallback(
-    async () => {
-      if (!projetId) {
-        setError(
-          'Aucun projet n’a été spécifié.',
-        )
-
-        setIsLoading(false)
-
-        return
-      }
-
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const data =
-          await projetService.getProjetById(
-            projetId,
+  const loadProjet =
+    React.useCallback(
+      async () => {
+        if (!projetId) {
+          setError(
+            'Aucun projet n’a été spécifié.',
           )
 
-        setProjet(data)
-      } catch (err) {
-        console.error(
-          '[ProjetDetailPage] Erreur chargement projet:',
-          err,
-        )
+          setIsLoading(false)
 
-        const message =
-          getAxiosErrorMessage(err)
+          return
+        }
 
-        setError(message)
+        try {
+          setIsLoading(true)
+          setError(null)
 
-        toast.error(
-          'Impossible de charger le projet',
-          {
-            description: message,
-          },
-        )
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [projetId],
-  )
+          const data =
+            await projetService.getProjetById(
+              projetId,
+            )
+
+          setProjet(data)
+        } catch (err) {
+          console.error(
+            '[ProjetDetailPage] Erreur chargement projet:',
+            err,
+          )
+
+          const message =
+            getAxiosErrorMessage(err)
+
+          setError(message)
+
+          toast.error(
+            'Impossible de charger le projet',
+            {
+              description: message,
+            },
+          )
+        } finally {
+          setIsLoading(false)
+        }
+      },
+      [projetId],
+    )
 
   React.useEffect(() => {
     loadProjet()
@@ -352,11 +372,16 @@ export const ProjetDetailPage: React.FC = () => {
 
   /* ==========================================================
      SÉLECTION FICHIER
+     ADMIN UNIQUEMENT
   ========================================================== */
 
   const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
+    if (!canManageProjects) {
+      return
+    }
+
     const file =
       event.target.files?.[0]
 
@@ -388,20 +413,31 @@ export const ProjetDetailPage: React.FC = () => {
      SUPPRIMER FICHIER SÉLECTIONNÉ
   ========================================================== */
 
-  const handleRemoveSelectedFile = () => {
-    setSelectedFile(null)
+  const handleRemoveSelectedFile =
+    () => {
+      setSelectedFile(null)
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      if (fileInputRef.current) {
+        fileInputRef.current.value =
+          ''
+      }
     }
-  }
 
   /* ==========================================================
      AJOUTER UNE PIÈCE JOINTE
+     ADMIN UNIQUEMENT
   ========================================================== */
 
   const handleUploadAttachment =
     async () => {
+      if (!canManageProjects) {
+        toast.error(
+          'Vous n’avez pas les droits nécessaires.',
+        )
+
+        return
+      }
+
       if (!projet) {
         toast.error(
           'Le projet est introuvable.',
@@ -432,7 +468,8 @@ export const ProjetDetailPage: React.FC = () => {
         setSelectedFile(null)
 
         if (fileInputRef.current) {
-          fileInputRef.current.value = ''
+          fileInputRef.current.value =
+            ''
         }
 
         toast.success(
@@ -458,11 +495,20 @@ export const ProjetDetailPage: React.FC = () => {
 
   /* ==========================================================
      MODIFIER UNE PIÈCE JOINTE
+     ADMIN UNIQUEMENT
   ========================================================== */
 
   const handleModifyAttachment = (
     attachment: ProjetAttachment,
   ) => {
+    if (!canManageProjects) {
+      toast.error(
+        'Vous n’avez pas les droits nécessaires.',
+      )
+
+      return
+    }
+
     if (!projet) {
       toast.error(
         'Le projet est introuvable.',
@@ -582,6 +628,7 @@ export const ProjetDetailPage: React.FC = () => {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-slate-500 dark:text-slate-400">
+
           <div className="flex size-12 items-center justify-center rounded-2xl bg-[#FF6B0B]/10">
             <Loader2 className="size-6 animate-spin text-[#FF6B0B]" />
           </div>
@@ -589,6 +636,7 @@ export const ProjetDetailPage: React.FC = () => {
           <span className="text-sm font-medium">
             Chargement du projet...
           </span>
+
         </div>
       </div>
     )
@@ -716,9 +764,7 @@ export const ProjetDetailPage: React.FC = () => {
 
         <div className="space-y-6">
 
-          {/* ==================================================
-              HERO APPRENANT
-          ================================================== */}
+          {/* HERO APPRENANT */}
 
           <section
             className="
@@ -741,8 +787,6 @@ export const ProjetDetailPage: React.FC = () => {
               lg:p-10
             "
           >
-
-            {/* DÉCOR */}
 
             <div
               className="
@@ -771,8 +815,6 @@ export const ProjetDetailPage: React.FC = () => {
             />
 
             <div className="relative">
-
-              {/* BADGE */}
 
               <div className="mb-5 flex flex-wrap items-center gap-2">
 
@@ -815,8 +857,6 @@ export const ProjetDetailPage: React.FC = () => {
                 </span>
 
               </div>
-
-              {/* TITRE */}
 
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
 
@@ -874,8 +914,6 @@ export const ProjetDetailPage: React.FC = () => {
                 </div>
 
               </div>
-
-              {/* INFOS RAPIDES */}
 
               <div
                 className="
@@ -997,9 +1035,7 @@ export const ProjetDetailPage: React.FC = () => {
 
           </section>
 
-          {/* ==================================================
-              DESCRIPTION APPRENANT
-          ================================================== */}
+          {/* DESCRIPTION APPRENANT */}
 
           <section
             className="
@@ -1073,9 +1109,7 @@ export const ProjetDetailPage: React.FC = () => {
 
           </section>
 
-          {/* ==================================================
-              RESSOURCES APPRENANT
-          ================================================== */}
+          {/* RESSOURCES APPRENANT */}
 
           <section
             className="
@@ -1289,10 +1323,14 @@ export const ProjetDetailPage: React.FC = () => {
 
                             {attachment.uploaded_by && (
                               <>
-                                <span>•</span>
+                                <span>
+                                  •
+                                </span>
 
                                 <span>
-                                  {attachment.uploaded_by}
+                                  {
+                                    attachment.uploaded_by
+                                  }
                                 </span>
                               </>
                             )}
@@ -1344,9 +1382,7 @@ export const ProjetDetailPage: React.FC = () => {
 
           </section>
 
-          {/* ==================================================
-              INFORMATIONS APPRENANT
-          ================================================== */}
+          {/* INFORMATIONS APPRENANT */}
 
           <section
             className="
@@ -1500,6 +1536,7 @@ export const ProjetDetailPage: React.FC = () => {
                       <Clock className="size-4" />
 
                       Ordre :
+
                       <strong className="text-slate-900 dark:text-white">
                         {projet.order}
                       </strong>
@@ -1515,7 +1552,14 @@ export const ProjetDetailPage: React.FC = () => {
                     {isOrganizer && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
                         <Users className="size-3.5" />
-                        Organisation
+                        Organisation — lecture seule
+                      </span>
+                    )}
+
+                    {isTrainer && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <Users className="size-3.5" />
+                        Formateur — lecture seule
                       </span>
                     )}
 
@@ -1524,6 +1568,11 @@ export const ProjetDetailPage: React.FC = () => {
                 </div>
 
               </div>
+
+              {/* ==================================================
+                  MODIFIER
+                  ADMIN UNIQUEMENT
+              ================================================== */}
 
               {canManageProjects && (
                 <Button
@@ -1795,6 +1844,11 @@ export const ProjetDetailPage: React.FC = () => {
 
               </div>
 
+              {/* ==================================================
+                  AJOUT FICHIER
+                  ADMIN UNIQUEMENT
+              ================================================== */}
+
               {canManageProjects && (
                 <Button
                   type="button"
@@ -1818,7 +1872,9 @@ export const ProjetDetailPage: React.FC = () => {
 
             </div>
 
-            {/* INPUT */}
+            {/* ==================================================
+                INPUT
+            ================================================== */}
 
             <input
               ref={fileInputRef}
@@ -1831,7 +1887,9 @@ export const ProjetDetailPage: React.FC = () => {
               className="hidden"
             />
 
-            {/* FICHIER SÉLECTIONNÉ */}
+            {/* ==================================================
+                FICHIER SÉLECTIONNÉ
+            ================================================== */}
 
             {selectedFile &&
               canManageProjects && (
@@ -1929,7 +1987,9 @@ export const ProjetDetailPage: React.FC = () => {
                 </div>
               )}
 
-            {/* LISTE */}
+            {/* ==================================================
+                LISTE
+            ================================================== */}
 
             {attachments.length === 0 ? (
 
@@ -2077,6 +2137,11 @@ export const ProjetDetailPage: React.FC = () => {
 
                         <div className="flex flex-wrap items-center gap-2">
 
+                          {/* ==================================================
+                              MODIFIER PIÈCE JOINTE
+                              ADMIN UNIQUEMENT
+                          ================================================== */}
+
                           {canManageProjects && (
                             <Button
                               type="button"
@@ -2109,6 +2174,11 @@ export const ProjetDetailPage: React.FC = () => {
                               )}
                             </Button>
                           )}
+
+                          {/* ==================================================
+                              OUVRIR
+                              TOUT LE MONDE
+                          ================================================== */}
 
                           <a
                             href={
@@ -2153,10 +2223,10 @@ export const ProjetDetailPage: React.FC = () => {
           </div>
 
           {/* ==================================================
-              INFO TRAINER
+              INFO ORGANIZER / TRAINER
           ================================================== */}
 
-          {isTrainer && (
+          {(isTrainer || isOrganizer) && (
             <div
               className="
                 rounded-2xl
@@ -2181,10 +2251,10 @@ export const ProjetDetailPage: React.FC = () => {
 
                   <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                     Vous pouvez consulter les projets
-                    associés à ce programme. La création,
-                    modification et suppression des projets
-                    sont réservées aux administrateurs et
-                    organisateurs.
+                    associés à ce programme ainsi que
+                    leurs ressources. La création,
+                    modification et gestion des projets
+                    sont réservées aux administrateurs.
                   </p>
 
                 </div>
@@ -2195,7 +2265,7 @@ export const ProjetDetailPage: React.FC = () => {
           )}
 
           {/* ==================================================
-              INFO ADMIN / ORGANIZER
+              INFO ADMIN
           ================================================== */}
 
           {canManageProjects && (

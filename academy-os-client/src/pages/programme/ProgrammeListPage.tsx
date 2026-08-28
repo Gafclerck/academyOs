@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -270,7 +271,9 @@ export const ProgrammeListPage: React.FC = () => {
       {
         id: 'actions',
         header: () => (
-          <div className="pr-2 text-right">Actions</div>
+          <div className="pr-2 text-right">
+            Actions
+          </div>
         ),
         cell: ({ row }) => (
           <div className="flex justify-end">
@@ -278,7 +281,9 @@ export const ProgrammeListPage: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() =>
-                navigate(`/programmes/${row.original.id}`)
+                navigate(
+                  `/programmes/${row.original.id}`,
+                )
               }
               className="h-8 rounded-xl border-[#FF6B0B]/30 px-3 text-xs font-semibold text-[#FF6B0B] hover:border-[#FF6B0B] hover:bg-[#FF6B0B] hover:text-white"
             >
@@ -298,10 +303,15 @@ export const ProgrammeListPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="mb-1 flex items-center gap-2">
+
             {role === 'admin' ? (
               <ShieldCheck className="size-4 text-[#FF6B0B]" />
             ) : (
@@ -322,20 +332,31 @@ export const ProgrammeListPage: React.FC = () => {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {role === 'admin'
               ? 'Gérez et supervisez l’ensemble des parcours et formations.'
-              : 'Gérez les programmes que vous pilotez.'}
+              : 'Consultez les programmes disponibles.'}
           </p>
         </div>
 
-        <Button
-          onClick={() => navigate('/programmes/new')}
-          className="h-11 rounded-xl bg-[#FF6B0B] px-5 font-semibold text-white shadow-lg shadow-[#FF6B0B]/25 hover:bg-[#ff7a24]"
-        >
-          <Plus className="mr-2 size-4" />
-          Nouveau Programme
-        </Button>
+        {/* ====================================================
+            BOUTON UNIQUEMENT POUR ADMIN
+            ==================================================== */}
+
+        {role === 'admin' && (
+          <Button
+            onClick={() =>
+              navigate('/programmes/new')
+            }
+            className="h-11 rounded-xl bg-[#FF6B0B] px-5 font-semibold text-white shadow-lg shadow-[#FF6B0B]/25 hover:bg-[#ff7a24]"
+          >
+            <Plus className="mr-2 size-4" />
+            Nouveau Programme
+          </Button>
+        )}
       </div>
 
-      {/* ERROR */}
+      {/* ======================================================
+          ERROR
+      ====================================================== */}
+
       {isError && (
         <ErrorMessage
           error={error}
@@ -344,14 +365,19 @@ export const ProgrammeListPage: React.FC = () => {
         />
       )}
 
-      {/* KPI */}
+      {/* ======================================================
+          KPI
+      ====================================================== */}
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+
         <StatCard
           title="Total Programmes"
           value={
             kpisLoading
               ? '...'
-              : kpis?.total_programmes ?? programmes.length
+              : kpis?.total_programmes ??
+                programmes.length
           }
           subtitle="Formations enregistrées"
           icon={BookOpen}
@@ -363,8 +389,9 @@ export const ProgrammeListPage: React.FC = () => {
             kpisLoading
               ? '...'
               : kpis?.programmes_actifs ??
-                programmes.filter((p) => p.statut === 'actif')
-                  .length
+                programmes.filter(
+                  (p) => p.statut === 'actif',
+                ).length
           }
           subtitle="Actuellement ouverts"
           icon={CheckCircle2}
@@ -374,7 +401,9 @@ export const ProgrammeListPage: React.FC = () => {
         <StatCard
           title="Total Rentrées"
           value={
-            kpisLoading ? '...' : kpis?.total_rentrees ?? 0
+            kpisLoading
+              ? '...'
+              : kpis?.total_rentrees ?? 0
           }
           subtitle="Promotions organisées"
           icon={Calendar}
@@ -383,14 +412,19 @@ export const ProgrammeListPage: React.FC = () => {
         <StatCard
           title="Total Étudiants"
           value={
-            kpisLoading ? '...' : kpis?.total_etudiants ?? 0
+            kpisLoading
+              ? '...'
+              : kpis?.total_etudiants ?? 0
           }
           subtitle="Apprenants inscrits"
           icon={Users}
         />
       </div>
 
-      {/* RECHERCHE */}
+      {/* ======================================================
+          RECHERCHE
+      ====================================================== */}
+
       <ProgrammeFilters
         search={search}
         setSearch={setSearch}
@@ -398,7 +432,10 @@ export const ProgrammeListPage: React.FC = () => {
         setStatutFilter={setStatutFilter}
       />
 
-      {/* TABLE */}
+      {/* ======================================================
+          TABLE
+      ====================================================== */}
+
       <DataTable
         columns={columns}
         data={filteredData}
@@ -423,7 +460,9 @@ interface TrainerProgrammeViewProps {
   totalProgrammes: number
   firstName: string
   search: string
-  setSearch: React.Dispatch<React.SetStateAction<string>>
+  setSearch: React.Dispatch<
+    React.SetStateAction<string>
+  >
   statutFilter: StatusFilter
   setStatutFilter: React.Dispatch<
     React.SetStateAction<StatusFilter>
@@ -436,7 +475,9 @@ interface TrainerProgrammeViewProps {
   isFetching: boolean
 }
 
-const TrainerProgrammeView: React.FC<TrainerProgrammeViewProps> = ({
+const TrainerProgrammeView: React.FC<
+  TrainerProgrammeViewProps
+> = ({
   programmes,
   totalProgrammes,
   firstName,
@@ -452,14 +493,18 @@ const TrainerProgrammeView: React.FC<TrainerProgrammeViewProps> = ({
   isFetching,
 }) => {
   const activeCount = programmes.filter(
-    (programme) => programme.statut === 'actif',
+    (programme) =>
+      programme.statut === 'actif',
   ).length
 
   return (
     <div className="space-y-7">
+
       {/* HEADER FORMATEUR */}
+
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
+
           <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#FF6B0B]/10 px-3 py-1.5 text-xs font-bold text-[#FF6B0B]">
             <GraduationCap className="size-3.5" />
             Espace formateur
@@ -476,19 +521,29 @@ const TrainerProgrammeView: React.FC<TrainerProgrammeViewProps> = ({
         </div>
 
         {/* PETIT RESUME */}
+
         <div className="flex items-center gap-3">
+
           <SummaryPill
             icon={Layers3}
             iconClassName="bg-[#FF6B0B]/10 text-[#FF6B0B]"
             value={totalProgrammes}
-            label={`Programme${totalProgrammes > 1 ? 's' : ''}`}
+            label={`Programme${
+              totalProgrammes > 1
+                ? 's'
+                : ''
+            }`}
           />
 
           <SummaryPill
             icon={CheckCircle2}
             iconClassName="bg-emerald-500/10 text-emerald-500"
             value={activeCount}
-            label={`Actif${activeCount > 1 ? 's' : ''}`}
+            label={`Actif${
+              activeCount > 1
+                ? 's'
+                : ''
+            }`}
             className="hidden sm:flex"
           />
         </div>
@@ -503,7 +558,9 @@ const TrainerProgrammeView: React.FC<TrainerProgrammeViewProps> = ({
       )}
 
       {/* FILTRES */}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
             Vos formations
@@ -525,22 +582,30 @@ const TrainerProgrammeView: React.FC<TrainerProgrammeViewProps> = ({
 
       {isLoading && <ProgrammeCardsLoading />}
 
-      {!isLoading && !isError && programmes.length === 0 && (
-        <ProgrammeEmptyState variant="trainer" />
-      )}
+      {!isLoading &&
+        !isError &&
+        programmes.length === 0 && (
+          <ProgrammeEmptyState
+            variant="trainer"
+          />
+        )}
 
-      {!isLoading && !isError && programmes.length > 0 && (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {programmes.map((programme) => (
-            <ProgrammeCard
-              key={programme.id}
-              programme={programme}
-              navigate={navigate}
-              variant="trainer"
-            />
-          ))}
-        </div>
-      )}
+      {!isLoading &&
+        !isError &&
+        programmes.length > 0 && (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+            {programmes.map((programme) => (
+              <ProgrammeCard
+                key={programme.id}
+                programme={programme}
+                navigate={navigate}
+                variant="trainer"
+              />
+            ))}
+
+          </div>
+        )}
     </div>
   )
 }
@@ -554,7 +619,9 @@ interface LearnerProgrammeViewProps {
   programmesCount: number
   firstName: string
   search: string
-  setSearch: React.Dispatch<React.SetStateAction<string>>
+  setSearch: React.Dispatch<
+    React.SetStateAction<string>
+  >
   statutFilter: StatusFilter
   setStatutFilter: React.Dispatch<
     React.SetStateAction<StatusFilter>
@@ -567,7 +634,9 @@ interface LearnerProgrammeViewProps {
   isFetching: boolean
 }
 
-const LearnerProgrammeView: React.FC<LearnerProgrammeViewProps> = ({
+const LearnerProgrammeView: React.FC<
+  LearnerProgrammeViewProps
+> = ({
   programmes,
   firstName,
   search,
@@ -583,8 +652,11 @@ const LearnerProgrammeView: React.FC<LearnerProgrammeViewProps> = ({
 }) => {
   return (
     <div className="space-y-7">
+
       {/* HEADER */}
+
       <div>
+
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#FF6B0B]/10 px-3 py-1.5 text-xs font-bold text-[#FF6B0B]">
           <GraduationCap className="size-3.5" />
           Mon espace formation
@@ -616,39 +688,51 @@ const LearnerProgrammeView: React.FC<LearnerProgrammeViewProps> = ({
 
       {isLoading && <ProgrammeCardsLoading />}
 
-      {!isLoading && !isError && programmes.length === 0 && (
-        <ProgrammeEmptyState variant="learner" />
-      )}
+      {!isLoading &&
+        !isError &&
+        programmes.length === 0 && (
+          <ProgrammeEmptyState
+            variant="learner"
+          />
+        )}
 
-      {!isLoading && !isError && programmes.length > 0 && (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {programmes.map((programme) => (
-            <ProgrammeCard
-              key={programme.id}
-              programme={programme}
-              navigate={navigate}
-              variant="learner"
-            />
-          ))}
-        </div>
-      )}
+      {!isLoading &&
+        !isError &&
+        programmes.length > 0 && (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+            {programmes.map((programme) => (
+              <ProgrammeCard
+                key={programme.id}
+                programme={programme}
+                navigate={navigate}
+                variant="learner"
+              />
+            ))}
+
+          </div>
+        )}
     </div>
   )
 }
 
 // ============================================================
-// SUMMARY PILL (trainer header stat)
+// SUMMARY PILL
 // ============================================================
 
 interface SummaryPillProps {
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{
+    className?: string
+  }>
   iconClassName: string
   value: number
   label: string
   className?: string
 }
 
-const SummaryPill: React.FC<SummaryPillProps> = ({
+const SummaryPill: React.FC<
+  SummaryPillProps
+> = ({
   icon: Icon,
   iconClassName,
   value,
@@ -669,13 +753,15 @@ const SummaryPill: React.FC<SummaryPillProps> = ({
         {value}
       </p>
 
-      <p className="text-[11px] text-slate-400">{label}</p>
+      <p className="text-[11px] text-slate-400">
+        {label}
+      </p>
     </div>
   </div>
 )
 
 // ============================================================
-// PROGRAMME CARD (shared trainer/learner)
+// PROGRAMME CARD
 // ============================================================
 
 const CARD_VARIANT_CONFIG: Record<
@@ -684,7 +770,9 @@ const CARD_VARIANT_CONFIG: Record<
     badgeActive: string
     badgeInactive: string
     infoRows: {
-      icon: React.ComponentType<{ className?: string }>
+      icon: React.ComponentType<{
+        className?: string
+      }>
       iconClassName: string
       label: string
       valueActive: string
@@ -702,19 +790,23 @@ const CARD_VARIANT_CONFIG: Record<
     infoRows: [
       {
         icon: Layers3,
-        iconClassName: 'bg-[#FF6B0B]/10 text-[#FF6B0B]',
+        iconClassName:
+          'bg-[#FF6B0B]/10 text-[#FF6B0B]',
         label: 'Rôle',
         valueActive: 'Formateur',
       },
       {
         icon: Users,
-        iconClassName: 'bg-blue-500/10 text-blue-500',
+        iconClassName:
+          'bg-blue-500/10 text-blue-500',
         label: 'Gestion',
-        valueActive: 'Cohortes et apprenants',
+        valueActive:
+          'Cohortes et apprenants',
       },
     ],
     ctaLabel: 'Voir mes cohortes',
   },
+
   learner: {
     badgeActive: 'En cours',
     badgeInactive: 'Inactif',
@@ -723,16 +815,21 @@ const CARD_VARIANT_CONFIG: Record<
     infoRows: [
       {
         icon: GraduationCap,
-        iconClassName: 'bg-[#FF6B0B]/10 text-[#FF6B0B]',
+        iconClassName:
+          'bg-[#FF6B0B]/10 text-[#FF6B0B]',
         label: 'Parcours',
-        valueActive: 'Votre formation',
+        valueActive:
+          'Votre formation',
       },
       {
         icon: Clock3,
-        iconClassName: 'bg-blue-500/10 text-blue-500',
+        iconClassName:
+          'bg-blue-500/10 text-blue-500',
         label: 'Statut',
-        valueActive: 'Formation en cours',
-        valueInactive: 'Formation inactive',
+        valueActive:
+          'Formation en cours',
+        valueInactive:
+          'Formation inactive',
       },
     ],
     ctaLabel: 'Voir mon parcours',
@@ -745,45 +842,64 @@ interface ProgrammeCardProps {
   variant: CardVariant
 }
 
-const ProgrammeCard: React.FC<ProgrammeCardProps> = ({
+const ProgrammeCard: React.FC<
+  ProgrammeCardProps
+> = ({
   programme,
   navigate,
   variant,
 }) => {
-  const isActive = programme.statut === 'actif'
-  const config = CARD_VARIANT_CONFIG[variant]
+  const isActive =
+    programme.statut === 'actif'
+
+  const config =
+    CARD_VARIANT_CONFIG[variant]
 
   return (
     <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-white/[0.04]">
+
       {/* TOP */}
+
       <div
         className={`relative overflow-hidden bg-gradient-to-br p-5 ${
-          variant === 'trainer' ? 'h-auto' : 'h-28'
+          variant === 'trainer'
+            ? 'h-auto'
+            : 'h-28'
         } ${config.topGradient}`}
       >
+
         {variant === 'trainer' && (
           <div className="absolute -right-10 -top-10 size-32 rounded-full bg-white/10" />
         )}
 
         <div
           className={`relative z-10 flex items-center justify-between gap-3 ${
-            variant === 'learner' ? 'h-full px-0' : ''
+            variant === 'learner'
+              ? 'h-full px-0'
+              : ''
           }`}
         >
+
           <div className="flex size-12 items-center justify-center rounded-2xl bg-white/10 text-white backdrop-blur">
             <BookOpen className="size-6" />
           </div>
 
           <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur">
-            {isActive ? config.badgeActive : config.badgeInactive}
+            {isActive
+              ? config.badgeActive
+              : config.badgeInactive}
           </span>
+
         </div>
       </div>
 
       {/* CONTENT */}
+
       <div className="p-5">
+
         <h3 className="line-clamp-2 text-lg font-extrabold leading-6 text-slate-900 dark:text-white">
-          {programme.nom || 'Programme sans nom'}
+          {programme.nom ||
+            'Programme sans nom'}
         </h3>
 
         <p className="mt-2 line-clamp-2 min-h-[40px] text-sm leading-5 text-slate-500 dark:text-slate-400">
@@ -792,12 +908,15 @@ const ProgrammeCard: React.FC<ProgrammeCardProps> = ({
         </p>
 
         {/* INFOS */}
+
         <div className="mt-5 space-y-2">
+
           {config.infoRows.map((row) => (
             <div
               key={row.label}
               className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-white/[0.04]"
             >
+
               <div
                 className={`flex size-8 items-center justify-center rounded-lg ${row.iconClassName}`}
               >
@@ -805,6 +924,7 @@ const ProgrammeCard: React.FC<ProgrammeCardProps> = ({
               </div>
 
               <div>
+
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                   {row.label}
                 </p>
@@ -812,22 +932,32 @@ const ProgrammeCard: React.FC<ProgrammeCardProps> = ({
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                   {isActive
                     ? row.valueActive
-                    : row.valueInactive ?? row.valueActive}
+                    : row.valueInactive ??
+                      row.valueActive}
                 </p>
+
               </div>
             </div>
           ))}
+
         </div>
 
         {/* ACTION */}
+
         <button
           type="button"
-          onClick={() => navigate(`/programmes/${programme.id}`)}
+          onClick={() =>
+            navigate(
+              `/programmes/${programme.id}`,
+            )
+          }
           className="mt-5 flex w-full items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-[#FF6B0B] dark:bg-white dark:text-slate-900 dark:hover:bg-[#FF6B0B] dark:hover:text-white"
         >
+
           <span>{config.ctaLabel}</span>
 
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+
         </button>
       </div>
     </article>
@@ -835,32 +965,41 @@ const ProgrammeCard: React.FC<ProgrammeCardProps> = ({
 }
 
 // ============================================================
-// EMPTY STATE (shared trainer/learner)
+// EMPTY STATE
 // ============================================================
 
 const EMPTY_STATE_CONFIG: Record<
   CardVariant,
-  { title: string; description: string }
+  {
+    title: string
+    description: string
+  }
 > = {
   trainer: {
-    title: 'Aucun programme assigné',
+    title:
+      'Aucun programme assigné',
     description:
       "Vous n'êtes actuellement associé à aucun programme. Les programmes dans lesquels vous intervenez apparaîtront automatiquement ici.",
   },
+
   learner: {
-    title: 'Aucun programme pour le moment',
+    title:
+      'Aucun programme pour le moment',
     description:
       'Vous n’êtes actuellement inscrit à aucun programme.',
   },
 }
 
-const ProgrammeEmptyState: React.FC<{ variant: CardVariant }> = ({
-  variant,
-}) => {
-  const config = EMPTY_STATE_CONFIG[variant]
+const ProgrammeEmptyState: React.FC<{
+  variant: CardVariant
+}> = ({ variant }) => {
+
+  const config =
+    EMPTY_STATE_CONFIG[variant]
 
   return (
     <div className="flex min-h-[360px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 text-center dark:border-white/10 dark:bg-white/[0.03]">
+
       <div className="flex size-16 items-center justify-center rounded-2xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
         <GraduationCap className="size-8" />
       </div>
@@ -872,35 +1011,47 @@ const ProgrammeEmptyState: React.FC<{ variant: CardVariant }> = ({
       <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
         {config.description}
       </p>
+
     </div>
   )
 }
 
 // ============================================================
-// CARDS LOADING SKELETON (shared trainer/learner)
+// LOADING
 // ============================================================
 
-const ProgrammeCardsLoading: React.FC = () => {
-  return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div
-          key={index}
-          className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.04]"
-        >
-          <div className="h-28 animate-pulse bg-slate-200 dark:bg-white/10" />
+const ProgrammeCardsLoading: React.FC =
+  () => {
+    return (
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 
-          <div className="space-y-4 p-5">
-            <div className="h-5 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
-            <div className="h-10 animate-pulse rounded bg-slate-100 dark:bg-white/5" />
-            <div className="h-10 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
-            <div className="h-10 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
+        {Array.from({ length: 3 }).map(
+          (_, index) => (
+            <div
+              key={index}
+              className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.04]"
+            >
+
+              <div className="h-28 animate-pulse bg-slate-200 dark:bg-white/10" />
+
+              <div className="space-y-4 p-5">
+
+                <div className="h-5 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-white/10" />
+
+                <div className="h-10 animate-pulse rounded bg-slate-100 dark:bg-white/5" />
+
+                <div className="h-10 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+
+                <div className="h-10 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+
+              </div>
+            </div>
+          ),
+        )}
+
+      </div>
+    )
+  }
 
 // ============================================================
 // FILTERS
@@ -908,7 +1059,9 @@ const ProgrammeCardsLoading: React.FC = () => {
 
 interface ProgrammeFiltersProps {
   search: string
-  setSearch: React.Dispatch<React.SetStateAction<string>>
+  setSearch: React.Dispatch<
+    React.SetStateAction<string>
+  >
   statutFilter: StatusFilter
   setStatutFilter: React.Dispatch<
     React.SetStateAction<StatusFilter>
@@ -916,25 +1069,37 @@ interface ProgrammeFiltersProps {
   compact?: boolean
 }
 
-const ProgrammeFilters: React.FC<ProgrammeFiltersProps> = ({
+const ProgrammeFilters: React.FC<
+  ProgrammeFiltersProps
+> = ({
   search,
   setSearch,
   statutFilter,
   setStatutFilter,
   compact = false,
 }) => {
+
   return (
     <div
       className={`flex flex-col gap-3 sm:flex-row sm:items-center ${
-        compact ? 'sm:justify-end' : 'sm:justify-between'
+        compact
+          ? 'sm:justify-end'
+          : 'sm:justify-between'
       }`}
     >
+
       <div
         className={`relative w-full ${
-          compact ? 'sm:w-64' : 'sm:max-w-md'
+          compact
+            ? 'sm:w-64'
+            : 'sm:max-w-md'
         }`}
       >
-        <label htmlFor="programme-search" className="sr-only">
+
+        <label
+          htmlFor="programme-search"
+          className="sr-only"
+        >
           Rechercher un programme
         </label>
 
@@ -944,18 +1109,29 @@ const ProgrammeFilters: React.FC<ProgrammeFiltersProps> = ({
           id="programme-search"
           type="text"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) =>
+            setSearch(
+              event.target.value,
+            )
+          }
           placeholder="Rechercher un programme..."
           className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#FF6B0B] focus:ring-1 focus:ring-[#FF6B0B] dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
         />
+
       </div>
 
       <div
         className={`relative ${
-          compact ? 'min-w-[150px]' : 'min-w-[160px]'
+          compact
+            ? 'min-w-[150px]'
+            : 'min-w-[160px]'
         }`}
       >
-        <label htmlFor="programme-status-filter" className="sr-only">
+
+        <label
+          htmlFor="programme-status-filter"
+          className="sr-only"
+        >
           Filtrer par statut
         </label>
 
@@ -963,17 +1139,31 @@ const ProgrammeFilters: React.FC<ProgrammeFiltersProps> = ({
           id="programme-status-filter"
           value={statutFilter}
           onChange={(event) =>
-            setStatutFilter(event.target.value as StatusFilter)
+            setStatutFilter(
+              event.target.value as StatusFilter,
+            )
           }
           className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-9 text-xs font-semibold text-slate-700 outline-none focus:border-[#FF6B0B] dark:border-white/10 dark:bg-[#1f1f38] dark:text-white"
         >
-          <option value="all">Tous les statuts</option>
-          <option value="actif">Actifs</option>
-          <option value="inactif">Inactifs</option>
+
+          <option value="all">
+            Tous les statuts
+          </option>
+
+          <option value="actif">
+            Actifs
+          </option>
+
+          <option value="inactif">
+            Inactifs
+          </option>
+
         </select>
 
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+
       </div>
+
     </div>
   )
 }
@@ -988,14 +1178,19 @@ interface ErrorMessageProps {
   isFetching: boolean
 }
 
-const ErrorMessage: React.FC<ErrorMessageProps> = ({
+const ErrorMessage: React.FC<
+  ErrorMessageProps
+> = ({
   error,
   refetch,
   isFetching,
 }) => {
+
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-red-500/20 dark:bg-red-500/10">
+
       <div>
+
         <p className="font-semibold text-red-700 dark:text-red-400">
           Impossible de récupérer les programmes.
         </p>
@@ -1005,6 +1200,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
             ? error.message
             : 'Une erreur est survenue lors de la requête API.'}
         </p>
+
       </div>
 
       <Button
@@ -1012,15 +1208,26 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
         onClick={() => refetch()}
         disabled={isFetching}
       >
+
         <RefreshCw
           className={`mr-2 size-4 ${
-            isFetching ? 'animate-spin' : ''
+            isFetching
+              ? 'animate-spin'
+              : ''
           }`}
         />
+
         Réessayer
+
       </Button>
+
     </div>
   )
 }
 
+// ============================================================
+// EXPORT
+// ============================================================
+
 export default ProgrammeListPage
+
