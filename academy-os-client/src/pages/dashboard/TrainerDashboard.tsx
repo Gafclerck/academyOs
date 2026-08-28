@@ -76,8 +76,8 @@ export const TrainerDashboard: React.FC = () => {
       <TrainerPendingQueue pendingReviews={stats.pending_reviews || []} />
 
       {/* 3. COHORTES ACTIVES */}
-      {stats.assigned_cohorts && stats.assigned_cohorts.length > 0 && (
-        <TrainerCohortCards cohorts={stats.assigned_cohorts} />
+      {stats.cohorts_summary && stats.cohorts_summary.length > 0 && (
+        <TrainerCohortCards cohorts={stats.cohorts_summary} />
       )}
 
       {/* 4. HISTORIQUE RÉCENT */}

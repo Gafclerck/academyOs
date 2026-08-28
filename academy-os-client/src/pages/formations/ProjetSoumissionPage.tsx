@@ -16,10 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Spinner } from '@/components/ui/spinner'
-import { toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
 import {
   ArrowLeft,
-  ArrowUp,
   Upload,
   CheckCircle2,
   Clock,
@@ -117,7 +116,7 @@ const ProjectSubmissionPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!repoUrl.trim() && !liveUrl.trim() && files.length === 0) {
-      toaster.error(
+      toast.error(
         'Ajoutez au moins un fichier ou un lien pour soumettre votre livrable.',
       )
       return
@@ -130,14 +129,14 @@ const ProjectSubmissionPage: React.FC = () => {
         comments: comments.trim() || undefined,
         files,
       })
-      toaster.success('Livrable soumis avec succès !')
+      toast.success('Livrable soumis avec succès !')
       setDeliverables((prev) => [created, ...prev])
       setRepoUrl('')
       setLiveUrl('')
       setComments('')
       setFiles([])
     } catch {
-      toaster.error(
+      toast.error(
         "Échec de la soumission. Vérifiez vos fichiers (max 10 Mo chacun) puis réessayez.",
       )
     } finally {
