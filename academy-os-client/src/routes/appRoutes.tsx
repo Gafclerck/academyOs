@@ -60,9 +60,12 @@ import Profile from '@/pages/users/Profile'
    DASHBOARD
 ============================================================ */
 
-import AdminDashboard from '@/pages/dashboard/AdminDashboard'
+import DashboardDispatcher from '@/pages/dashboard/DashboardDispatcher'
 import ProjetEditPage from '@/pages/projets/ProjetEditPage'
 import EvaluationsPage from '@/pages/evaluations/EvaluationsPage'
+import MaFormationPage from '@/pages/formations/MaFormationPage'
+import ProjetSoumissionPage from '@/pages/formations/ProjetSoumissionPage'
+import MesCertificatsPage from '@/pages/certificats/MesCertificatsPage'
 
 const AppRoutes = () => {
   return (
@@ -88,7 +91,7 @@ const AppRoutes = () => {
               DASHBOARD
           ================================================== */}
 
-          <Route path="/dashboard" element={<AdminDashboard />} />
+          <Route path="/dashboard" element={<DashboardDispatcher />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           {/* ==================================================
@@ -146,6 +149,19 @@ const AppRoutes = () => {
 
           {/* ÉVALUATIONS */}
           <Route path="/evaluations/*" element={<EvaluationsPage />} />
+
+          {/* ==================================================
+              MA FORMATION (Apprenant)
+          ================================================== */}
+
+          <Route path="/formations" element={<MaFormationPage />} />
+          <Route path="/formations/projets/:assignmentId" element={<ProjetSoumissionPage />} />
+
+          {/* ==================================================
+              MES CERTIFICATS (Apprenant)
+          ================================================== */}
+
+          <Route path="/certificats" element={<MesCertificatsPage />} />
 
           
 

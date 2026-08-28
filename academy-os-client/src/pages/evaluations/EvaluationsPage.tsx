@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ClipboardCheck,
   FileCheck2,
@@ -16,10 +17,14 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
 
+import { ReviewDeliverableModal } from '@/components/evaluations/ReviewDeliverableModal'
+
 import {
   getAssignments,
   getAssignmentDeliverables,
 } from '@/services/evaluations/evaluationService'
+
+import type { TrainerPendingReview } from '@/services/dashboard/dashboardService'
 
 import type {
   ProjectAssignment,
@@ -292,6 +297,7 @@ const EvaluationsPage: React.FC = () => {
         <TrainerView
           assignments={assignments}
           deliverables={deliverables}
+          onRefresh={loadAssignments}
         />
       )}
 
@@ -368,6 +374,8 @@ const LearnerView: React.FC<LearnerViewProps> = ({
   assignments,
   deliverables,
 }) => {
+  const navigate = useNavigate()
+
   return (
     <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]">
       <div className="border-b border-slate-200 p-5 dark:border-white/10">
@@ -427,7 +435,7 @@ const LearnerView: React.FC<LearnerViewProps> = ({
 
                     <div className="min-w-0">
                       <h3 className="font-semibold text-slate-900 dark:text-white">
-                        {assignment.project_name ??
+                        {assignment.project_title ??
                           `Projet ${index + 1}`}
                       </h3>
 
@@ -466,7 +474,12 @@ const LearnerView: React.FC<LearnerViewProps> = ({
 
                   <div className="shrink-0">
                     {canSubmit && (
-                      <Button className="bg-[#FF6B0B] text-white hover:bg-[#e85f08]">
+                      <Button
+                        className="bg-[#FF6B0B] text-white hover:bg-[#e85f08]"
+                        onClick={() =>
+                          navigate(`/formations/projets/${assignment.id}`)
+                        }
+                      >
                         <Upload className="mr-2 size-4" />
 
                         {assignment.status === 'rejected'
@@ -509,83 +522,118 @@ const LearnerView: React.FC<LearnerViewProps> = ({
 interface TrainerViewProps {
   assignments: ProjectAssignment[]
   deliverables: Record<string, Deliverable[]>
+  onRefresh?: () => void
 }
 
 const TrainerView: React.FC<TrainerViewProps> = ({
   assignments,
   deliverables,
+  onRefresh,
 }) => {
+  const [selectedReview, setSelectedReview] = useState<TrainerPendingReview | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+
   const submittedAssignments = assignments.filter(
     (assignment) => assignment.status === 'submitted',
   )
 
+  const handleOpenReview = (assignment: ProjectAssignment, latestDeliverable?: Deliverable) => {
+    if (!latestDeliverable) return
+
+    setSelectedReview({
+      deliverable_id: latestDeliverable.id,
+      assignment_id: assignment.id,
+      learner_id: assignment.enrollment || '',
+      learner_name: assignment.user_name || 'Apprenant',
+      learner_email: assignment.user_email || '',
+      cohort_id: assignment.cohort_id || '',
+      cohort_name: assignment.cohort_name || 'Cohorte',
+      project_title: assignment.project_title || 'Projet',
+      version: latestDeliverable.version,
+      submitted_at: latestDeliverable.submitted_at || null,
+      repo_url: latestDeliverable.repo_url || '',
+      live_url: latestDeliverable.live_url || '',
+    })
+    setModalOpen(true)
+  }
+
   return (
-    <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]">
-      <div className="border-b border-slate-200 p-5 dark:border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
-            <Users className="size-5" />
-          </div>
+    <>
+      <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]">
+        <div className="border-b border-slate-200 p-5 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+              <Users className="size-5" />
+            </div>
 
-          <div>
-            <h2 className="font-bold text-slate-900 dark:text-white">
-              Livrables à corriger
-            </h2>
+            <div>
+              <h2 className="font-bold text-slate-900 dark:text-white">
+                Livrables à corriger
+              </h2>
 
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Les livrables soumis par les apprenants apparaissent
-              ici.
-            </p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Les livrables soumis par vos apprenants apparaissent ici.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {submittedAssignments.length === 0 ? (
-        <EmptyState
-          title="Aucun livrable à corriger"
-          description="Les nouveaux livrables soumis apparaîtront ici."
-        />
-      ) : (
-        <div className="divide-y divide-slate-100 dark:divide-white/5">
-          {submittedAssignments.map((assignment) => {
-            const items =
-              deliverables[assignment.id] ?? []
+        {submittedAssignments.length === 0 ? (
+          <EmptyState
+            title="Aucun livrable à corriger"
+            description="Les nouveaux livrables soumis apparaîtront ici."
+          />
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-white/5">
+            {submittedAssignments.map((assignment) => {
+              const items = deliverables[assignment.id] ?? []
+              const latestDeliverable = items[items.length - 1]
 
-            const latestDeliverable =
-              items[items.length - 1]
+              return (
+                <div
+                  key={assignment.id}
+                  className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <h3 className="font-semibold text-slate-900 dark:text-white">
+                      {assignment.project_title ?? 'Projet'}
+                    </h3>
 
-            return (
-              <div
-                key={assignment.id}
-                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <h3 className="font-semibold text-slate-900 dark:text-white">
-                    {assignment.project_name ?? 'Projet'}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {assignment.learner_name ?? 'Apprenant'}
-                  </p>
-
-                  {latestDeliverable && (
-                    <p className="mt-1 text-xs text-slate-400">
-                      Dernière version : v
-                      {latestDeliverable.version}
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {assignment.user_name ?? 'Apprenant'}
                     </p>
-                  )}
-                </div>
 
-                <Button className="bg-[#FF6B0B] text-white hover:bg-[#e85f08]">
-                  <FileCheck2 className="mr-2 size-4" />
-                  Corriger
-                </Button>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </Card>
+                    {latestDeliverable && (
+                      <p className="mt-1 text-xs text-slate-400">
+                        Dernière version : v{latestDeliverable.version}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={() => handleOpenReview(assignment, latestDeliverable)}
+                    disabled={!latestDeliverable}
+                    className="bg-[#FF6B0B] text-white hover:bg-[#e85f08]"
+                  >
+                    <FileCheck2 className="mr-2 size-4" />
+                    Corriger
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      <ReviewDeliverableModal
+        deliverable={selectedReview}
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open)
+          if (!open) onRefresh?.()
+        }}
+      />
+    </>
   )
 }
 
