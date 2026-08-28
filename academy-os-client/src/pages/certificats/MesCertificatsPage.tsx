@@ -23,27 +23,20 @@ export interface MesCertificatsItem {
   date_generation: string | null
   date_envoi: string | null
   file_path: string | null
+  url: string | null
 }
 
 const STATUS_CONFIG: Record<
   string,
   { label: string; className: string }
 > = {
-  GENERATED: {
-    label: 'Généré',
-    className: 'bg-sky-500/10 text-sky-600',
-  },
-  SENT: {
+  ENVOYE: {
     label: 'Envoyé',
     className: 'bg-emerald-500/10 text-emerald-600',
   },
-  PENDING: {
+  EN_ATTENTE: {
     label: 'En attente',
     className: 'bg-amber-500/10 text-amber-600',
-  },
-  REVOKED: {
-    label: 'Révoqué',
-    className: 'bg-red-500/10 text-red-600',
   },
 }
 
@@ -149,7 +142,7 @@ const MesCertificatsPage: React.FC = () => {
                 className:
                   'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300',
               }
-            const isSent = cert.status === 'SENT'
+            const isSent = cert.status === 'ENVOYE'
 
             return (
               <Card
@@ -197,9 +190,9 @@ const MesCertificatsPage: React.FC = () => {
                   </div>
 
                   <div className="mt-auto pt-2">
-                    {isSent && cert.file_path ? (
+                    {isSent && cert.url ? (
                       <a
-                        href={cert.file_path}
+                        href={cert.url}
                         target="_blank"
                         rel="noreferrer"
                         className="block"

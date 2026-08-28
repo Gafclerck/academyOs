@@ -396,4 +396,190 @@ class CertificateEligibilityAndTriggerTests(AuthAPITestCase):
         self.assertFalse(default_storage.exists(file_path))
 
 
+class CertificateAdminListEndpointTests(AuthAPITestCase):
+    """Tests de l'endpoint GET /certificates/ (liste admin / organisateur)."""
+
+    def setUp(self):
+        super().setUp()
+        from apps.cohorts.tests.factories import CohortFactory
+        from apps.programs.tests.factories import ProgramFactory
+
+        self.admin = UserFactory(admin=True)
+        self.organizer = UserFactory(organizer=True)
+        self.learner = UserFactory()
+        self.trainer = UserFactory(trainer=True)
+
+        self.learner_linked = UserFactory(first_name="Alice", last_name="Martin")
+        self.learner_linked.email = "alice.martin@test.fr"
+        self.learner_linked.save()
+
+        self.program = ProgramFactory()
+        self.cohort = CohortFactory(program=self.program)
+        self.enrollment = EnrollmentFactory(cohort=self.cohort, user=self.learner_linked)
+        self.pending_cert = CertificateFactory(
+            inscription=self.enrollment,
+            status=Certificate.StatusCertificateEnum.PENDING,
+        )
+
+    def test_admin_can_list_certificates(self):
+        response = self.auth(self.admin).get(f"{CERTIFICATES_URL}")
+        assert response.status_code == 200
+        assert "count" in response.data
+        assert "results" in response.data
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["learner_email"] == "alice.martin@test.fr"
+        assert response.data["results"][0]["program_title"] == self.program.title
+        assert response.data["results"][0]["cohort_name"] == self.cohort.name
+
+    def test_organizer_can_list_certificates(self):
+        response = self.auth(self.organizer).get(f"{CERTIFICATES_URL}")
+        assert response.status_code == 200
+
+    def test_learner_and_trainer_cannot_list_certificates(self):
+        assert self.auth(self.learner).get(f"{CERTIFICATES_URL}").status_code == 403
+        assert self.auth(self.trainer).get(f"{CERTIFICATES_URL}").status_code == 403
+
+    def test_filter_by_status(self):
+        sent_cert = CertificateFactory(status=Certificate.StatusCertificateEnum.SENT)
+        response = self.auth(self.admin).get(f"{CERTIFICATES_URL}?status=ENVOYE")
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == str(sent_cert.id)
+
+    def test_filter_by_program(self):
+        other = CertificateFactory(
+            inscription=EnrollmentFactory(),
+            status=Certificate.StatusCertificateEnum.PENDING,
+        )
+        response = self.auth(self.admin).get(
+            f"{CERTIFICATES_URL}?program={self.program.id}"
+        )
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == str(self.pending_cert.id)
+        assert other.id not in [r["id"] for r in response.data["results"]]
+
+    def test_filter_by_cohort(self):
+        other = CertificateFactory(
+            inscription=EnrollmentFactory(),
+            status=Certificate.StatusCertificateEnum.PENDING,
+        )
+        response = self.auth(self.admin).get(
+            f"{CERTIFICATES_URL}?cohort={self.cohort.id}"
+        )
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+
+    def test_filter_by_search_email(self):
+        response = self.auth(self.admin).get(
+            f"{CERTIFICATES_URL}?search=alice.martin"
+        )
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+
+    def test_invalid_uuid_filter_returns_400(self):
+        response = self.auth(self.admin).get(f"{CERTIFICATES_URL}?program=not-a-uuid")
+        assert response.status_code == 400
+
+
+@patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
+class CertificateSendEndpointTests(AuthAPITestCase):
+    """Tests de l'endpoint POST /certificates/send/ (envoi groupé admin / organisateur)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = UserFactory(admin=True)
+        self.organizer = UserFactory(organizer=True)
+        self.learner = UserFactory()
+
+    def test_admin_can_send_pending_certificates_bulk(self, mock_render):
+        from django.core import mail
+
+        c1 = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        c2 = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(c1.id), str(c2.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert all(r["ok"] for r in response.data["results"])
+
+        c1.refresh_from_db()
+        c2.refresh_from_db()
+        assert c1.status == Certificate.StatusCertificateEnum.SENT
+        assert c2.status == Certificate.StatusCertificateEnum.SENT
+        assert c1.sent_by == self.admin
+        assert c2.sent_by == self.admin
+        assert len(mail.outbox) == 2
+
+    def test_organizer_can_send_pending_certificates(self, mock_render):
+        cert = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        response = self.auth(self.organizer).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(cert.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["results"][0]["ok"] is True
+        cert.refresh_from_db()
+        assert cert.sent_by == self.organizer
+
+    def test_skips_already_sent_certificates(self, mock_render):
+        from django.core import mail
+
+        sent = CertificateFactory(status=Certificate.StatusCertificateEnum.SENT)
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(sent.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["results"][0]["ok"] is False
+        assert response.data["results"][0]["status"] == "skipped"
+        assert len(mail.outbox) == 0
+
+    def test_unknown_id_reports_not_found(self, mock_render):
+        import uuid
+
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(uuid.uuid4())]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["results"][0]["status"] == "not_found"
+
+    def test_learner_and_trainer_cannot_send(self, mock_render):
+        cert = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        payload = {"ids": [str(cert.id)]}
+        assert (
+            self.auth(self.learner).post(f"{CERTIFICATES_URL}send/", payload, format="json").status_code
+            == 403
+        )
+
+    def test_missing_or_empty_ids_returns_400(self, mock_render):
+        assert (
+            self.auth(self.admin)
+            .post(f"{CERTIFICATES_URL}send/", {}, format="json")
+            .status_code
+            == 400
+        )
+        assert (
+            self.auth(self.admin)
+            .post(f"{CERTIFICATES_URL}send/", {"ids": []}, format="json")
+            .status_code
+            == 400
+        )
+
+    def test_organizer_can_generate_certificate(self, mock_render):
+        enrollment = EnrollmentFactory()
+        response = self.auth(self.organizer).post(
+            f"{CERTIFICATES_URL}generate/",
+            {"enrollment_id": str(enrollment.id)},
+            format="json",
+        )
+        assert response.status_code == 201
+
+
 

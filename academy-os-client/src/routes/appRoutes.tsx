@@ -66,6 +66,8 @@ import MaFormationPage from '@/pages/formations/MaFormationPage'
 import ProjetSoumissionPage from '@/pages/formations/ProjetSoumissionPage'
 import MesCertificatsPage from '@/pages/certificats/MesCertificatsPage'
 
+import { CertificatsPage } from '@/pages/certificats/CertificatsPage'
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -157,6 +159,12 @@ const AppRoutes = () => {
           ================================================== */}
 
           <Route path="/certificats" element={<MesCertificatsPage />} />
+
+          {/* ==================================================
+              GESTION CERTIFICATS (Admin / Organisateur)
+          ================================================== */}
+
+          <Route path="/gestion-certificats" element={<CertificatsPage />} />
 
           
 

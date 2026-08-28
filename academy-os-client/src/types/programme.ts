@@ -55,37 +55,37 @@ export interface ProgrammeKPIs {
 }
 
 /* ============================================================
-   CERTIFICAT
+   CERTIFICAT (gestion admin / organisateur)
+   Aligné sur apps/certificates/serializers.py ->
+   CertificateAdminSerializer. Statuts réels : EN_ATTENTE | ENVOYE.
 ============================================================ */
 
-export interface Certificat {
-  id: string;
+export type StatutCertificat = 'EN_ATTENTE' | 'ENVOYE'
 
-  cohorte_id: string;
-
-  membre_id: string;
-
-  nom_apprenant: string;
-
-  prenom_apprenant: string;
-
-  nom_projet?: string;
-
-  date_obtention: string;
-
-  score?: number;
-
-  lien_download?: string;
+export interface CertificateAdminItem {
+  id: string
+  learner_name: string
+  learner_email: string
+  program_title: string
+  cohort_name: string
+  program_id: string
+  cohort_id: string
+  status: StatutCertificat
+  date_generation: string | null
+  date_envoi: string | null
+  file_path: string | null
+  url: string | null
+  sent_by: string | null
 }
 
-export interface CreateCertificatDTO {
-  cohorte_id: string;
+export interface CertificateSendResult {
+  id: string
+  ok: boolean
+  status: 'sent' | 'skipped' | 'not_found' | 'error'
+}
 
-  membre_id: string;
-
-  nom_projet?: string;
-
-  score?: number;
+export interface CertificateSendPayload {
+  ids: string[]
 }
 
 /* ============================================================
