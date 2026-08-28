@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 
 import {
@@ -20,7 +21,10 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
-import { dashboardService, type DashboardStats } from '@/services/dashboard/dashboardService'
+import {
+  dashboardService,
+  type DashboardStats,
+} from '@/services/dashboard/dashboardService'
 
 // =====================================================
 // TYPES
@@ -58,13 +62,15 @@ const AdminDashboard: React.FC = () => {
           : 'Administrateur')
 
   // =====================================================
-  // CHARGEMENT DASHBOARD SELON LE ROLE
+  // CHARGEMENT DASHBOARD
   // =====================================================
 
   useEffect(() => {
     const loadDashboard = async () => {
       if (!role) {
-        setError('Le rôle de l’utilisateur est introuvable.')
+        setError(
+          "Le rôle de l’utilisateur est introuvable.",
+        )
         setLoading(false)
         return
       }
@@ -72,9 +78,11 @@ const AdminDashboard: React.FC = () => {
       try {
         setLoading(true)
         setError(null)
-const data =
+
+        const data =
           await dashboardService.getStats()
-setDashboard(data)
+
+        setDashboard(data)
       } catch (err: any) {
         console.error(
           'Erreur lors du chargement du dashboard :',
@@ -160,21 +168,26 @@ setDashboard(data)
   }
 
   // =====================================================
-  // ADMIN / ORGANIZER
+  // ACCÈS RÉSERVÉ
   // =====================================================
 
-  if (role !== 'admin' && role !== 'organizer') {
+  if (
+    role !== 'admin' &&
+    role !== 'organizer'
+  ) {
     return (
       <DashboardLayout>
         <div className="flex min-h-[60vh] items-center justify-center">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
             <AlertCircle className="mx-auto size-6 text-slate-400" />
+
             <h2 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
               Accès réservé
             </h2>
+
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Vous n'avez pas les permissions nécessaires pour consulter ce
-              tableau de bord.
+              Vous n'avez pas les permissions nécessaires
+              pour consulter ce tableau de bord.
             </p>
           </div>
         </div>
@@ -197,12 +210,15 @@ setDashboard(data)
 // ADMIN + ORGANIZER
 // =====================================================
 
-interface GlobalDashboardProps extends DashboardProps {
+interface GlobalDashboardProps
+  extends DashboardProps {
   stats: DashboardStats
   role: 'admin' | 'organizer'
 }
 
-const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
+const GlobalDashboard: React.FC<
+  GlobalDashboardProps
+> = ({
   stats,
   firstName,
   navigate,
@@ -212,6 +228,11 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
 
   return (
     <DashboardLayout>
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
       <DashboardHeader
         label={
           isAdmin
@@ -225,15 +246,19 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
             : 'Pilotez les programmes, cohortes et apprenants.'
         }
         buttonLabel={
-          isAdmin ? 'Nouvel utilisateur' : 'Nouveau programme'
+          isAdmin
+            ? 'Nouvel utilisateur'
+            : undefined
         }
-        buttonIcon={isAdmin ? UserPlus : BookOpen}
-        onClick={() =>
-          navigate(
-            isAdmin
-              ? '/users/new'
-              : '/programmes/new',
-          )
+        buttonIcon={
+          isAdmin
+            ? UserPlus
+            : undefined
+        }
+        onClick={
+          isAdmin
+            ? () => navigate('/users/new')
+            : undefined
         }
       />
 
@@ -247,6 +272,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
         <DashboardStatCard
           title="Utilisateurs"
           value={stats.total_users}
@@ -260,7 +286,9 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           value={stats.total_programs}
           description={`${stats.active_programs} actifs`}
           icon={BookOpen}
-          onClick={() => navigate('/programmes')}
+          onClick={() =>
+            navigate('/programmes')
+          }
         />
 
         <DashboardStatCard
@@ -268,7 +296,9 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           value={stats.total_cohorts}
           description={`${stats.active_cohorts} actives`}
           icon={GraduationCap}
-          onClick={() => navigate('/cohortes')}
+          onClick={() =>
+            navigate('/cohortes')
+          }
         />
 
         <DashboardStatCard
@@ -276,8 +306,11 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           value={stats.total_projects}
           description={`${stats.published_projects} publiés`}
           icon={FolderGit2}
-          onClick={() => navigate('/programmes')}
+          onClick={() =>
+            navigate('/programmes')
+          }
         />
+
       </div>
 
       {/* =====================================================
@@ -290,6 +323,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
         <KpiCard
           title="Apprenants"
           value={stats.total_learners}
@@ -317,6 +351,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           description="administrateurs enregistrés"
           icon={Award}
         />
+
       </div>
 
       {/* =====================================================
@@ -329,6 +364,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
         <KpiCard
           title="Apprenants actifs"
           value={stats.active_learners}
@@ -356,6 +392,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           description={`${stats.pending_certificates} en attente`}
           icon={Award}
         />
+
       </div>
 
       {/* =====================================================
@@ -368,6 +405,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
       />
 
       <div className="grid gap-4 md:grid-cols-3">
+
         <RateCard
           title="Taux de complétion"
           value={stats.global_completion_rate}
@@ -386,6 +424,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           icon={TrendingUp}
           suffix="/100"
         />
+
       </div>
 
       {/* =====================================================
@@ -393,6 +432,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
       ===================================================== */}
 
       <div className="grid gap-6 md:grid-cols-2">
+
         <InfoCard
           title="Cohortes"
           icon={GraduationCap}
@@ -408,7 +448,10 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           title="Évaluations"
           icon={ClipboardCheck}
           items={[
-            ['Total', stats.total_evaluations],
+            [
+              'Total',
+              stats.total_evaluations,
+            ],
             [
               'Validées',
               stats.total_validated_evaluations,
@@ -423,83 +466,57 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
             ],
           ]}
         />
+
       </div>
 
       {/* =====================================================
-          ACTIONS
+          ACTIONS ADMINISTRATIVES
+          
+          IMPORTANT :
+          Cette section est affichée uniquement
+          pour l'administrateur.
+          
+          L'organisateur ne voit donc aucune
+          section d'actions rapides en bas.
       ===================================================== */}
 
-      <QuickActions
-        title={
-          isAdmin
-            ? 'Actions administratives'
-            : 'Actions rapides'
-        }
-        actions={
-          isAdmin
-            ? [
-                {
-                  title: 'Créer un utilisateur',
-                  description:
-                    'Ajouter un apprenant ou formateur',
-                  icon: UserPlus,
-                  href: '/users/new',
-                },
-                {
-                  title: 'Créer un programme',
-                  description:
-                    'Ajouter une nouvelle formation',
-                  icon: BookOpen,
-                  href: '/programmes/new',
-                },
-                {
-                  title: 'Créer une rentrée',
-                  description:
-                    'Planifier une nouvelle rentrée',
-                  icon: CalendarDays,
-                  href: '/rentrees/new',
-                },
-                {
-                  title: 'Créer une cohorte',
-                  description:
-                    'Créer un nouveau groupe',
-                  icon: GraduationCap,
-                  href: '/cohortes/new',
-                },
-              ]
-            : [
-                {
-                  title: 'Créer un programme',
-                  description:
-                    'Ajouter une nouvelle formation',
-                  icon: BookOpen,
-                  href: '/programmes/new',
-                },
-                {
-                  title: 'Créer une rentrée',
-                  description:
-                    'Planifier une nouvelle rentrée',
-                  icon: CalendarDays,
-                  href: '/rentrees/new',
-                },
-                {
-                  title: 'Créer une cohorte',
-                  description:
-                    'Créer un nouveau groupe',
-                  icon: GraduationCap,
-                  href: '/cohortes/new',
-                },
-                {
-                  title: 'Voir les projets',
-                  description:
-                    'Consulter les projets',
-                  icon: FolderGit2,
-                  href: '/projets',
-                },
-              ]
-        }
-        navigate={navigate}
-      />
+      {isAdmin && (
+        <QuickActions
+          title="Actions administratives"
+          actions={[
+            {
+              title: 'Créer un utilisateur',
+              description:
+                'Ajouter un apprenant ou formateur',
+              icon: UserPlus,
+              href: '/users/new',
+            },
+            {
+              title: 'Créer un programme',
+              description:
+                'Ajouter une nouvelle formation',
+              icon: BookOpen,
+              href: '/programmes/new',
+            },
+            {
+              title: 'Créer une rentrée',
+              description:
+                'Planifier une nouvelle rentrée',
+              icon: CalendarDays,
+              href: '/rentrees/new',
+            },
+            {
+              title: 'Créer une cohorte',
+              description:
+                'Créer un nouveau groupe',
+              icon: GraduationCap,
+              href: '/cohortes/new',
+            },
+          ]}
+          navigate={navigate}
+        />
+      )}
+
     </DashboardLayout>
   )
 }
@@ -531,9 +548,13 @@ interface DashboardSectionTitleProps {
 
 const DashboardSectionTitle: React.FC<
   DashboardSectionTitleProps
-> = ({ title, description }) => {
+> = ({
+  title,
+  description,
+}) => {
   return (
     <div className="pt-2">
+
       <h2 className="text-lg font-bold text-slate-900 dark:text-white">
         {title}
       </h2>
@@ -541,6 +562,7 @@ const DashboardSectionTitle: React.FC<
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         {description}
       </p>
+
     </div>
   )
 }
@@ -560,7 +582,9 @@ interface DashboardHeaderProps {
   onClick?: () => void
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+const DashboardHeader: React.FC<
+  DashboardHeaderProps
+> = ({
   label,
   title,
   description,
@@ -570,7 +594,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => {
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
       <div>
+
         <p className="mb-1 text-sm font-medium text-[#FF6B0B]">
           {label}
         </p>
@@ -582,6 +608,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {description}
         </p>
+
       </div>
 
       {buttonLabel && onClick && (
@@ -590,11 +617,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           onClick={onClick}
           className="flex items-center gap-2 rounded-xl bg-[#FF6B0B] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#FF6B0B]/90 hover:shadow-md"
         >
-          {Icon && <Icon className="size-4" />}
+          {Icon && (
+            <Icon className="size-4" />
+          )}
 
           {buttonLabel}
         </button>
       )}
+
     </div>
   )
 }
@@ -628,17 +658,21 @@ const DashboardStatCard: React.FC<
       onClick={onClick}
       className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
     >
-      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl transition-transform group-hover:scale-125 dark:bg-[#FF6B0B]/10" />
+
+      <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl transition-transform group-hover:scale-125 dark:bg-[#FF6B0B]/10" />
 
       <div className="relative flex items-start justify-between">
+
         <div className="flex size-11 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] transition-transform group-hover:scale-105 dark:bg-[#FF6B0B]/15">
           <Icon className="size-5" />
         </div>
 
         <ArrowRight className="size-4 text-slate-300 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 dark:text-slate-600" />
+
       </div>
 
       <div className="relative mt-4">
+
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {title}
         </p>
@@ -650,7 +684,9 @@ const DashboardStatCard: React.FC<
         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
           {description}
         </p>
+
       </div>
+
     </button>
   )
 }
@@ -676,7 +712,8 @@ const KpiCard: React.FC<KpiCardProps> = ({
 }) => {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]">
-      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
 
       <div className="relative flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
         <Icon className="size-5" />
@@ -693,6 +730,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
       <p className="relative mt-1 text-xs text-slate-400 dark:text-slate-500">
         {description}
       </p>
+
     </div>
   )
 }
@@ -718,10 +756,13 @@ const RateCard: React.FC<RateCardProps> = ({
 }) => {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]">
-      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
 
       <div className="relative flex items-center justify-between">
+
         <div>
+
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {title}
           </p>
@@ -730,12 +771,15 @@ const RateCard: React.FC<RateCardProps> = ({
             {formatDecimal(value)}
             {suffix}
           </p>
+
         </div>
 
         <div className="flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
           <Icon className="size-5" />
         </div>
+
       </div>
+
     </div>
   )
 }
@@ -759,9 +803,11 @@ const InfoCard: React.FC<InfoCardProps> = ({
 }) => {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
-      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
 
       <div className="relative flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/10">
+
         <div className="flex size-9 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
           <Icon className="size-4" />
         </div>
@@ -769,24 +815,32 @@ const InfoCard: React.FC<InfoCardProps> = ({
         <h2 className="text-base font-bold text-slate-900 dark:text-white">
           {title}
         </h2>
+
       </div>
 
       <div className="divide-y divide-slate-100 dark:divide-white/5">
-        {items.map(([label, value]) => (
-          <div
-            key={label}
-            className="flex items-center justify-between px-5 py-3.5"
-          >
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {label}
-            </span>
 
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
-              {formatNumber(value)}
-            </span>
-          </div>
-        ))}
+        {items.map(
+          ([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between px-5 py-3.5"
+            >
+
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {label}
+              </span>
+
+              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                {formatNumber(value)}
+              </span>
+
+            </div>
+          ),
+        )}
+
       </div>
+
     </div>
   )
 }
@@ -810,14 +864,18 @@ interface QuickActionsProps {
   navigate: ReturnType<typeof useNavigate>
 }
 
-const QuickActions: React.FC<QuickActionsProps> = ({
+const QuickActions: React.FC<
+  QuickActionsProps
+> = ({
   title,
   actions,
   navigate,
 }) => {
   return (
     <div>
+
       <div className="mb-4">
+
         <h2 className="text-lg font-bold text-slate-900 dark:text-white">
           {title}
         </h2>
@@ -825,9 +883,11 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Accédez rapidement aux principales fonctionnalités.
         </p>
+
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+
         {actions.map((action) => {
           const Icon = action.icon
 
@@ -835,16 +895,20 @@ const QuickActions: React.FC<QuickActionsProps> = ({
             <button
               key={action.title}
               type="button"
-              onClick={() => navigate(action.href)}
+              onClick={() =>
+                navigate(action.href)
+              }
               className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
             >
-              <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+              <div className="absolute -bottom-6 -right-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
 
               <div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
                 <Icon className="size-5" />
               </div>
 
               <div className="min-w-0 flex-1">
+
                 <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                   {action.title}
                 </p>
@@ -852,13 +916,17 @@ const QuickActions: React.FC<QuickActionsProps> = ({
                 <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                   {action.description}
                 </p>
+
               </div>
 
               <ArrowRight className="size-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-1 dark:text-slate-600" />
+
             </button>
           )
         })}
+
       </div>
+
     </div>
   )
 }
@@ -867,22 +935,31 @@ const QuickActions: React.FC<QuickActionsProps> = ({
 // HELPERS
 // =====================================================
 
-const formatNumber = (value: number) => {
+const formatNumber = (
+  value: number,
+) => {
   if (!Number.isFinite(value)) {
     return '0'
   }
 
-  return new Intl.NumberFormat('fr-FR').format(value)
+  return new Intl.NumberFormat(
+    'fr-FR',
+  ).format(value)
 }
 
-const formatDecimal = (value: number) => {
+const formatDecimal = (
+  value: number,
+) => {
   if (!Number.isFinite(value)) {
     return '0'
   }
 
-  return new Intl.NumberFormat('fr-FR', {
-    maximumFractionDigits: 1,
-  }).format(value)
+  return new Intl.NumberFormat(
+    'fr-FR',
+    {
+      maximumFractionDigits: 1,
+    },
+  ).format(value)
 }
 
 // =====================================================
@@ -890,3 +967,4 @@ const formatDecimal = (value: number) => {
 // =====================================================
 
 export default AdminDashboard
+

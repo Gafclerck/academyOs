@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import ThemeToggle from '@/components/theme-toggle'
-
 import logoXarala from '@/assets/logo-xarala.png'
+
+
 
 import {
   Loader2,
@@ -220,7 +221,7 @@ const Login = () => {
           >
 
             <motion.div
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.03 }}
               transition={{ duration: 0.2 }}
               className="mx-auto mb-5 flex justify-center"
             >
@@ -359,8 +360,6 @@ const Login = () => {
                         : ''
                     }`}
                   />
-
-                  {/* Show password */}
 
                   <button
                     type="button"

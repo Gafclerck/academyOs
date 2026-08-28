@@ -51,13 +51,12 @@ export const RentreeDetailPage: React.FC = () => {
   const isLearner = role === 'learner'
 
   /*
-   * Admin et Organizer peuvent modifier.
+   * Seul l'admin peut modifier une rentrée.
    *
-   * Trainer et Learner sont en consultation.
+   * Organizer, Trainer et Learner :
+   * lecture seule.
    */
-  const canEdit =
-    isAdmin ||
-    isOrganizer
+  const canEdit = isAdmin
 
   /*
    * Le contenu du header dépend du rôle.
@@ -65,7 +64,7 @@ export const RentreeDetailPage: React.FC = () => {
   const pageDescription = isAdmin
     ? 'Consultez et gérez les informations de cette rentrée académique.'
     : isOrganizer
-      ? 'Gérez les informations et les cohortes associées à cette rentrée.'
+      ? 'Consultez les informations de cette rentrée et les cohortes associées.'
       : isTrainer
         ? 'Consultez les informations de la rentrée et les cohortes qui vous sont accessibles.'
         : 'Retrouvez les informations de votre parcours de formation.'
@@ -109,7 +108,6 @@ export const RentreeDetailPage: React.FC = () => {
       try {
         setLoading(true)
         setLoadingCohortes(true)
-
         setError(null)
 
         /* ======================================================
@@ -131,9 +129,9 @@ export const RentreeDetailPage: React.FC = () => {
 
         /* ======================================================
            COHORTES
-           
-           Le backend gère déjà le filtrage selon
-           l'utilisateur connecté.
+
+           Le backend gère déjà le filtrage
+           selon l'utilisateur connecté.
         ====================================================== */
 
         try {
@@ -141,10 +139,8 @@ export const RentreeDetailPage: React.FC = () => {
             await getCohortes()
 
           /*
-           * On conserve ici uniquement le lien
-           * avec la rentrée courante.
-           *
-           * Le filtrage utilisateur reste côté backend.
+           * On conserve uniquement les cohortes
+           * liées à la rentrée courante.
            */
           const linkedCohortes =
             allCohortes.filter(
@@ -488,7 +484,9 @@ export const RentreeDetailPage: React.FC = () => {
 
           </div>
 
-          {/* ACTION */}
+          {/* ACTION
+              Visible uniquement pour l'admin.
+          */}
 
           {canEdit && (
             <Button
@@ -667,9 +665,11 @@ export const RentreeDetailPage: React.FC = () => {
               </p>
 
               <div className="mt-2">
+
                 <StatusBadge
                   status={rentree.status}
                 />
+
               </div>
 
             </div>
@@ -842,7 +842,9 @@ export const RentreeDetailPage: React.FC = () => {
           "
         >
 
-          {/* DÉBUT */}
+          {/* ==================================================
+              DÉBUT
+          ================================================== */}
 
           <div
             className="
@@ -898,12 +900,7 @@ export const RentreeDetailPage: React.FC = () => {
 
           </div>
 
-
-          
-
-
-
-     
+  
 
         </div>
 
@@ -913,12 +910,216 @@ export const RentreeDetailPage: React.FC = () => {
           COHORTES
       ====================================================== */}
 
-    
+      <div
+        className="
+          rounded-2xl
+          border
+          border-slate-200
+          bg-white
+          dark:border-white/10
+          dark:bg-[#1f1f38]
+        "
+      >
+
+        <div
+          className="
+            border-b
+            border-slate-200
+            px-6
+            py-5
+            dark:border-white/10
+          "
+        >
+
+          <div className="flex items-center gap-3">
+
+            <div
+              className="
+                flex
+                size-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-emerald-500/10
+              "
+            >
+
+              <Users
+                className="
+                  size-5
+                  text-emerald-500
+                "
+              />
+
+            </div>
+
+            <div>
+
+              <h2
+                className="
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
+                Cohortes associées
+              </h2>
+
+              <p
+                className="
+                  text-sm
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Cohortes rattachées à cette rentrée.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div className="p-6">
+
+          {loadingCohortes ? (
+            <div
+              className="
+                flex
+                items-center
+                justify-center
+                py-8
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+
+              <Loader2
+                className="
+                  mr-2
+                  size-5
+                  animate-spin
+                "
+              />
+
+              Chargement des cohortes...
+
+            </div>
+          ) : cohortes.length === 0 ? (
+            <div
+              className="
+                rounded-xl
+                bg-slate-50
+                px-4
+                py-8
+                text-center
+                dark:bg-white/[0.03]
+              "
+            >
+
+              <Users
+                className="
+                  mx-auto
+                  size-8
+                  text-slate-300
+                  dark:text-slate-600
+                "
+              />
+
+              <p
+                className="
+                  mt-3
+                  text-sm
+                  font-medium
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Aucune cohorte associée à cette rentrée.
+              </p>
+
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+
+              {cohortes.map((cohorte) => (
+                <div
+                  key={cohorte.id}
+                  className="
+                    rounded-xl
+                    border
+                    border-slate-200
+                    p-4
+                    dark:border-white/10
+                  "
+                >
+
+                  <div className="flex items-start gap-3">
+
+                    <div
+                      className="
+                        flex
+                        size-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-[#FF6B0B]/10
+                      "
+                    >
+
+                      <GraduationCap
+                        className="
+                          size-5
+                          text-[#FF6B0B]
+                        "
+                      />
+
+                    </div>
+
+                    <div className="min-w-0">
+
+                      <p
+                        className="
+                          font-semibold
+                          text-slate-900
+                          dark:text-white
+                        "
+                      >
+                        {cohorte.name ||
+                          'Cohorte sans nom'}
+                      </p>
+
+                      <p
+                        className="
+                          mt-1
+                          text-sm
+                          text-slate-500
+                          dark:text-slate-400
+                        "
+                      >
+                        Cohorte associée à cette rentrée
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              ))}
+
+            </div>
+          )}
+
+        </div>
+
+      </div>
 
       {/* ======================================================
           INFORMATIONS TECHNIQUES
-          
-          UNIQUEMENT ADMIN / ORGANIZER
+
+          UNIQUEMENT ADMIN
       ====================================================== */}
 
       {canEdit && (
@@ -1126,6 +1327,10 @@ export const RentreeDetailPage: React.FC = () => {
 
         </Button>
 
+        {/* ==================================================
+            MODIFICATION UNIQUEMENT POUR ADMIN
+        ================================================== */}
+
         {canEdit && (
           <Button
             onClick={() =>
@@ -1240,4 +1445,3 @@ const formatDateTime = (
 }
 
 export default RentreeDetailPage
-

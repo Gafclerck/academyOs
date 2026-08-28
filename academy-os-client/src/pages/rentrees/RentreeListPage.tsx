@@ -472,26 +472,33 @@ export const RentreeListPage: React.FC = () => {
 
         </div>
 
-        <Button
-          onClick={() =>
-            navigate('/rentrees/new')
-          }
-          className="
-            h-11
-            shrink-0
-            rounded-xl
-            bg-[#FF6B0B]
-            px-5
-            font-semibold
-            text-white
-            shadow-lg
-            shadow-[#FF6B0B]/25
-            hover:bg-[#ff7a24]
-          "
-        >
-          <Plus className="mr-2 size-4" />
-          Nouvelle Rentrée
-        </Button>
+        {/* =====================================================
+            NOUVELLE RENTRÉE
+            UNIQUEMENT POUR ADMIN
+        ===================================================== */}
+
+        {role === 'admin' && (
+          <Button
+            onClick={() =>
+              navigate('/rentrees/new')
+            }
+            className="
+              h-11
+              shrink-0
+              rounded-xl
+              bg-[#FF6B0B]
+              px-5
+              font-semibold
+              text-white
+              shadow-lg
+              shadow-[#FF6B0B]/25
+              hover:bg-[#ff7a24]
+            "
+          >
+            <Plus className="mr-2 size-4" />
+            Nouvelle Rentrée
+          </Button>
+        )}
 
       </div>
 
@@ -632,9 +639,7 @@ const TrainerRentreeView: React.FC<
   return (
     <div className="space-y-7">
 
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
+      {/* HEADER */}
 
       <div
         className="
@@ -646,7 +651,6 @@ const TrainerRentreeView: React.FC<
           sm:justify-between
         "
       >
-
         <div>
 
           <div className="mb-1 flex items-center gap-2">
@@ -701,9 +705,7 @@ const TrainerRentreeView: React.FC<
 
       </div>
 
-      {/* ====================================================
-          ERROR
-      ==================================================== */}
+      {/* ERROR */}
 
       {isError && (
         <ErrorMessage
@@ -713,9 +715,7 @@ const TrainerRentreeView: React.FC<
         />
       )}
 
-      {/* ====================================================
-          KPI
-      ==================================================== */}
+      {/* KPI */}
 
       <div
         className="
@@ -750,9 +750,7 @@ const TrainerRentreeView: React.FC<
 
       </div>
 
-      {/* ====================================================
-          SEARCH / FILTER
-      ==================================================== */}
+      {/* SEARCH / FILTER */}
 
       <div
         className="
@@ -778,17 +776,13 @@ const TrainerRentreeView: React.FC<
 
       </div>
 
-      {/* ====================================================
-          LOADING
-      ==================================================== */}
+      {/* LOADING */}
 
       {isLoading && (
         <TrainerRentreeLoading />
       )}
 
-      {/* ====================================================
-          EMPTY
-      ==================================================== */}
+      {/* EMPTY */}
 
       {!isLoading &&
         !isError &&
@@ -796,9 +790,7 @@ const TrainerRentreeView: React.FC<
           <TrainerRentreeEmpty />
         )}
 
-      {/* ====================================================
-          CARDS
-      ==================================================== */}
+      {/* CARDS */}
 
       {!isLoading &&
         !isError &&
