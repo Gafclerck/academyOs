@@ -20,8 +20,12 @@ export type StatutRentree =
   | 'terminee';
 
 export type StatutCohorte =
+  | 'upcoming'
+  | 'ongoing'
+  | 'completed'
   | 'active'
-  | 'terminee';
+  | 'terminee'
+  | 'inactive';
 
 export type StatutProjet =
   | 'en_cours'

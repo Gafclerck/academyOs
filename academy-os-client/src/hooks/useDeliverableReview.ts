@@ -27,8 +27,6 @@ export function useDeliverableReview(onSuccessCallback?: () => void) {
 
       queryClient.invalidateQueries({ queryKey: trainerDashboardKeys.all })
       queryClient.invalidateQueries({ queryKey: ['deliverables'] })
-      queryClient.invalidateQueries({ queryKey: ['assignments'] })
-      queryClient.invalidateQueries({ queryKey: ['cohort-stats'] })
 
       onSuccessCallback?.()
     },

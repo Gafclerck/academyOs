@@ -40,7 +40,13 @@ export interface DashboardStats {
   evaluations_by_status: Record<string, number>
   competency_levels_distribution: Record<string, number>
 
-  recent_evaluations: Array<Record<string, string>>
+  recent_evaluations: RecentEvaluation[]
+}
+
+export interface RecentEvaluation {
+  score: number | null
+  evaluated_by: string | null
+  updated_at: string
 }
 
 export interface TrainerPendingReview {

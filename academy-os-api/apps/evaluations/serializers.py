@@ -92,6 +92,7 @@ class DeliverableSerializer(serializers.ModelSerializer):
         source="submitted_by.email",
         read_only=True,
     )
+    submitted_by_name = serializers.SerializerMethodField()
     reviewed_by_email = serializers.EmailField(
         source="reviewed_by.email",
         read_only=True,
@@ -99,6 +100,13 @@ class DeliverableSerializer(serializers.ModelSerializer):
     )
     attachments = AttachmentSerializer(many=True, read_only=True)
     criterion_scores = CriterionScoreSerializer(many=True, read_only=True)
+
+    def get_submitted_by_name(self, obj):
+        user = obj.submitted_by
+        if not user:
+            return None
+        name = f"{user.first_name} {user.last_name}".strip()
+        return name or user.email
 
     class Meta:
         model = Deliverable
@@ -108,6 +116,7 @@ class DeliverableSerializer(serializers.ModelSerializer):
             "version",
             "submitted_by",
             "submitted_by_email",
+            "submitted_by_name",
             "submitted_at",
             "repo_url",
             "live_url",

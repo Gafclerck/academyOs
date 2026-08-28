@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+﻿import React, { useEffect, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,16 @@ export const ReviewDeliverableModal: React.FC<ReviewDeliverableModalProps> = ({
     onOpenChange(false)
     setFeedback('')
     setScore(80)
+    setStatus('validated')
   })
+
+  useEffect(() => {
+    if (open) {
+      setStatus('validated')
+      setScore(80)
+      setFeedback('')
+    }
+  }, [open, deliverable?.deliverable_id])
 
   if (!deliverable) return null
 

@@ -9,8 +9,6 @@ import {
   BookOpen,
   CalendarDays,
   GraduationCap,
-  FolderGit2,
-  ClipboardCheck,
   Users,
   Award,
   ChevronRight,
@@ -47,14 +45,14 @@ interface SidebarItem {
 const SIDEBAR_ITEMS: SidebarItem[] = [
   // ===================================================
   // DASHBOARD / MON ESPACE
-  // Tous les r├┤les (label adapt├® selon le r├┤le)
+  // Tous les les (label adapté selon le réele)
   // ===================================================
 
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
-    description: "Vue g├®n├®rale de l'acad├®mie",
+    description: "Vue générale de l'académie",
     roles: ['admin', 'organizer', 'trainer', 'learner'],
   },
 

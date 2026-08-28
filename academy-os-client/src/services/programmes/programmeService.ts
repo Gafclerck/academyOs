@@ -376,7 +376,29 @@ const mapStatutCohorteFromApi = (
     return 'terminee'
   }
 
-  return 'active'
+  if (
+    [
+      'upcoming',
+      'a_venir',
+      'planned',
+      'draft',
+    ].includes(value)
+  ) {
+    return 'upcoming'
+  }
+
+  if (
+    [
+      'ongoing',
+      'in_progress',
+      'en_cours',
+      'active',
+    ].includes(value)
+  ) {
+    return 'ongoing'
+  }
+
+  return 'inactive'
 }
 
 const mapCohorteFromApi = (

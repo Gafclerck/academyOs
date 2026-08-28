@@ -254,6 +254,16 @@ class DashboardEndpointsAPITests(AuthAPITestCase):
         d1_date = res.data["results"][1]["submitted_at"]
         self.assertTrue(d0_date >= d1_date)
 
+    def test_deliverables_list_includes_submitted_by_name(self):
+        self.learner.first_name = "Awa"
+        self.learner.last_name = "Diop"
+        self.learner.save()
+        self.auth(self.admin)
+        res = self.client.get("/api/v1/deliverables/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], 2)
+        self.assertEqual(res.data["results"][0]["submitted_by_name"], "Awa Diop")
+
     def test_deliverables_root_list_other_learner_empty(self):
         self.auth(self.other_learner)
         res = self.client.get("/api/v1/deliverables/")
