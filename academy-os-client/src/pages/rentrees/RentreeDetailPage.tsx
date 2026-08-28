@@ -89,9 +89,6 @@ export const RentreeDetailPage: React.FC = () => {
   const [error, setError] =
     React.useState<string | null>(null)
 
-  const [cohortesError, setCohortesError] =
-    React.useState<string | null>(null)
-
   /* ============================================================
      CHARGEMENT
   ============================================================ */
@@ -114,7 +111,6 @@ export const RentreeDetailPage: React.FC = () => {
         setLoadingCohortes(true)
 
         setError(null)
-        setCohortesError(null)
 
         /* ======================================================
            RENTRÉE
@@ -175,12 +171,6 @@ export const RentreeDetailPage: React.FC = () => {
           console.error(
             '[RentreeDetailPage] Erreur cohortes:',
             cohortError,
-          )
-
-          setCohortesError(
-            cohortError instanceof Error
-              ? cohortError.message
-              : 'Impossible de récupérer les cohortes.',
           )
         }
       } catch (err) {

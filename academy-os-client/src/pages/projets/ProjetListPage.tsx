@@ -124,11 +124,6 @@ export const ProjetListPage: React.FC = () => {
      TEXTES SELON LE RÔLE
   ========================================================== */
 
-  const pageTitle =
-    isLearner
-      ? 'Mes projets'
-      : 'Projets'
-
   const programmeDescription =
     isAdmin
       ? 'Gérez les projets associés à ce programme.'
