@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -14,6 +13,7 @@ import {
   FolderKanban,
 } from 'lucide-react'
 
+import { useAuth } from '@/context/AuthContext'
 import { useProgramme } from '@/hooks/useProgrammes'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/button'
@@ -111,6 +111,55 @@ export const ProgrammeDetailPage: React.FC = () => {
     id: string
   }>()
 
+  const { user } = useAuth()
+
+  /* ============================================================
+     UTILISATEUR CONNECTÉ
+  ============================================================ */
+
+  const role = user?.role
+
+  const isAdmin = role === 'admin'
+  const isOrganizer = role === 'organizer'
+  const isTrainer = role === 'trainer'
+  const isLearner = role === 'learner'
+
+  /*
+   * Droits d'affichage.
+   *
+   * Le backend reste responsable du filtrage
+   * des données accessibles à l'utilisateur.
+   */
+
+  const canEdit =
+    isAdmin || isOrganizer
+
+  const canAccessProjects =
+  isAdmin ||
+  isOrganizer ||
+  isTrainer ||
+  isLearner
+
+  /* ============================================================
+     TEXTES SELON LE RÔLE
+  ============================================================ */
+
+  const pageSubtitle = isAdmin
+    ? 'Consultez et gérez les informations de ce programme.'
+    : isOrganizer
+      ? 'Consultez les informations et les cohortes associées à ce programme.'
+      : isTrainer
+        ? 'Consultez le programme et les cohortes auxquelles vous êtes associé.'
+        : 'Découvrez les informations relatives à votre parcours de formation.'
+
+  const cohortesTitle = isLearner
+    ? 'Ma cohorte'
+    : 'Cohortes du programme'
+
+  const cohortesDescription = isLearner
+    ? 'Votre cohorte associée à ce programme.'
+    : 'Les cohortes associées à ce programme.'
+
   /* ============================================================
      PROGRAMME
   ============================================================ */
@@ -146,7 +195,7 @@ export const ProgrammeDetailPage: React.FC = () => {
     React.useState(false)
 
   /* ============================================================
-     CHARGER COHORTES + RENTRÉES
+     CHARGER DONNÉES
   ============================================================ */
 
   const loadProgrammeData =
@@ -161,10 +210,6 @@ export const ProgrammeDetailPage: React.FC = () => {
 
         setCohortesError(null)
 
-        /*
-         * Récupération des cohortes et des rentrées
-         * en parallèle.
-         */
         const [
           cohortesData,
           rentreesData,
@@ -173,20 +218,13 @@ export const ProgrammeDetailPage: React.FC = () => {
           programmeService.getAllRentrees(),
         ])
 
-        console.log(
-          '📚 COHORTES:',
-          cohortesData,
-        )
-
-        console.log(
-          '📅 RENTRÉES:',
-          rentreesData,
-        )
-
         /*
-         * Filtrer les cohortes appartenant
-         * au programme courant.
+         * Le backend applique déjà les permissions.
+         *
+         * On filtre uniquement pour rattacher
+         * les cohortes au programme affiché.
          */
+
         const programmeCohortes =
           (cohortesData as Cohorte[]).filter(
             (cohorte) => {
@@ -202,11 +240,6 @@ export const ProgrammeDetailPage: React.FC = () => {
               )
             },
           )
-
-        console.log(
-          '🎓 COHORTES DU PROGRAMME:',
-          programmeCohortes,
-        )
 
         setCohortes(
           programmeCohortes,
@@ -242,12 +275,12 @@ export const ProgrammeDetailPage: React.FC = () => {
   }, [loadProgrammeData])
 
   /* ============================================================
-     LOADING PROGRAMME
+     LOADING
   ============================================================ */
 
   if (isProgrammeLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-[500px] items-center justify-center">
         <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
 
           <Loader2 className="size-5 animate-spin" />
@@ -262,7 +295,7 @@ export const ProgrammeDetailPage: React.FC = () => {
   }
 
   /* ============================================================
-     ERREUR PROGRAMME
+     ERREUR
   ============================================================ */
 
   if (
@@ -343,7 +376,7 @@ export const ProgrammeDetailPage: React.FC = () => {
   }
 
   /* ============================================================
-     RENTRÉE D'UNE COHORTE
+     RENTRÉE
   ============================================================ */
 
   const getRentreeForCohorte = (
@@ -386,6 +419,15 @@ export const ProgrammeDetailPage: React.FC = () => {
       0,
     )
 
+  const activeCohortes =
+    cohortes.filter(
+      (cohorte) =>
+        cohorte.statut === 'active' ||
+        cohorte.status === 'active' ||
+        cohorte.statut === 'ongoing' ||
+        cohorte.status === 'ongoing',
+    ).length
+
   /* ============================================================
      RENDER
   ============================================================ */
@@ -403,6 +445,7 @@ export const ProgrammeDetailPage: React.FC = () => {
           navigate('/programmes')
         }
         className="
+          group
           flex
           items-center
           gap-2
@@ -411,9 +454,16 @@ export const ProgrammeDetailPage: React.FC = () => {
           text-slate-500
           transition
           hover:text-[#FF6B0B]
+          dark:text-slate-400
         "
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft
+          className="
+            size-4
+            transition-transform
+            group-hover:-translate-x-1
+          "
+        />
 
         Retour aux programmes
       </button>
@@ -424,49 +474,140 @@ export const ProgrammeDetailPage: React.FC = () => {
 
       <div
         className="
-          flex
-          flex-col
-          justify-between
-          gap-4
-          rounded-2xl
+          relative
+          overflow-hidden
+          rounded-3xl
           border
           border-slate-200
           bg-white
           p-6
+          shadow-sm
           dark:border-white/10
           dark:bg-[#151528]
-          sm:flex-row
-          sm:items-center
+          sm:p-8
         "
       >
 
-        {/* PROGRAMME */}
+        {/* DECORATION */}
 
-        <div className="flex items-start gap-4">
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -right-20
+            -top-20
+            size-64
+            rounded-full
+            bg-[#FF6B0B]/5
+            blur-3xl
+          "
+        />
 
-          <div
-            className="
-              flex
-              size-14
-              shrink-0
-              items-center
-              justify-center
-              rounded-2xl
-              bg-[#FF6B0B]/10
-            "
-          >
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -bottom-20
+            -left-20
+            size-48
+            rounded-full
+            bg-orange-400/5
+            blur-3xl
+          "
+        />
 
-            <BookOpen
+        <div
+          className="
+            relative
+            flex
+            flex-col
+            gap-6
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+          "
+        >
+
+          {/* PROGRAMME */}
+
+          <div className="flex items-start gap-4">
+
+            <div
               className="
-                size-7
-                text-[#FF6B0B]
+                flex
+                size-16
+                shrink-0
+                items-center
+                justify-center
+                rounded-2xl
+                bg-gradient-to-br
+                from-[#FF6B0B]
+                to-[#ff8a3d]
+                shadow-lg
+                shadow-[#FF6B0B]/20
               "
-            />
+            >
+
+              <BookOpen
+                className="
+                  size-7
+                  text-white
+                "
+              />
+
+            </div>
+
+            <div className="min-w-0">
+
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  items-center
+                  gap-3
+                "
+              >
+
+                <h1
+                  className="
+                    text-2xl
+                    font-extrabold
+                    tracking-tight
+                    text-slate-900
+                    dark:text-white
+                    sm:text-3xl
+                  "
+                >
+                  {programme.nom ||
+                    'Programme sans nom'}
+                </h1>
+
+                <StatusBadge
+                  status={programme.statut}
+                />
+
+              </div>
+
+              <p
+                className="
+                  mt-2
+                  max-w-2xl
+                  text-sm
+                  leading-6
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                {pageSubtitle}
+              </p>
+
+            </div>
 
           </div>
 
-          <div>
+          {/* ACTIONS */}
 
+          {(canEdit || canAccessProjects) && (
             <div
               className="
                 flex
@@ -476,299 +617,107 @@ export const ProgrammeDetailPage: React.FC = () => {
               "
             >
 
-              <h1
-                className="
-                  text-2xl
-                  font-extrabold
-                  tracking-tight
-                  text-slate-900
-                  dark:text-white
-                  sm:text-3xl
-                "
-              >
-                {programme.nom ||
-                  'Programme sans nom'}
-              </h1>
+              {canAccessProjects && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    navigate(
+                      `/programmes/${programme.id}/projets`,
+                    )
+                  }
+                  className="
+                    gap-2
+                    rounded-xl
+                    border-slate-200
+                    bg-white
+                    font-semibold
+                    dark:border-white/10
+                    dark:bg-white/[0.03]
+                  "
+                >
 
-              <StatusBadge
-                status={programme.statut}
-              />
+                  <FolderKanban className="size-4" />
+
+                  Projets
+
+                </Button>
+              )}
+
+              {canEdit && (
+                <Button
+                  onClick={() =>
+                    navigate(
+                      `/programmes/${programme.id}/edit`,
+                    )
+                  }
+                  className="
+                    rounded-xl
+                    bg-[#FF6B0B]
+                    px-5
+                    font-semibold
+                    text-white
+                    shadow-lg
+                    shadow-[#FF6B0B]/20
+                    hover:bg-[#e85f08]
+                  "
+                >
+
+                  <Pencil className="mr-2 size-4" />
+
+                  Modifier
+
+                </Button>
+              )}
 
             </div>
-
-            <p
-              className="
-                mt-1
-                text-sm
-                text-slate-500
-                dark:text-slate-400
-              "
-            >
-              Détails du programme académique
-            </p>
-
-          </div>
-
-        </div>
-
-        {/* ====================================================
-            ACTIONS
-        ==================================================== */}
-
-        <div
-          className="
-            flex
-            flex-wrap
-            items-center
-            gap-3
-          "
-        >
-
-          {/* PROJETS */}
-
-          <Button
-            variant="outline"
-            onClick={() =>
-                navigate(`/programmes/${programme.id}/projets`)
-              }
-            className="
-              gap-2
-              rounded-xl
-              border-slate-200
-              font-semibold
-              dark:border-white/10
-            "
-          >
-
-            <FolderKanban className="size-4" />
-
-            Projets
-
-          </Button>
-
-          {/* MODIFIER */}
-
-          <Button
-            onClick={() =>
-              navigate(
-                `/programmes/${programme.id}/edit`,
-              )
-            }
-            className="
-              rounded-xl
-              bg-[#FF6B0B]
-              px-5
-              font-semibold
-              text-white
-              shadow-lg
-              shadow-[#FF6B0B]/20
-              hover:bg-[#e85f08]
-            "
-          >
-
-            <Pencil className="mr-2 size-4" />
-
-            Modifier
-
-          </Button>
+          )}
 
         </div>
 
       </div>
 
       {/* ======================================================
-          INFORMATIONS PRINCIPALES
+          APPRENANT
+          PRÉSENTATION SIMPLIFIÉE
       ====================================================== */}
 
-      <div
-        className="
-          grid
-          gap-6
-          lg:grid-cols-3
-        "
-      >
+      {isLearner ? (
 
-        {/* DESCRIPTION */}
+        <div className="space-y-6">
 
-        <div
-          className="
-            rounded-2xl
-            border
-            border-slate-200
-            bg-white
-            p-6
-            dark:border-white/10
-            dark:bg-[#151528]
-            lg:col-span-2
-          "
-        >
+          {/* PROGRAMME */}
 
           <div
             className="
-              mb-4
-              flex
-              items-center
-              gap-2
+              rounded-3xl
+              border
+              border-slate-200
+              bg-white
+              p-6
+              shadow-sm
+              dark:border-white/10
+              dark:bg-[#151528]
+              sm:p-8
             "
           >
-
-            <BookOpen
-              className="
-                size-5
-                text-[#FF6B0B]
-              "
-            />
-
-            <h2
-              className="
-                font-bold
-                text-slate-900
-                dark:text-white
-              "
-            >
-              Informations du programme
-            </h2>
-
-          </div>
-
-          <div className="space-y-5">
-
-            {/* NOM */}
-
-            <div>
-
-              <p
-                className="
-                  mb-1
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-wide
-                  text-slate-400
-                "
-              >
-                Nom
-              </p>
-
-              <p
-                className="
-                  text-sm
-                  font-semibold
-                  text-slate-900
-                  dark:text-white
-                "
-              >
-                {programme.nom || '—'}
-              </p>
-
-            </div>
-
-            {/* DESCRIPTION */}
-
-            <div>
-
-              <p
-                className="
-                  mb-1
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-wide
-                  text-slate-400
-                "
-              >
-                Description
-              </p>
-
-              <p
-                className="
-                  text-sm
-                  leading-6
-                  text-slate-600
-                  dark:text-slate-300
-                "
-              >
-                {programme.description ||
-                  'Aucune description disponible.'}
-              </p>
-
-            </div>
-
-            {/* STATUT */}
-
-            <div>
-
-              <p
-                className="
-                  mb-1
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-wide
-                  text-slate-400
-                "
-              >
-                Statut
-              </p>
-
-              <StatusBadge
-                status={programme.statut}
-              />
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ====================================================
-            RÉSUMÉ
-        ==================================================== */}
-
-        <div
-          className="
-            rounded-2xl
-            border
-            border-slate-200
-            bg-white
-            p-6
-            dark:border-white/10
-            dark:bg-[#151528]
-          "
-        >
-
-          <h2
-            className="
-              mb-5
-              font-bold
-              text-slate-900
-              dark:text-white
-            "
-          >
-            Résumé
-          </h2>
-
-          <div className="space-y-5">
-
-            {/* COHORTES */}
 
             <div className="flex items-center gap-3">
 
               <div
                 className="
                   flex
-                  size-10
+                  size-11
                   items-center
                   justify-center
                   rounded-xl
-                  bg-blue-500/10
+                  bg-[#FF6B0B]/10
                 "
               >
 
-                <Users
+                <BookOpen
                   className="
                     size-5
-                    text-blue-500
+                    text-[#FF6B0B]
                   "
                 />
 
@@ -779,30 +728,58 @@ export const ProgrammeDetailPage: React.FC = () => {
                 <p
                   className="
                     text-xs
-                    text-slate-400
+                    font-semibold
+                    uppercase
+                    tracking-wider
+                    text-[#FF6B0B]
                   "
                 >
-                  Cohortes
+                  Mon parcours
                 </p>
 
-                <p
+                <h2
                   className="
-                    text-sm
+                    text-lg
                     font-bold
                     text-slate-900
                     dark:text-white
                   "
                 >
-                  {cohortesCount}
-                </p>
+                  {programme.nom}
+                </h2>
 
               </div>
 
             </div>
 
-            {/* APPRENANTS */}
+            <div className="mt-6">
 
-            <div className="flex items-center gap-3">
+              <p
+                className="
+                  text-sm
+                  leading-7
+                  text-slate-600
+                  dark:text-slate-300
+                "
+              >
+                {programme.description ||
+                  'Aucune description disponible pour ce programme.'}
+              </p>
+
+            </div>
+
+            <div
+              className="
+                mt-6
+                flex
+                items-center
+                gap-3
+                rounded-2xl
+                bg-slate-50
+                p-4
+                dark:bg-white/[0.04]
+              "
+            >
 
               <div
                 className="
@@ -815,7 +792,7 @@ export const ProgrammeDetailPage: React.FC = () => {
                 "
               >
 
-                <Users
+                <Calendar
                   className="
                     size-5
                     text-emerald-500
@@ -832,71 +809,14 @@ export const ProgrammeDetailPage: React.FC = () => {
                     text-slate-400
                   "
                 >
-                  Apprenants
+                  Statut du programme
                 </p>
 
-                <p
-                  className="
-                    text-sm
-                    font-bold
-                    text-slate-900
-                    dark:text-white
-                  "
-                >
-                  {learnersCount}
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* DATE CRÉATION */}
-
-            <div className="flex items-center gap-3">
-
-              <div
-                className="
-                  flex
-                  size-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-purple-500/10
-                "
-              >
-
-                <Clock
-                  className="
-                    size-5
-                    text-purple-500
-                  "
-                />
-
-              </div>
-
-              <div>
-
-                <p
-                  className="
-                    text-xs
-                    text-slate-400
-                  "
-                >
-                  Créé le
-                </p>
-
-                <p
-                  className="
-                    text-sm
-                    font-bold
-                    text-slate-900
-                    dark:text-white
-                  "
-                >
-                  {formatDate(
-                    programme.created_at,
-                  )}
-                </p>
+                <div className="mt-1">
+                  <StatusBadge
+                    status={programme.statut}
+                  />
+                </div>
 
               </div>
 
@@ -906,16 +826,399 @@ export const ProgrammeDetailPage: React.FC = () => {
 
         </div>
 
-      </div>
+      ) : (
+
+        /* ====================================================
+           ADMIN / ORGANIZER / TRAINER
+        ==================================================== */
+
+        <div
+          className="
+            grid
+            gap-6
+            lg:grid-cols-3
+          "
+        >
+
+          {/* DESCRIPTION */}
+
+          <div
+            className="
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              p-6
+              shadow-sm
+              dark:border-white/10
+              dark:bg-[#151528]
+              lg:col-span-2
+            "
+          >
+
+            <div
+              className="
+                mb-5
+                flex
+                items-center
+                gap-3
+              "
+            >
+
+              <div
+                className="
+                  flex
+                  size-10
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-[#FF6B0B]/10
+                "
+              >
+
+                <BookOpen
+                  className="
+                    size-5
+                    text-[#FF6B0B]
+                  "
+                />
+
+              </div>
+
+              <div>
+
+                <h2
+                  className="
+                    font-bold
+                    text-slate-900
+                    dark:text-white
+                  "
+                >
+                  Informations du programme
+                </h2>
+
+                <p
+                  className="
+                    text-xs
+                    text-slate-400
+                  "
+                >
+                  Informations générales
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="space-y-6">
+
+              <div>
+
+                <p
+                  className="
+                    mb-1
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-slate-400
+                  "
+                >
+                  Nom
+                </p>
+
+                <p
+                  className="
+                    text-sm
+                    font-semibold
+                    text-slate-900
+                    dark:text-white
+                  "
+                >
+                  {programme.nom || '—'}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p
+                  className="
+                    mb-1
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-slate-400
+                  "
+                >
+                  Description
+                </p>
+
+                <p
+                  className="
+                    text-sm
+                    leading-7
+                    text-slate-600
+                    dark:text-slate-300
+                  "
+                >
+                  {programme.description ||
+                    'Aucune description disponible.'}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p
+                  className="
+                    mb-1
+                    text-xs
+                    font-semibold
+                    uppercase
+                    tracking-wide
+                    text-slate-400
+                  "
+                >
+                  Statut
+                </p>
+
+                <StatusBadge
+                  status={programme.statut}
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* RÉSUMÉ */}
+
+          <div
+            className="
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              p-6
+              shadow-sm
+              dark:border-white/10
+              dark:bg-[#151528]
+            "
+          >
+
+            <h2
+              className="
+                mb-5
+                font-bold
+                text-slate-900
+                dark:text-white
+              "
+            >
+              Résumé
+            </h2>
+
+            <div className="space-y-5">
+
+              {/* COHORTES */}
+
+              <div className="flex items-center gap-3">
+
+                <div
+                  className="
+                    flex
+                    size-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-blue-500/10
+                  "
+                >
+
+                  <Users
+                    className="
+                      size-5
+                      text-blue-500
+                    "
+                  />
+
+                </div>
+
+                <div>
+
+                  <p className="text-xs text-slate-400">
+                    Cohortes
+                  </p>
+
+                  <p
+                    className="
+                      text-sm
+                      font-bold
+                      text-slate-900
+                      dark:text-white
+                    "
+                  >
+                    {cohortesCount}
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* COHORTES ACTIVES */}
+
+              <div className="flex items-center gap-3">
+
+                <div
+                  className="
+                    flex
+                    size-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-emerald-500/10
+                  "
+                >
+
+                  <Calendar
+                    className="
+                      size-5
+                      text-emerald-500
+                    "
+                  />
+
+                </div>
+
+                <div>
+
+                  <p className="text-xs text-slate-400">
+                    Cohortes actives
+                  </p>
+
+                  <p
+                    className="
+                      text-sm
+                      font-bold
+                      text-slate-900
+                      dark:text-white
+                    "
+                  >
+                    {activeCohortes}
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* APPRENANTS */}
+
+              <div className="flex items-center gap-3">
+
+                <div
+                  className="
+                    flex
+                    size-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-purple-500/10
+                  "
+                >
+
+                  <Users
+                    className="
+                      size-5
+                      text-purple-500
+                    "
+                  />
+
+                </div>
+
+                <div>
+
+                  <p className="text-xs text-slate-400">
+                    Apprenants
+                  </p>
+
+                  <p
+                    className="
+                      text-sm
+                      font-bold
+                      text-slate-900
+                      dark:text-white
+                    "
+                  >
+                    {learnersCount}
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* CRÉATION */}
+
+              <div className="flex items-center gap-3">
+
+                <div
+                  className="
+                    flex
+                    size-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-orange-500/10
+                  "
+                >
+
+                  <Clock
+                    className="
+                      size-5
+                      text-orange-500
+                    "
+                  />
+
+                </div>
+
+                <div>
+
+                  <p className="text-xs text-slate-400">
+                    Créé le
+                  </p>
+
+                  <p
+                    className="
+                      text-sm
+                      font-bold
+                      text-slate-900
+                      dark:text-white
+                    "
+                  >
+                    {formatDate(
+                      programme.created_at,
+                    )}
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
       {/* ======================================================
-          COHORTES DU PROGRAMME
+          COHORTES
       ====================================================== */}
 
       <div
         className="
           overflow-hidden
-          rounded-2xl
+          rounded-3xl
           border
           border-slate-200
           bg-white
@@ -931,14 +1234,14 @@ export const ProgrammeDetailPage: React.FC = () => {
           className="
             flex
             flex-col
-            gap-3
+            gap-4
             border-b
             border-slate-200
-            p-5
+            p-6
+            dark:border-white/10
             sm:flex-row
             sm:items-center
             sm:justify-between
-            dark:border-white/10
           "
         >
 
@@ -947,7 +1250,7 @@ export const ProgrammeDetailPage: React.FC = () => {
             <div
               className="
                 flex
-                size-10
+                size-11
                 items-center
                 justify-center
                 rounded-xl
@@ -973,7 +1276,7 @@ export const ProgrammeDetailPage: React.FC = () => {
                   dark:text-white
                 "
               >
-                Cohortes
+                {cohortesTitle}
               </h2>
 
               <p
@@ -983,16 +1286,35 @@ export const ProgrammeDetailPage: React.FC = () => {
                   dark:text-slate-400
                 "
               >
-                Cohortes associées à ce programme
+                {cohortesDescription}
               </p>
 
             </div>
 
           </div>
 
+          <div
+            className="
+              rounded-full
+              bg-slate-100
+              px-3
+              py-1
+              text-xs
+              font-semibold
+              text-slate-600
+              dark:bg-white/[0.06]
+              dark:text-slate-300
+            "
+          >
+            {cohortesCount}{' '}
+            {cohortesCount > 1
+              ? 'cohortes'
+              : 'cohorte'}
+          </div>
+
         </div>
 
-        {/* ERREUR */}
+        {/* ERROR */}
 
         {cohortesError && (
           <div
@@ -1053,7 +1375,7 @@ export const ProgrammeDetailPage: React.FC = () => {
           <div
             className="
               flex
-              min-h-[220px]
+              min-h-[240px]
               items-center
               justify-center
             "
@@ -1088,49 +1410,70 @@ export const ProgrammeDetailPage: React.FC = () => {
 
           /* EMPTY */
 
-          <div className="p-10 text-center">
+          <div className="p-12 text-center">
 
-            <Users
+            <div
               className="
                 mx-auto
-                size-10
-                text-slate-300
-                dark:text-slate-600
+                flex
+                size-14
+                items-center
+                justify-center
+                rounded-2xl
+                bg-slate-100
+                dark:bg-white/[0.05]
               "
-            />
+            >
+
+              <Users
+                className="
+                  size-6
+                  text-slate-400
+                  dark:text-slate-500
+                "
+              />
+
+            </div>
 
             <p
               className="
-                mt-3
+                mt-4
                 font-semibold
                 text-slate-700
                 dark:text-slate-300
               "
             >
-              Aucune cohorte
+              {isLearner
+                ? 'Aucune cohorte associée'
+                : 'Aucune cohorte'}
             </p>
 
             <p
               className="
+                mx-auto
                 mt-1
+                max-w-md
                 text-sm
                 text-slate-500
                 dark:text-slate-400
               "
             >
-              Aucune cohorte n'est encore associée
-              à ce programme.
+              {isLearner
+                ? 'Vous n’êtes actuellement associé à aucune cohorte pour ce programme.'
+                : "Aucune cohorte n'est encore associée à ce programme."}
             </p>
 
           </div>
 
         ) : (
 
-          /* TABLE */
+          /* ====================================================
+             TABLE
+          ==================================================== */
 
           <div className="overflow-x-auto">
 
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[850px]">
 
               <thead>
 
@@ -1146,8 +1489,8 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                   <th
                     className="
-                      px-5
-                      py-3
+                      px-6
+                      py-4
                       text-left
                       text-xs
                       font-semibold
@@ -1162,8 +1505,8 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                   <th
                     className="
-                      px-5
-                      py-3
+                      px-6
+                      py-4
                       text-left
                       text-xs
                       font-semibold
@@ -1178,8 +1521,8 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                   <th
                     className="
-                      px-5
-                      py-3
+                      px-6
+                      py-4
                       text-left
                       text-xs
                       font-semibold
@@ -1189,29 +1532,13 @@ export const ProgrammeDetailPage: React.FC = () => {
                       dark:text-slate-400
                     "
                   >
-                    Début
+                    Période
                   </th>
 
                   <th
                     className="
-                      px-5
-                      py-3
-                      text-left
-                      text-xs
-                      font-semibold
-                      uppercase
-                      tracking-wider
-                      text-slate-500
-                      dark:text-slate-400
-                    "
-                  >
-                    Fin
-                  </th>
-
-                  <th
-                    className="
-                      px-5
-                      py-3
+                      px-6
+                      py-4
                       text-left
                       text-xs
                       font-semibold
@@ -1224,21 +1551,23 @@ export const ProgrammeDetailPage: React.FC = () => {
                     Statut
                   </th>
 
-                  <th
-                    className="
-                      px-5
-                      py-3
-                      text-right
-                      text-xs
-                      font-semibold
-                      uppercase
-                      tracking-wider
-                      text-slate-500
-                      dark:text-slate-400
-                    "
-                  >
-                    Action
-                  </th>
+                  {!isLearner && (
+                    <th
+                      className="
+                        px-6
+                        py-4
+                        text-right
+                        text-xs
+                        font-semibold
+                        uppercase
+                        tracking-wider
+                        text-slate-500
+                        dark:text-slate-400
+                      "
+                    >
+                      Action
+                    </th>
+                  )}
 
                 </tr>
 
@@ -1289,27 +1618,30 @@ export const ProgrammeDetailPage: React.FC = () => {
                       <tr
                         key={cohorte.id}
                         className="
+                          group
                           transition
-                          hover:bg-slate-50
+                          hover:bg-slate-50/80
                           dark:hover:bg-white/[0.03]
                         "
                       >
 
                         {/* COHORTE */}
 
-                        <td className="px-5 py-4">
+                        <td className="px-6 py-5">
 
                           <div className="flex items-center gap-3">
 
                             <div
                               className="
                                 flex
-                                size-10
+                                size-11
                                 shrink-0
                                 items-center
                                 justify-center
                                 rounded-xl
                                 bg-[#FF6B0B]/10
+                                transition
+                                group-hover:bg-[#FF6B0B]/15
                               "
                             >
 
@@ -1322,7 +1654,7 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                             </div>
 
-                            <div>
+                            <div className="min-w-0">
 
                               <p
                                 className="
@@ -1337,8 +1669,8 @@ export const ProgrammeDetailPage: React.FC = () => {
                               {cohorte.description && (
                                 <p
                                   className="
-                                    mt-0.5
-                                    max-w-[250px]
+                                    mt-1
+                                    max-w-[260px]
                                     truncate
                                     text-xs
                                     text-slate-500
@@ -1357,9 +1689,9 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                         {/* RENTRÉE */}
 
-                        <td className="px-5 py-4">
+                        <td className="px-6 py-5">
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
 
                             <div
                               className="
@@ -1398,41 +1730,45 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                         </td>
 
-                        {/* DÉBUT */}
+                        {/* PÉRIODE */}
 
-                        <td
-                          className="
-                            px-5
-                            py-4
-                            text-sm
-                            text-slate-600
-                            dark:text-slate-300
-                          "
-                        >
-                          {formatDate(
-                            startDate,
-                          )}
-                        </td>
+                        <td className="px-6 py-5">
 
-                        {/* FIN */}
+                          <div className="flex flex-col">
 
-                        <td
-                          className="
-                            px-5
-                            py-4
-                            text-sm
-                            text-slate-600
-                            dark:text-slate-300
-                          "
-                        >
-                          {formatDate(
-                            endDate,
-                          )}
+                            <span
+                              className="
+                                text-sm
+                                font-medium
+                                text-slate-700
+                                dark:text-slate-300
+                              "
+                            >
+                              {formatDate(
+                                startDate,
+                              )}
+                            </span>
+
+                            <span
+                              className="
+                                mt-0.5
+                                text-xs
+                                text-slate-400
+                              "
+                            >
+                              au{' '}
+                              {formatDate(
+                                endDate,
+                              )}
+                            </span>
+
+                          </div>
+
                         </td>
 
                         {/* STATUT */}
 
-                        <td className="px-5 py-4">
+                        <td className="px-6 py-5">
 
                           <StatusBadge
                             status={cohortStatus}
@@ -1442,36 +1778,44 @@ export const ProgrammeDetailPage: React.FC = () => {
 
                         {/* ACTION */}
 
-                        <td className="px-5 py-4">
+                        {!isLearner && (
+                          <td className="px-6 py-5">
 
-                          <div className="flex justify-end">
+                            <div className="flex justify-end">
 
-                            <Button
-                              variant="outline"
-                              onClick={() =>
-                                navigate(
-                                  `/cohortes/${cohorte.id}`,
-                                )
-                              }
-                              className="
-                                gap-2
-                                rounded-xl
-                              "
-                            >
-
-                              Voir
-
-                              <ChevronRight
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  navigate(
+                                    `/cohortes/${cohorte.id}`,
+                                  )
+                                }
                                 className="
-                                  size-4
+                                  gap-2
+                                  rounded-xl
+                                  border-slate-200
+                                  font-semibold
+                                  transition
+                                  group-hover:border-[#FF6B0B]/30
+                                  group-hover:text-[#FF6B0B]
+                                  dark:border-white/10
                                 "
-                              />
+                              >
 
-                            </Button>
+                                Voir
 
-                          </div>
+                                <ChevronRight
+                                  className="
+                                    size-4
+                                  "
+                                />
 
-                        </td>
+                              </Button>
+
+                            </div>
+
+                          </td>
+                        )}
 
                       </tr>
                     )
@@ -1488,110 +1832,141 @@ export const ProgrammeDetailPage: React.FC = () => {
       </div>
 
       {/* ======================================================
-          INFORMATIONS TECHNIQUES
+          INFORMATIONS COMPLÉMENTAIRES
+          UNIQUEMENT POUR ADMIN / ORGANIZER / TRAINER
       ====================================================== */}
 
-      <div
-        className="
-          rounded-2xl
-          border
-          border-slate-200
-          bg-white
-          p-6
-          dark:border-white/10
-          dark:bg-[#151528]
-        "
-      >
-
-        <h2
-          className="
-            mb-5
-            font-bold
-            text-slate-900
-            dark:text-white
-          "
-        >
-          Informations complémentaires
-        </h2>
-
+      {!isLearner && (
         <div
           className="
-            grid
-            gap-5
-            sm:grid-cols-2
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            p-6
+            shadow-sm
+            dark:border-white/10
+            dark:bg-[#151528]
           "
         >
 
-          {/* ID */}
+          <div className="mb-5">
 
-          <div>
-
-            <p
+            <h2
               className="
-                mb-1
-                text-xs
-                font-semibold
-                uppercase
-                tracking-wide
-                text-slate-400
+                font-bold
+                text-slate-900
+                dark:text-white
               "
             >
-              Identifiant
-            </p>
+              Informations complémentaires
+            </h2>
 
             <p
               className="
-                break-all
+                mt-1
                 text-sm
-                font-medium
-                text-slate-700
-                dark:text-slate-300
+                text-slate-500
+                dark:text-slate-400
               "
             >
-              {programme.id}
+              Informations techniques du programme.
             </p>
 
           </div>
 
-          {/* DERNIÈRE MODIFICATION */}
+          <div
+            className="
+              grid
+              gap-5
+              sm:grid-cols-2
+            "
+          >
 
-          <div>
+            {/* ID */}
 
-            <p
+            <div
               className="
-                mb-1
-                text-xs
-                font-semibold
-                uppercase
-                tracking-wide
-                text-slate-400
+                rounded-xl
+                bg-slate-50
+                p-4
+                dark:bg-white/[0.03]
               "
             >
-              Dernière modification
-            </p>
 
-            <p
+              <p
+                className="
+                  mb-1
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
+                Identifiant
+              </p>
+
+              <p
+                className="
+                  break-all
+                  text-sm
+                  font-medium
+                  text-slate-700
+                  dark:text-slate-300
+                "
+              >
+                {programme.id}
+              </p>
+
+            </div>
+
+            {/* MODIFICATION */}
+
+            <div
               className="
-                text-sm
-                font-medium
-                text-slate-700
-                dark:text-slate-300
+                rounded-xl
+                bg-slate-50
+                p-4
+                dark:bg-white/[0.03]
               "
             >
-              {formatDate(
-                programme.updated_at,
-              )}
-            </p>
+
+              <p
+                className="
+                  mb-1
+                  text-xs
+                  font-semibold
+                  uppercase
+                  tracking-wide
+                  text-slate-400
+                "
+              >
+                Dernière modification
+              </p>
+
+              <p
+                className="
+                  text-sm
+                  font-medium
+                  text-slate-700
+                  dark:text-slate-300
+                "
+              >
+                {formatDate(
+                  programme.updated_at,
+                )}
+              </p>
+
+            </div>
 
           </div>
 
         </div>
-
-      </div>
+      )}
 
     </div>
   )
 }
 
 export default ProgrammeDetailPage
-

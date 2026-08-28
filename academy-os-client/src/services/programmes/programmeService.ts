@@ -18,23 +18,8 @@ import type {
 } from '../../types/programme'
 
 import { tokenStore } from '@/lib/tokenStore'
+import api from '@/api/api'
 
-/* ============================================================
-   API
-============================================================ */
-
-const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ??
-    'http://localhost:8000/api/v1',
-
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
-
-  timeout: 10000,
-})
 
 /* ============================================================
    AUTH

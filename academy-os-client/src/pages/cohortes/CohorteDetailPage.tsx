@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -25,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { StatCard } from '@/components/ui/StatCard'
+import { useAuth } from '@/context/AuthContext'
 
 import programmeService from '@/services/programmes/programmeService'
 
@@ -72,10 +72,20 @@ const formatDate = (
 
 const CohorteDetailPage: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const { id } = useParams<{
     id: string
   }>()
+
+  /* ============================================================
+     RÔLE UTILISATEUR
+     Le formateur a un accès en lecture seule : aucune action de
+     gestion (édition, ajout d'apprenant, attribution de mentor).
+  ============================================================ */
+
+  const isTrainer = user?.role === 'trainer'
+  const canManage = !isTrainer
 
   /* ============================================================
      ÉTATS COHORTE
@@ -143,108 +153,76 @@ const CohorteDetailPage: React.FC = () => {
      CHARGER LA COHORTE + MEMBRES
   ============================================================ */
 
-  const loadCohorte =
-    React.useCallback(
-      async (
-        refresh = false,
-      ) => {
-        if (!id) {
+  const loadCohorte = React.useCallback(
+    async (refresh = false) => {
+      if (!id) {
+        return
+      }
+
+      try {
+        if (refresh) {
+          setIsFetching(true)
+        } else {
+          setIsLoading(true)
+        }
+
+        setError(null)
+        setMembersError(null)
+
+        const [
+          cohorteData,
+          programmesData,
+          rentreesData,
+          enrollmentsData,
+          trainerAssignmentsData,
+        ] = await Promise.all([
+          programmeService.getCohorteById(id),
+          programmeService.getProgrammes(),
+          programmeService.getAllRentrees(),
+          getEnrollments(id),
+          getTrainerAssignments(id),
+        ])
+
+        if (!cohorteData) {
+          setCohorte(null)
           return
         }
 
-        try {
-          if (refresh) {
-            setIsFetching(true)
-          } else {
-            setIsLoading(true)
-          }
+        setCohorte(cohorteData)
 
-          setError(null)
-          setMembersError(null)
+        setProgrammes(
+          programmesData,
+        )
 
-          const [
-            cohorteData,
-            programmesData,
-            rentreesData,
-            enrollmentsData,
-            trainerAssignmentsData,
-          ] = await Promise.all([
-            programmeService.getCohorteById(id),
+        setRentrees(
+          rentreesData,
+        )
 
-            programmeService.getProgrammes(),
+        setEnrollments(
+          enrollmentsData,
+        )
 
-            programmeService.getAllRentrees(),
+        setTrainerAssignments(
+          trainerAssignmentsData,
+        )
+      } catch (err) {
+        console.error(
+          '[CohorteDetailPage] Erreur:',
+          err,
+        )
 
-            getEnrollments(id),
-
-            getTrainerAssignments(id),
-          ])
-
-          console.log(
-            '🔎 COHORTE:',
-            cohorteData,
-          )
-
-          console.log(
-            '🔎 PROGRAMMES:',
-            programmesData,
-          )
-
-          console.log(
-            '🔎 RENTRÉES:',
-            rentreesData,
-          )
-
-          console.log(
-            '👨‍🎓 APPRENANTS:',
-            enrollmentsData,
-          )
-
-          console.log(
-            '👨‍🏫 FORMATEURS:',
-            trainerAssignmentsData,
-          )
-
-          if (!cohorteData) {
-            setCohorte(null)
-            return
-          }
-
-          setCohorte(cohorteData)
-
-          setProgrammes(
-            programmesData,
-          )
-
-          setRentrees(
-            rentreesData,
-          )
-
-          setEnrollments(
-            enrollmentsData,
-          )
-
-          setTrainerAssignments(
-            trainerAssignmentsData,
-          )
-        } catch (err) {
-          console.error(
-            '[CohorteDetailPage] Erreur:',
-            err,
-          )
-
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'Une erreur est survenue lors de la récupération de la cohorte.',
-          )
-        } finally {
-          setIsLoading(false)
-          setIsFetching(false)
-        }
-      },
-      [id],
-    )
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Une erreur est survenue lors de la récupération de la cohorte.',
+        )
+      } finally {
+        setIsLoading(false)
+        setIsFetching(false)
+      }
+    },
+    [id],
+  )
 
   /* ============================================================
      CHARGEMENT INITIAL
@@ -327,7 +305,7 @@ const CohorteDetailPage: React.FC = () => {
       setMentorError(
         err instanceof Error
           ? err.message
-          : "Impossible de modifier le mentor.",
+          : 'Impossible de modifier le mentor.',
       )
     } finally {
       setIsMentorSubmitting(false)
@@ -397,8 +375,7 @@ const CohorteDetailPage: React.FC = () => {
               dark:text-red-300
             "
           >
-            Impossible d'identifier la
-            cohorte demandée.
+            Impossible d'identifier la cohorte demandée.
           </p>
         </div>
 
@@ -642,8 +619,7 @@ const CohorteDetailPage: React.FC = () => {
               dark:text-red-300
             "
           >
-            Cette cohorte n'existe pas ou
-            n'est plus disponible.
+            Cette cohorte n'existe pas ou n'est plus disponible.
           </p>
         </div>
 
@@ -726,7 +702,7 @@ const CohorteDetailPage: React.FC = () => {
     cohorte.end_date
 
   /* ============================================================
-     NOMBRE DE MEMBRES
+     STATISTIQUES
   ============================================================ */
 
   const membersCount =
@@ -849,75 +825,55 @@ const CohorteDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ACTIONS */}
+          {/* ACTIONS COHORTE — masquées pour le formateur (lecture seule) */}
 
-          <div
-            className="
-              flex
-              flex-wrap
-              items-center
-              gap-2
-            "
-          >
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  `/cohortes/${cohorte.id}/inviter-apprenant`,
-                )
-              }
+          {canManage && (
+            <div
               className="
-                rounded-xl
-                border-[#FF6B0B]
-                font-semibold
-                text-[#FF6B0B]
-                hover:bg-[#FF6B0B]/10
+                flex
+                flex-wrap
+                items-center
+                gap-2
               "
             >
-              <UserPlus className="mr-2 size-4" />
-              Ajouter un apprenant
-            </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    `/cohortes/${cohorte.id}/inviter-apprenant`,
+                  )
+                }
+                className="
+                  rounded-xl
+                  border-[#FF6B0B]
+                  font-semibold
+                  text-[#FF6B0B]
+                  hover:bg-[#FF6B0B]/10
+                "
+              >
+                <UserPlus className="mr-2 size-4" />
+                Ajouter un apprenant
+              </Button>
 
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  `/cohortes/${cohorte.id}/inviter-formateur`,
-                )
-              }
-              className="
-                rounded-xl
-                border-blue-500
-                font-semibold
-                text-blue-600
-                hover:bg-blue-50
-                dark:border-blue-400
-                dark:text-blue-400
-                dark:hover:bg-blue-500/10
-              "
-            >
-              <GraduationCap className="mr-2 size-4" />
-              Ajouter un formateur
-            </Button>
-
-            <Button
-              onClick={() =>
-                navigate(
-                  `/cohortes/${cohorte.id}/edit`,
-                )
-              }
-              className="
-                rounded-xl
-                bg-[#FF6B0B]
-                font-semibold
-                text-white
-                hover:bg-[#e85f08]
-              "
-            >
-              <Pencil className="mr-2 size-4" />
-              Modifier
-            </Button>
-          </div>
+              <Button
+                onClick={() =>
+                  navigate(
+                    `/cohortes/${cohorte.id}/edit`,
+                  )
+                }
+                className="
+                  rounded-xl
+                  bg-[#FF6B0B]
+                  font-semibold
+                  text-white
+                  hover:bg-[#e85f08]
+                "
+              >
+                <Pencil className="mr-2 size-4" />
+                Modifier
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* ======================================================
@@ -1147,6 +1103,7 @@ const CohorteDetailPage: React.FC = () => {
             />
 
             <div>
+
               <p
                 className="
                   font-semibold
@@ -1167,6 +1124,7 @@ const CohorteDetailPage: React.FC = () => {
               >
                 {membersError}
               </p>
+
             </div>
           </div>
         )}
@@ -1225,6 +1183,7 @@ const CohorteDetailPage: React.FC = () => {
               </div>
 
               <div>
+
                 <h2
                   className="
                     font-bold
@@ -1245,27 +1204,32 @@ const CohorteDetailPage: React.FC = () => {
                   {enrollments.length} apprenant(s)
                   inscrit(s)
                 </p>
+
               </div>
 
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  `/cohortes/${cohorte.id}/inviter-apprenant`,
-                )
-              }
-              className="
-                gap-2
-                border-[#FF6B0B]
-                text-[#FF6B0B]
-                hover:bg-[#FF6B0B]/10
-              "
-            >
-              <UserPlus className="size-4" />
-              Ajouter
-            </Button>
+            {/* Ajout masqué pour le formateur (lecture seule) */}
+
+            {canManage && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    `/cohortes/${cohorte.id}/inviter-apprenant`,
+                  )
+                }
+                className="
+                  gap-2
+                  border-[#FF6B0B]
+                  text-[#FF6B0B]
+                  hover:bg-[#FF6B0B]/10
+                "
+              >
+                <UserPlus className="size-4" />
+                Ajouter
+              </Button>
+            )}
           </div>
 
           {/* TABLE */}
@@ -1321,101 +1285,31 @@ const CohorteDetailPage: React.FC = () => {
                       dark:bg-white/[0.03]
                     "
                   >
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Apprenant
                     </th>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Email
                     </th>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Mentor
                     </th>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Statut
                     </th>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-left
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Inscription
                     </th>
 
-                    <th
-                      className="
-                        px-5
-                        py-3
-                        text-right
-                        text-xs
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
-                      Action
-                    </th>
+                    {canManage && (
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Action
+                      </th>
+                    )}
                   </tr>
                 </thead>
 
@@ -1426,7 +1320,6 @@ const CohorteDetailPage: React.FC = () => {
                     dark:divide-white/10
                   "
                 >
-
                   {enrollments.map(
                     (enrollment) => {
                       const user =
@@ -1458,7 +1351,7 @@ const CohorteDetailPage: React.FC = () => {
                           "
                         >
 
-                          {/* NOM */}
+                          {/* APPRENANT */}
 
                           <td className="px-5 py-4">
 
@@ -1486,6 +1379,7 @@ const CohorteDetailPage: React.FC = () => {
                               </div>
 
                               <div>
+
                                 <p
                                   className="
                                     font-semibold
@@ -1505,6 +1399,7 @@ const CohorteDetailPage: React.FC = () => {
                                 >
                                   Apprenant
                                 </p>
+
                               </div>
 
                             </div>
@@ -1564,6 +1459,7 @@ const CohorteDetailPage: React.FC = () => {
                                 </div>
 
                                 <div>
+
                                   <p
                                     className="
                                       text-sm
@@ -1584,6 +1480,7 @@ const CohorteDetailPage: React.FC = () => {
                                   >
                                     Mentor
                                   </p>
+
                                 </div>
 
                               </div>
@@ -1640,7 +1537,7 @@ const CohorteDetailPage: React.FC = () => {
 
                           </td>
 
-                          {/* DATE */}
+                          {/* INSCRIPTION */}
 
                           <td
                             className="
@@ -1656,47 +1553,48 @@ const CohorteDetailPage: React.FC = () => {
                             )}
                           </td>
 
-                          {/* ACTION */}
+                          {/* ACTION MENTOR — masquée pour le formateur */}
 
-                          <td className="px-5 py-4">
+                          {canManage && (
+                            <td className="px-5 py-4">
 
-                            <div className="flex justify-end">
+                              <div className="flex justify-end">
 
-                              <Button
-                                variant="outline"
-                                onClick={() =>
-                                  openMentorModal(
-                                    enrollment,
-                                  )
-                                }
-                                className="
-                                  gap-2
-                                  rounded-xl
-                                  border-purple-200
-                                  text-purple-600
-                                  hover:bg-purple-50
-                                  hover:text-purple-700
-                                  dark:border-purple-500/30
-                                  dark:text-purple-400
-                                  dark:hover:bg-purple-500/10
-                                "
-                              >
-                                <UserCheck className="size-4" />
+                                <Button
+                                  variant="outline"
+                                  onClick={() =>
+                                    openMentorModal(
+                                      enrollment,
+                                    )
+                                  }
+                                  className="
+                                    gap-2
+                                    rounded-xl
+                                    border-purple-200
+                                    text-purple-600
+                                    hover:bg-purple-50
+                                    hover:text-purple-700
+                                    dark:border-purple-500/30
+                                    dark:text-purple-400
+                                    dark:hover:bg-purple-500/10
+                                  "
+                                >
+                                  <UserCheck className="size-4" />
 
-                                {mentor
-                                  ? 'Modifier'
-                                  : 'Attribuer mentor'}
-                              </Button>
+                                  {mentor
+                                    ? 'Modifier'
+                                    : 'Attribuer mentor'}
+                                </Button>
 
-                            </div>
+                              </div>
 
-                          </td>
+                            </td>
+                          )}
 
                         </tr>
                       )
                     },
                   )}
-
                 </tbody>
 
               </table>
@@ -1708,6 +1606,7 @@ const CohorteDetailPage: React.FC = () => {
 
         {/* ======================================================
             TABLEAU FORMATEURS
+            LECTURE SEULE — AUCUNE ACTION
         ====================================================== */}
 
         <div
@@ -1728,91 +1627,63 @@ const CohorteDetailPage: React.FC = () => {
           <div
             className="
               flex
-              flex-col
+              items-center
               gap-3
               border-b
               border-slate-200
               p-5
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
               dark:border-white/10
             "
           >
 
-            <div className="flex items-center gap-3">
-
-              <div
+            <div
+              className="
+                flex
+                size-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-blue-50
+                dark:bg-blue-500/10
+              "
+            >
+              <GraduationCap
                 className="
-                  flex
-                  size-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-blue-50
-                  dark:bg-blue-500/10
+                  size-5
+                  text-blue-600
+                  dark:text-blue-400
+                "
+              />
+            </div>
+
+            <div>
+
+              <h2
+                className="
+                  font-bold
+                  text-slate-900
+                  dark:text-white
                 "
               >
-                <GraduationCap
-                  className="
-                    size-5
-                    text-blue-600
-                    dark:text-blue-400
-                  "
-                />
-              </div>
+                Formateurs
+              </h2>
 
-              <div>
-
-                <h2
-                  className="
-                    font-bold
-                    text-slate-900
-                    dark:text-white
-                  "
-                >
-                  Formateurs
-                </h2>
-
-                <p
-                  className="
-                    text-sm
-                    text-slate-500
-                    dark:text-slate-400
-                  "
-                >
-                  {trainerAssignments.length} formateur(s)
-                  affecté(s)
-                </p>
-
-              </div>
+              <p
+                className="
+                  text-sm
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                {trainerAssignments.length} formateur(s)
+                affecté(s)
+              </p>
 
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  `/cohortes/${cohorte.id}/inviter-formateur`,
-                )
-              }
-              className="
-                gap-2
-                border-blue-500
-                text-blue-600
-                hover:bg-blue-50
-                dark:border-blue-400
-                dark:text-blue-400
-                dark:hover:bg-blue-500/10
-              "
-            >
-              <UserPlus className="size-4" />
-              Ajouter
-            </Button>
-
           </div>
 
-          {/* TABLE */}
+          {/* TABLE FORMATEURS */}
 
           {trainerAssignments.length === 0 ? (
             <div className="p-10 text-center">
@@ -1845,8 +1716,8 @@ const CohorteDetailPage: React.FC = () => {
                   dark:text-slate-400
                 "
               >
-                Ajoutez des formateurs à cette
-                cohorte pour les voir apparaître ici.
+                Aucun formateur n'est actuellement
+                affecté à cette cohorte.
               </p>
 
             </div>
@@ -1963,6 +1834,8 @@ const CohorteDetailPage: React.FC = () => {
                           "
                         >
 
+                          {/* FORMATEUR */}
+
                           <td className="px-5 py-4">
 
                             <div className="flex items-center gap-3">
@@ -2018,6 +1891,8 @@ const CohorteDetailPage: React.FC = () => {
 
                           </td>
 
+                          {/* EMAIL */}
+
                           <td className="px-5 py-4">
 
                             <div
@@ -2037,6 +1912,8 @@ const CohorteDetailPage: React.FC = () => {
                             </div>
 
                           </td>
+
+                          {/* STATUT */}
 
                           <td className="px-5 py-4">
 
@@ -2065,6 +1942,8 @@ const CohorteDetailPage: React.FC = () => {
                             </span>
 
                           </td>
+
+                          {/* DATE AFFECTATION */}
 
                           <td
                             className="
@@ -2096,11 +1975,12 @@ const CohorteDetailPage: React.FC = () => {
 
       </div>
 
-      {/* ======================================================
-          MODAL MENTOR
-      ====================================================== */}
+      {/* ========================================================
+          MODAL MENTOR — inutile pour le formateur (canManage requis)
+      ======================================================== */}
 
-      {isMentorModalOpen &&
+      {canManage &&
+        isMentorModalOpen &&
         selectedEnrollment && (
           <div
             className="
@@ -2138,7 +2018,7 @@ const CohorteDetailPage: React.FC = () => {
               "
             >
 
-              {/* HEADER MODAL */}
+              {/* HEADER */}
 
               <div
                 className="
@@ -2464,7 +2344,7 @@ const CohorteDetailPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* ACTIONS */}
+                {/* ACTIONS MODAL */}
 
                 <div
                   className="
@@ -2570,4 +2450,3 @@ const CohorteDetailPage: React.FC = () => {
 }
 
 export default CohorteDetailPage
-

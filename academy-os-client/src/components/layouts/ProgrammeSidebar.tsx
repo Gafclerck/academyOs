@@ -9,7 +9,6 @@ import {
   BookOpen,
   CalendarDays,
   GraduationCap,
-  FolderGit2,
   ClipboardCheck,
   Users,
   ChevronRight,
@@ -54,7 +53,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     href: '/dashboard',
     icon: LayoutDashboard,
     description: "Vue générale de l'académie",
-    roles: ['admin', 'organizer'],
+    roles: ['admin', 'organizer', 'trainer', 'learner'],
   },
 
   // ===================================================
@@ -111,23 +110,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     ],
   },
 
-  // ===================================================
-  // PROJETS
-  // Tous les rôles
-  // ===================================================
-
-  {
-    name: 'Projets',
-    href: '/projets',
-    icon: FolderGit2,
-    description: 'Suivi des livrables & jalons',
-    roles: [
-      'admin',
-      'organizer',
-      'trainer',
-      'learner',
-    ],
-  },
 
   // ===================================================
   // ÉVALUATIONS
