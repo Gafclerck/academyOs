@@ -86,10 +86,6 @@ export const RentreeCreatePage: React.FC = () => {
         status: values.status,
       }
 
-      console.log(
-        '[RentreeCreatePage] Payload:',
-        payload,
-      )
 
       const created =
         await createRentreeMutation.mutateAsync(

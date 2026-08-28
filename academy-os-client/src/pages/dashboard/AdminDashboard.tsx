@@ -72,17 +72,9 @@ const AdminDashboard: React.FC = () => {
       try {
         setLoading(true)
         setError(null)
-
-        console.log(
-          `Chargement du dashboard pour le rôle : ${role}`,
-        )
-
-        const data =
+const data =
           await dashboardService.getStats()
-
-        console.log('Dashboard data:', data)
-
-        setDashboard(data)
+setDashboard(data)
       } catch (err: any) {
         console.error(
           'Erreur lors du chargement du dashboard :',

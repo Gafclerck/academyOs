@@ -12,9 +12,8 @@ import {
 } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import projetService, {
-  type Projet,
-} from '@/services/projets/projetService'
+import projetService from '@/services/projets/projetService'
+import type { Projet } from '@/types/projet'
 
 import { Button } from '@/components/ui/button'
 
@@ -281,10 +280,6 @@ export const ProjetEditPage: React.FC = () => {
         order: formData.order,
       }
 
-      console.log(
-        '📤 Modification du projet :',
-        data,
-      )
 
       /* ------------------------------------------------------
          PATCH /api/v1/projects/{id}/
@@ -296,10 +291,6 @@ export const ProjetEditPage: React.FC = () => {
             data,
         )
 
-      console.log(
-        '✅ Projet modifié :',
-        updatedProjet,
-      )
 
       toast.success(
         'Projet modifié avec succès.',

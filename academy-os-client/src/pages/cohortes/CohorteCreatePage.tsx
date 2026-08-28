@@ -96,8 +96,7 @@ export const CohorteCreatePage: React.FC = () => {
         end_date: data.end_date,
         status: data.status,
       };
-
-      console.log('[CohorteCreatePage] Payload envoyé :', payload);
+;
 
       await createCohorteMutation.mutateAsync(payload);
 

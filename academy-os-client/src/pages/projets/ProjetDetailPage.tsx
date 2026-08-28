@@ -25,10 +25,8 @@ import {
 import { toast } from 'sonner'
 
 import { useAuth } from '@/context/AuthContext'
-import projetService, {
-  type Projet,
-  type ProjetAttachment,
-} from '@/services/projets/projetService'
+import projetService from '@/services/projets/projetService'
+import type { Projet, ProjetAttachment } from '@/types/projet'
 
 import { Button } from '@/components/ui/button'
 

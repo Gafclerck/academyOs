@@ -79,10 +79,6 @@ export const ProgrammeCreatePage: React.FC = () => {
           values,
         )
 
-      console.log(
-        'Programme créé avec succès :',
-        created,
-      )
 
       setCreatedProgramme({
         id: String(created.id),

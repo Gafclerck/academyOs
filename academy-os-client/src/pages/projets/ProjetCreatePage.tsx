@@ -15,10 +15,8 @@ import {
 import { toast } from 'sonner'
 
 import programmeService from '@/services/programmes/programmeService'
-import projetService, {
-  type CreateProjetDTO,
-  type ProjetStatus,
-} from '@/services/projets/projetService'
+import projetService from '@/services/projets/projetService'
+import type { CreateProjetDTO, ProjetStatus } from '@/types/projet'
 
 import { Button } from '@/components/ui/button'
 
@@ -230,10 +228,6 @@ export const ProjetCreatePage: React.FC = () => {
         setIsLoadingProgramme(true)
         setError(null)
 
-        console.log(
-          '📚 Chargement du programme :',
-          programmeId,
-        )
 
         /*
          * IMPORTANT :
@@ -249,10 +243,6 @@ export const ProjetCreatePage: React.FC = () => {
             programmeId,
           )
 
-        console.log(
-          '✅ Programme récupéré :',
-          data,
-        )
 
         if (!isMounted) {
           return
@@ -425,20 +415,11 @@ export const ProjetCreatePage: React.FC = () => {
     try {
       setIsSubmitting(true)
 
-      console.log(
-        '📤 POST /projects/',
+
+      await projetService.createProjet(
         payload,
       )
 
-      const projet =
-        await projetService.createProjet(
-          payload,
-        )
-
-      console.log(
-        '✅ Projet créé :',
-        projet,
-      )
 
       toast.success(
         'Projet créé avec succès.',

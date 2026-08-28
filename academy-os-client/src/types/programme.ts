@@ -27,12 +27,6 @@ export type StatutCohorte =
   | 'terminee'
   | 'inactive';
 
-export type StatutProjet =
-  | 'en_cours'
-  | 'termine'
-  | 'en_attente'
-  | 'abandonne';
-
 /* ============================================================
    1. PROGRAMME
 ============================================================ */
@@ -138,97 +132,7 @@ export interface CreateCohorteDTO {
 }
 
 /* ============================================================
-   4. PROJET
-============================================================ */
-
-export interface ProjetCohorte {
-  id: string;
-
-  cohorte_id: string;
-
-  nom: string;
-
-  description: string;
-
-  progression: number;
-
-  statut: StatutProjet;
-
-  nb_membres: number;
-
-  date_debut?: string;
-
-  date_fin_prevue?: string;
-}
-
-export interface CreateProjetDTO {
-  cohorte_id: string;
-
-  nom: string;
-
-  description?: string;
-
-  date_debut?: string;
-
-  date_fin_prevue?: string;
-}
-
-/* ============================================================
-   5. MEMBRE
-============================================================ */
-
-export interface Membre {
-  id: string;
-
-  cohorte_id?: string;
-
-  rentree_id?: string;
-
-  nom: string;
-
-  prenom: string;
-
-  email: string;
-
-  role:
-    | 'etudiant'
-    | 'mentor'
-    | 'lead'
-    | 'admin';
-
-  avatar?: string;
-
-  date_rejoint?: string;
-}
-
-export interface CreateMembreDTO {
-  cohorte_id: string;
-
-  rentree_id: string;
-
-  nom: string;
-
-  prenom: string;
-
-  email: string;
-
-  role:
-    | 'etudiant'
-    | 'mentor'
-    | 'lead'
-    | 'admin';
-}
-
-export interface UpdateMembreDTO {
-  role?:
-    | 'etudiant'
-    | 'mentor'
-    | 'lead'
-    | 'admin';
-}
-
-/* ============================================================
-   6. KPI
+   KPI
 ============================================================ */
 
 export interface ProgrammeKPIs {

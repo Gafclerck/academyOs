@@ -61,3 +61,6 @@ academy-os-client/dist-ssr/
 academy-os-client/node_modules/
 .vite/
 *.local
+
+# Re-include frontend source (the Python `lib/` pattern above must NOT ignore src/lib)
+!academy-os-client/src/lib/

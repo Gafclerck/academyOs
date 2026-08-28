@@ -1,5 +1,7 @@
 import api from '@/api/api'
 
+import { extractList } from '@/lib/pagination'
+
 import type {
   Cohorte,
   CreateCohorteDTO,
@@ -13,25 +15,6 @@ interface CohortesResponse {
   results: Cohorte[]
 }
 
-const extractList = <T>(data: unknown): T[] => {
-  if (Array.isArray(data)) {
-    return data as T[]
-  }
-
-  if (
-    data &&
-    typeof data === 'object' &&
-    'results' in data &&
-    Array.isArray(
-      (data as { results: unknown }).results,
-    )
-  ) {
-    return (data as { results: T[] }).results
-  }
-
-  return []
-}
-
 /* ============================================================
    GET COHORTES
 ============================================================ */
@@ -39,11 +22,6 @@ const extractList = <T>(data: unknown): T[] => {
 export const getCohortes = async (): Promise<Cohorte[]> => {
   const response = await api.get<CohortesResponse>(
     '/cohorts/',
-  )
-
-  console.log(
-    '🔥 GET COHORTES:',
-    response.data,
   )
 
   return extractList<Cohorte>(
@@ -68,11 +46,6 @@ export const getCohorteById = async (
     `/cohorts/${id}/`,
   )
 
-  console.log(
-    '🔥 GET COHORTE:',
-    response.data,
-  )
-
   return response.data
 }
 
@@ -86,11 +59,6 @@ export const createCohorte = async (
   const response = await api.post<Cohorte>(
     '/cohorts/',
     data,
-  )
-
-  console.log(
-    '🔥 CREATE COHORTE:',
-    response.data,
   )
 
   return response.data
@@ -110,22 +78,9 @@ export const updateCohorte = async (
     )
   }
 
-  console.log(
-    '📤 UPDATE COHORTE:',
-    {
-      url: `/cohorts/${id}/`,
-      data,
-    },
-  )
-
   const response = await api.patch<Cohorte>(
     `/cohorts/${id}/`,
     data,
-  )
-
-  console.log(
-    '✅ COHORTE MODIFIÉE:',
-    response.data,
   )
 
   return response.data

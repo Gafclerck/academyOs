@@ -1,108 +1,12 @@
 import API from '@/api/api'
 
+import { extractList } from '@/lib/pagination'
+
 import type {
   Rentree,
   CreateRentreeDTO,
   UpdateRentreeDTO,
 } from '@/types/rentree'
-
-// ============================================================
-// TYPES API
-// ============================================================
-
-interface PaginatedResponse<T> {
-  count: number
-  next: string | null
-  previous: string | null
-  results: T[]
-}
-
-// ============================================================
-// HELPER : EXTRACTION LISTE
-// ============================================================
-
-/**
- * Django REST Framework peut retourner :
- *
- * 1. Un tableau directement :
- * [
- *   {...},
- *   {...}
- * ]
- *
- * 2. Une réponse paginée :
- * {
- *   count: 10,
- *   next: "...",
- *   previous: null,
- *   results: [...]
- * }
- *
- * 3. Une réponse enveloppée :
- * {
- *   data: [...]
- * }
- */
-const extractList = <T>(data: unknown): T[] => {
-  // ----------------------------------------------------------
-  // Tableau direct
-  // ----------------------------------------------------------
-
-  if (Array.isArray(data)) {
-    return data as T[]
-  }
-
-  // ----------------------------------------------------------
-  // DRF pagination
-  // ----------------------------------------------------------
-
-  if (
-    data &&
-    typeof data === 'object' &&
-    'results' in data
-  ) {
-    const results = (
-      data as {
-        results?: unknown
-      }
-    ).results
-
-    if (Array.isArray(results)) {
-      return results as T[]
-    }
-  }
-
-  // ----------------------------------------------------------
-  // { data: [...] }
-  // ----------------------------------------------------------
-
-  if (
-    data &&
-    typeof data === 'object' &&
-    'data' in data
-  ) {
-    const result = (
-      data as {
-        data?: unknown
-      }
-    ).data
-
-    if (Array.isArray(result)) {
-      return result as T[]
-    }
-  }
-
-  // ----------------------------------------------------------
-  // Réponse inattendue
-  // ----------------------------------------------------------
-
-  console.warn(
-    '[rentreeService] Réponse API inattendue :',
-    data,
-  )
-
-  return []
-}
 
 // ============================================================
 // GET RENTREES
@@ -131,7 +35,7 @@ const extractList = <T>(data: unknown): T[] => {
  */
 export const getRentrees = async (): Promise<Rentree[]> => {
   const response = await API.get<
-    Rentree[] | PaginatedResponse<Rentree>
+    Rentree[] | { count: number; next: string | null; previous: string | null; results: Rentree[] }
   >('intakes/')
 
   return extractList<Rentree>(response.data)

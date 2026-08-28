@@ -7,8 +7,6 @@ import type {
   CreateRentreeDTO,
   CohorteRentree,
   CreateCohorteDTO,
-  ProjetCohorte,
-  Membre,
   ProgrammeKPIs,
   ProgrammeDetailKPIs,
   RentreeDetailKPIs,
@@ -17,78 +15,8 @@ import type {
   StatutCohorte,
 } from '../../types/programme'
 
-import { tokenStore } from '@/lib/tokenStore'
 import api from '@/api/api'
-
-
-/* ============================================================
-   AUTH
-============================================================ */
-
-api.interceptors.request.use(
-  (config) => {
-    const token = tokenStore.getAccessToken()
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-
-    return config
-  },
-  (error) => Promise.reject(error),
-)
-
-api.interceptors.response.use(
-  (response) => response,
-
-  (error) => {
-    if (axios.isAxiosError(error)) {
-      console.error('API ERROR', {
-        status: error.response?.status,
-        url: error.config?.url,
-        method: error.config?.method,
-        payload: error.config?.data,
-        response: error.response?.data,
-      })
-    }
-
-    return Promise.reject(error)
-  },
-)
-
-/* ============================================================
-   HELPERS
-============================================================ */
-
-const extractList = <T>(data: unknown): T[] => {
-  if (Array.isArray(data)) {
-    return data as T[]
-  }
-
-  if (
-    data &&
-    typeof data === 'object' &&
-    'results' in data &&
-    Array.isArray(
-      (data as { results: unknown }).results,
-    )
-  ) {
-    return (data as { results: T[] }).results
-  }
-
-  if (
-    data &&
-    typeof data === 'object' &&
-    'data' in data &&
-    Array.isArray(
-      (data as { data: unknown }).data,
-    )
-  ) {
-    return (data as { data: T[] }).data
-  }
-
-  return []
-}
+import { extractList } from '@/lib/pagination'
 
 /* ============================================================
    PROGRAMMES
@@ -573,11 +501,6 @@ export const programmeService = {
     const payload =
       mapProgrammeToApi(dto)
 
-    console.log(
-      '[programmeService] POST /programs/',
-      payload,
-    )
-
     const response =
       await api.post(
         '/programs/',
@@ -605,13 +528,6 @@ export const programmeService = {
 
     const payload =
       mapProgrammeToApi(dto)
-
-    console.log(
-      '[programmeService] PUT /programs/' +
-        id +
-        '/',
-      payload,
-    )
 
     const response =
       await api.put(
@@ -662,13 +578,6 @@ export const programmeService = {
           ? 'active'
           : 'inactive'
     }
-
-    console.log(
-      '[programmeService] PATCH /programs/' +
-        id +
-        '/',
-      payload,
-    )
 
     const response =
       await api.patch(
@@ -897,7 +806,7 @@ export const programmeService = {
   > {
     const response =
       await api.get(
-        '/cohortes/',
+        '/cohorts/',
       )
 
     return extractList<any>(
@@ -912,10 +821,10 @@ export const programmeService = {
   ): Promise<CohorteRentree[]> {
     const response =
       await api.get(
-        '/cohortes/',
+        '/cohorts/',
         {
           params: {
-            rentree_id:
+            intake:
               rentreeId,
           },
         },
@@ -943,11 +852,6 @@ async getCohorteById(
         `/cohorts/${id}/`,
       )
 
-    console.log(
-      '🔎 COHORTE DETAIL API:',
-      response.data,
-    )
-
     return mapCohorteFromApi(
       response.data,
     )
@@ -968,7 +872,7 @@ async getCohorteById(
   ): Promise<CohorteRentree> {
     const response =
       await api.post(
-        '/cohortes/',
+        '/cohorts/',
         dto,
       )
 
@@ -1005,54 +909,6 @@ async getCohorteById(
         cohorte.nb_projets ?? 0,
     }
   },
-
-  /* ==========================================================
-     PROJETS
-  ========================================================== */
-
-  async getProjetsByCohorte(
-    cohorteId: string,
-  ): Promise<ProjetCohorte[]> {
-    const response =
-      await api.get(
-        '/projets/',
-        {
-          params: {
-            cohorte_id:
-              cohorteId,
-          },
-        },
-      )
-
-    return extractList<ProjetCohorte>(
-      response.data,
-    )
-  },
-
-  /* ==========================================================
-     MEMBRES
-  ========================================================== */
-
-  async getMembresByCohorte(
-    cohorteId: string,
-  ): Promise<Membre[]> {
-    const response =
-      await api.get(
-        '/membres/',
-        {
-          params: {
-            cohorte_id:
-              cohorteId,
-          },
-        },
-      )
-
-    return extractList<Membre>(
-      response.data,
-    )
-  },
-
-  
 }
 
 export default programmeService

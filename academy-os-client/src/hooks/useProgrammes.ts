@@ -29,12 +29,6 @@ export const programmeKeys = {
   cohorte: (id: string) => ['cohorte', id] as const,
   cohorteDetailKPIs: (id: string) =>
     ['cohorteDetailKPIs', id] as const,
-
-  projetsByCohorte: (cohorteId: string) =>
-    ['projets', cohorteId] as const,
-
-  membresByCohorte: (cohorteId: string) =>
-    ['membres', cohorteId] as const,
 };
 
 // ─── PROGRAMMES HOOKS ────────────────────────────────────────────────────────
@@ -339,40 +333,6 @@ export function useCreateCohorte() {
 }
 
 // ─── PROJETS & MEMBRES HOOKS ─────────────────────────────────────────────────
-
-export function useProjetsByCohorte(
-  cohorteId: string | undefined,
-) {
-  return useQuery({
-    queryKey: programmeKeys.projetsByCohorte(
-      cohorteId || '',
-    ),
-
-    queryFn: () =>
-      cohorteId
-        ? programmeService.getProjetsByCohorte(cohorteId)
-        : [],
-
-    enabled: !!cohorteId,
-  });
-}
-
-export function useMembresByCohorte(
-  cohorteId: string | undefined,
-) {
-  return useQuery({
-    queryKey: programmeKeys.membresByCohorte(
-      cohorteId || '',
-    ),
-
-    queryFn: () =>
-      cohorteId
-        ? programmeService.getMembresByCohorte(cohorteId)
-        : [],
-
-    enabled: !!cohorteId,
-  });
-}
 
 // ─── ALIASES DE COMPATIBILITÉ (legacy) ───────────────────────────────────────
 

@@ -5,7 +5,6 @@ import { ChevronRight, Home } from 'lucide-react'
 
 import {
   useProgramme,
-  useSession,
   useCohorte,
 } from '@/hooks/useProgrammes'
 
@@ -43,22 +42,6 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     useProgramme(programmeId)
 
   // ─────────────────────────────────────────────
-  // SESSION
-  // ─────────────────────────────────────────────
-
-  const isSessionDetail =
-    pathnames[0] === 'sessions' &&
-    !!pathnames[1] &&
-    pathnames[1] !== 'new'
-
-  const sessionId = isSessionDetail
-    ? pathnames[1]
-    : undefined
-
-  const { data: session } =
-    useSession(sessionId)
-
-  // ─────────────────────────────────────────────
   // COHORTE
   // ─────────────────────────────────────────────
 
@@ -91,16 +74,20 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     useRentree(rentreeId)
 
   // ─────────────────────────────────────────────
-  // PROJET
+  // PROJET (imbriqué sous /programmes/:id/projets)
   // ─────────────────────────────────────────────
 
+  const isProjetSection =
+    pathnames[0] === 'programmes' &&
+    pathnames[2] === 'projets'
+
   const isProjetDetail =
-    pathnames[0] === 'projets' &&
-    !!pathnames[1] &&
-    pathnames[1] !== 'new'
+    isProjetSection &&
+    !!pathnames[3] &&
+    pathnames[3] !== 'new'
 
   const projetId = isProjetDetail
-    ? pathnames[1]
+    ? pathnames[3]
     : undefined
 
   const { data: projet } =
@@ -121,10 +108,6 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
 
     if (segment === 'programmes') {
       return 'Programmes'
-    }
-
-    if (segment === 'sessions') {
-      return 'Sessions'
     }
 
     if (segment === 'cohortes') {
@@ -156,18 +139,6 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     }
 
     // ─────────────────────────────────────────────
-    // DÉTAIL SESSION
-    // ─────────────────────────────────────────────
-
-    if (
-      index === 1 &&
-      pathnames[0] === 'sessions' &&
-      session
-    ) {
-      return session.nom
-    }
-
-    // ─────────────────────────────────────────────
     // DÉTAIL COHORTE
     // ─────────────────────────────────────────────
 
@@ -196,8 +167,8 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     // ─────────────────────────────────────────────
 
     if (
-      index === 1 &&
-      pathnames[0] === 'projets' &&
+      index === 3 &&
+      pathnames[2] === 'projets' &&
       projet
     ) {
       return projet.title
@@ -222,21 +193,21 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
      * Cas spécial :
      *
      * URL actuelle :
-     * /projets/:id
+     * /programmes/:programId/projets/:projetId
      *
-     * Le segment "projets" doit retourner vers :
+     * Le segment "projets" (index 2) doit retourner vers :
      * /programmes/:programId/projets
      *
      * et non vers :
-     * /projets
+     * /programmes/:programId/projets/:projetId
      */
 
     if (
-      pathnames[0] === 'projets' &&
-      index === 0 &&
-      projet?.program
+      pathnames[0] === 'programmes' &&
+      pathnames[2] === 'projets' &&
+      index === 2
     ) {
-      return `/programmes/${projet.program}/projets`
+      return `/programmes/${pathnames[1]}/projets`
     }
 
     return `/${pathnames
