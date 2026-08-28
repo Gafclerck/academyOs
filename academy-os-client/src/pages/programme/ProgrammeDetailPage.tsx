@@ -18,8 +18,8 @@ import { useProgramme } from '@/hooks/useProgrammes'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/button'
 
-import programmeService from '@/services/programmes/programmeService'
 import cohorteService from '@/services/cohortes/cohorteService'
+import { getRentrees } from '@/services/rentrees/rentreeService'
 
 /* ============================================================
    TYPES
@@ -215,7 +215,7 @@ export const ProgrammeDetailPage: React.FC = () => {
           rentreesData,
         ] = await Promise.all([
           cohorteService.getCohortes(),
-          programmeService.getAllRentrees(),
+          getRentrees(),
         ])
 
         /*

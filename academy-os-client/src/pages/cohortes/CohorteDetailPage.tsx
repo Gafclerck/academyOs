@@ -27,6 +27,8 @@ import { StatCard } from '@/components/ui/StatCard'
 import { useAuth } from '@/context/AuthContext'
 
 import programmeService from '@/services/programmes/programmeService'
+import cohorteService from '@/services/cohortes/cohorteService'
+import { getRentrees } from '@/services/rentrees/rentreeService'
 
 import {
   getEnrollments,
@@ -187,9 +189,9 @@ const CohorteDetailPage: React.FC = () => {
           enrollmentsData,
           trainerAssignmentsData,
         ] = await Promise.all([
-          programmeService.getCohorteById(id),
+          cohorteService.getCohorteById(id),
           programmeService.getProgrammes(),
-          programmeService.getAllRentrees(),
+          getRentrees(),
           getEnrollments(id),
           getTrainerAssignments(id),
         ])

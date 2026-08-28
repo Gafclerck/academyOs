@@ -3,12 +3,10 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
 
-import {
-  useProgramme,
-  useCohorte,
-} from '@/hooks/useProgrammes'
+import { useProgramme } from '@/hooks/useProgrammes'
 
 import { useRentree } from '@/hooks/rentrees/useRentree'
+import { useCohorte } from '@/hooks/cohortes/useCohortes'
 import { useProjet } from '@/hooks/useProjets'
 
 export const ProgrammeBreadcrumbs: React.FC = () => {
@@ -147,7 +145,7 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
       pathnames[0] === 'cohortes' &&
       cohorte
     ) {
-      return cohorte.nom
+      return cohorte.name
     }
 
     // ─────────────────────────────────────────────

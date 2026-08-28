@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 
 import programmeService from '@/services/programmes/programmeService'
 import cohorteService from '@/services/cohortes/cohorteService'
+import { getRentrees } from '@/services/rentrees/rentreeService'
 
 import type {
   UpdateCohorteDTO,
@@ -155,7 +156,7 @@ const CohorteEditPage: React.FC = () => {
         ] = await Promise.all([
           cohorteService.getCohorteById(id),
           programmeService.getProgrammes(),
-          programmeService.getAllRentrees(),
+          getRentrees(),
         ])
 
 
