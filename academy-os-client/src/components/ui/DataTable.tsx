@@ -25,6 +25,7 @@ interface DataTableProps<T> {
   columns: ColumnDef<T>[];
   data: T[];
   searchPlaceholder?: string;
+  hideSearch?: boolean;
   filtersSlot?: React.ReactNode;
   actionsSlot?: React.ReactNode;
   emptyMessage?: string;
@@ -35,6 +36,7 @@ export function DataTable<T extends object>({
   columns,
   data,
   searchPlaceholder = 'Rechercher...',
+  hideSearch = false,
   filtersSlot,
   actionsSlot,
   emptyMessage = 'Aucune donnée disponible',
@@ -108,18 +110,20 @@ export function DataTable<T extends object>({
       {/* ── BARRE D'ACTION ET FILTRES ──────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative min-w-[240px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 dark:text-slate-500" />
-            <Input
-              value={globalFilter}
-              onChange={(e) => {
-                setGlobalFilter(e.target.value);
-                setPageIndex(0);
-              }}
-              placeholder={searchPlaceholder}
-              className="pl-9 h-10 rounded-xl bg-white dark:bg-[#1f1f38] border-slate-200 dark:border-white/10 text-sm focus-visible:ring-1 focus-visible:ring-[#FF6B0B]"
-            />
-          </div>
+          {!hideSearch && (
+            <div className="relative min-w-[240px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 dark:text-slate-500" />
+              <Input
+                value={globalFilter}
+                onChange={(e) => {
+                  setGlobalFilter(e.target.value);
+                  setPageIndex(0);
+                }}
+                placeholder={searchPlaceholder}
+                className="pl-9 h-10 rounded-xl bg-white dark:bg-[#1f1f38] border-slate-200 dark:border-white/10 text-sm focus-visible:ring-1 focus-visible:ring-[#FF6B0B]"
+              />
+            </div>
+          )}
           {filtersSlot}
         </div>
 
