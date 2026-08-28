@@ -41,14 +41,9 @@ const AddUserPage: React.FC = () => {
     try {
       setLoading(true)
 
-      const response = await inviteUser(
+      await inviteUser(
         email.trim(),
         role,
-      )
-
-      console.log(
-        'Invitation envoyée :',
-        response,
       )
 
       // On affiche le succès dans le modal

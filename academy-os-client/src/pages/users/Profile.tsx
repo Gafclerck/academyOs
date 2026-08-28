@@ -69,9 +69,7 @@ const Profile = () => {
       }
 
       // PATCH du profil utilisateur
-      const response = await API.patch('/auth/me/', payload)
-
-      console.log('Profil mis à jour :', response.data)
+      await API.patch('/auth/me/', payload)
 
       toast.success('Votre profil a été mis à jour avec succès.')
 

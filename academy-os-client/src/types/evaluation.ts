@@ -30,10 +30,14 @@ export interface ProjectAssignment {
   id: string
   enrollment: string
   project: string
-  project_name?: string
-  learner_name?: string
-  learner_email?: string
+  user_name?: string
+  user_email?: string
   cohort?: string
+  cohort_id?: string
+  cohort_name?: string
+  enrollment_id?: string
+  project_title?: string
+  project_order?: number
   deadline_override?: string | null
   status: AssignmentStatus
   final_score?: number | null
@@ -56,6 +60,11 @@ export interface Deliverable {
   live_url?: string | null
   comments?: string | null
   status: DeliverableStatus
+  submitted_by?: string
+  submitted_by_email?: string
+  submitted_by_name?: string
+  reviewed_by?: string
+  reviewed_by_email?: string | null
   score?: number | null
   feedback?: string | null
   submitted_at?: string

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 
 import programmeService from '@/services/programmes/programmeService'
 import cohorteService from '@/services/cohortes/cohorteService'
+import { getRentrees } from '@/services/rentrees/rentreeService'
 
 import type {
   UpdateCohorteDTO,
@@ -155,23 +156,11 @@ const CohorteEditPage: React.FC = () => {
         ] = await Promise.all([
           cohorteService.getCohorteById(id),
           programmeService.getProgrammes(),
-          programmeService.getAllRentrees(),
+          getRentrees(),
         ])
 
-        console.log(
-          '🔥 COHORTE À MODIFIER:',
-          cohorte,
-        )
 
-        console.log(
-          '🔥 PROGRAMMES:',
-          programmesData,
-        )
 
-        console.log(
-          '🔥 RENTRÉES:',
-          rentreesData,
-        )
 
         setProgrammes(
           Array.isArray(programmesData)
@@ -195,15 +184,7 @@ const CohorteEditPage: React.FC = () => {
         const rentreeId =
           cohorte.intake ?? ''
 
-        console.log(
-          '📌 PROGRAMME:',
-          programmeId,
-        )
 
-        console.log(
-          '📌 RENTRÉE:',
-          rentreeId,
-        )
 
         /* ======================================================
            PRÉREMPLIR
@@ -400,21 +381,12 @@ const CohorteEditPage: React.FC = () => {
           formData.statut as UpdateCohorteDTO['status'],
       }
 
-      console.log(
-        '📤 PAYLOAD FINAL ENVOYÉ À L API:',
+
+      await cohorteService.updateCohorte(
+        id,
         payload,
       )
 
-      const updatedCohorte =
-        await cohorteService.updateCohorte(
-          id,
-          payload,
-        )
-
-      console.log(
-        '✅ RÉPONSE API:',
-        updatedCohorte,
-      )
 
       toast.success(
         'Cohorte modifiée avec succès.',

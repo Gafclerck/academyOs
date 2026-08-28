@@ -124,11 +124,6 @@ export const ProjetListPage: React.FC = () => {
      TEXTES SELON LE RÔLE
   ========================================================== */
 
-  const pageTitle =
-    isLearner
-      ? 'Mes projets'
-      : 'Projets'
-
   const programmeDescription =
     isAdmin
       ? 'Gérez les projets associés à ce programme.'
@@ -274,21 +269,33 @@ export const ProjetListPage: React.FC = () => {
       return
     }
 
-    navigate('/projets/new')
+    navigate('/programmes')
   }
 
   const handleViewProject = (
     projectId: string,
   ) => {
-    navigate(`/projets/${projectId}`)
+    if (programmeId) {
+      navigate(
+        `/programmes/${programmeId}/projets/${projectId}`,
+      )
+      return
+    }
+
+    navigate('/programmes')
   }
 
   const handleEditProject = (
     projectId: string,
   ) => {
-    navigate(
-      `/projets/${projectId}/edit`,
-    )
+    if (programmeId) {
+      navigate(
+        `/programmes/${programmeId}/projets/${projectId}/edit`,
+      )
+      return
+    }
+
+    navigate('/programmes')
   }
 
   /* ==========================================================
@@ -579,7 +586,7 @@ export const ProjetListPage: React.FC = () => {
             shadow-sm
             dark:border-orange-500/10
             dark:from-[#21191a]
-            dark:via-[#151528]
+            dark:via-[#1f1f38]
             dark:to-[#21191a]
             sm:p-8
           "
@@ -797,7 +804,7 @@ export const ProjetListPage: React.FC = () => {
             p-6
             shadow-sm
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
             sm:flex-row
             sm:items-center
             sm:justify-between
@@ -1010,7 +1017,7 @@ export const ProjetListPage: React.FC = () => {
               p-5
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
             "
           >
 
@@ -1075,7 +1082,7 @@ export const ProjetListPage: React.FC = () => {
               p-5
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
             "
           >
 
@@ -1140,7 +1147,7 @@ export const ProjetListPage: React.FC = () => {
               p-5
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
             "
           >
 
@@ -1384,7 +1391,7 @@ export const ProjetListPage: React.FC = () => {
                 text-center
                 shadow-sm
                 dark:border-white/10
-                dark:bg-[#151528]
+                dark:bg-[#1f1f38]
               "
             >
 
@@ -1483,7 +1490,7 @@ export const ProjetListPage: React.FC = () => {
                         hover:shadow-xl
                         hover:shadow-[#FF6B0B]/5
                         dark:border-white/10
-                        dark:bg-[#151528]
+                        dark:bg-[#1f1f38]
                         dark:hover:border-[#FF6B0B]/30
                       "
                     >
@@ -1801,7 +1808,7 @@ export const ProjetListPage: React.FC = () => {
             bg-white
             shadow-sm
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 
@@ -2431,7 +2438,7 @@ export const ProjetListPage: React.FC = () => {
             p-5
             shadow-sm
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 

@@ -12,9 +12,8 @@ import {
 } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import projetService, {
-  type Projet,
-} from '@/services/projets/projetService'
+import projetService from '@/services/projets/projetService'
+import type { Projet } from '@/types/projet'
 
 import { Button } from '@/components/ui/button'
 
@@ -115,8 +114,8 @@ const getAxiosErrorMessage = (
 export const ProjetEditPage: React.FC = () => {
   const navigate = useNavigate()
 
-  const { id } =
-    useParams<{ id: string }>()
+  const { projectId: id } =
+    useParams<{ projectId: string }>()
 
   /* ==========================================================
      STATE
@@ -281,10 +280,6 @@ export const ProjetEditPage: React.FC = () => {
         order: formData.order,
       }
 
-      console.log(
-        '📤 Modification du projet :',
-        data,
-      )
 
       /* ------------------------------------------------------
          PATCH /api/v1/projects/{id}/
@@ -296,10 +291,6 @@ export const ProjetEditPage: React.FC = () => {
             data,
         )
 
-      console.log(
-        '✅ Projet modifié :',
-        updatedProjet,
-      )
 
       toast.success(
         'Projet modifié avec succès.',
@@ -310,7 +301,7 @@ export const ProjetEditPage: React.FC = () => {
       ------------------------------------------------------ */
 
       navigate(
-        `/projets/${id}`,
+        `/programmes/${updatedProjet.program}/projets/${id}`,
       )
     } catch (err) {
       console.error(
@@ -359,7 +350,7 @@ export const ProjetEditPage: React.FC = () => {
         <button
           type="button"
           onClick={() =>
-            navigate('/projets')
+            navigate('/programmes')
           }
           className="
             flex
@@ -414,7 +405,7 @@ export const ProjetEditPage: React.FC = () => {
             type="button"
             variant="outline"
             onClick={() =>
-              navigate('/projets')
+              navigate('/programmes')
             }
             className="mt-4 rounded-xl"
           >
@@ -441,7 +432,7 @@ export const ProjetEditPage: React.FC = () => {
         type="button"
         onClick={() =>
           navigate(
-            `/projets/${projet.id}`,
+            `/programmes/${projet.program}/projets/${projet.id}`,
           )
         }
         className="
@@ -473,7 +464,7 @@ export const ProjetEditPage: React.FC = () => {
           p-6
           shadow-sm
           dark:border-white/10
-          dark:bg-[#151528]
+          dark:bg-[#1f1f38]
         "
       >
         <div className="flex items-center gap-4">
@@ -545,7 +536,7 @@ export const ProjetEditPage: React.FC = () => {
           p-6
           shadow-sm
           dark:border-white/10
-          dark:bg-[#151528]
+          dark:bg-[#1f1f38]
         "
       >
 
@@ -700,7 +691,7 @@ export const ProjetEditPage: React.FC = () => {
                   disabled:cursor-not-allowed
                   disabled:opacity-60
                   dark:border-white/10
-                  dark:bg-[#151528]
+                  dark:bg-[#1f1f38]
                   dark:text-white
                 "
               >

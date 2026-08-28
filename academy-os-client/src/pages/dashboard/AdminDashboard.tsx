@@ -15,21 +15,12 @@ import {
   Target,
   AlertCircle,
   Loader2,
-  Clock,
-  Eye,
 } from 'lucide-react'
 
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
-import {
-  dashboardService,
-  type DashboardRole,
-  type DashboardData,
-  type DashboardStats,
-  type TrainerDashboard,
-  type LearnerDashboard,
-} from '@/services/dashboard/dashboardService'
+import { dashboardService, type DashboardStats } from '@/services/dashboard/dashboardService'
 
 // =====================================================
 // TYPES
@@ -40,8 +31,6 @@ interface DashboardProps {
   navigate: ReturnType<typeof useNavigate>
 }
 
-type UserRole = DashboardRole
-
 // =====================================================
 // MAIN DASHBOARD
 // =====================================================
@@ -51,12 +40,12 @@ const AdminDashboard: React.FC = () => {
   const { user } = useAuth()
 
   const [dashboard, setDashboard] =
-    useState<DashboardData | null>(null)
+    useState<DashboardStats | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const role = user?.role as UserRole | undefined
+  const role = user?.role
 
   const firstName =
     user?.first_name ||
@@ -83,17 +72,9 @@ const AdminDashboard: React.FC = () => {
       try {
         setLoading(true)
         setError(null)
-
-        console.log(
-          `Chargement du dashboard pour le rôle : ${role}`,
-        )
-
-        const data =
-          await dashboardService.getDashboard(role)
-
-        console.log('Dashboard data:', data)
-
-        setDashboard(data)
+const data =
+          await dashboardService.getStats()
+setDashboard(data)
       } catch (err: any) {
         console.error(
           'Erreur lors du chargement du dashboard :',
@@ -182,40 +163,31 @@ const AdminDashboard: React.FC = () => {
   // ADMIN / ORGANIZER
   // =====================================================
 
-  if (role === 'admin' || role === 'organizer') {
+  if (role !== 'admin' && role !== 'organizer') {
     return (
-      <GlobalDashboard
-        stats={dashboard as DashboardStats}
-        firstName={firstName}
-        navigate={navigate}
-        role={role}
-      />
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+            <AlertCircle className="mx-auto size-6 text-slate-400" />
+            <h2 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
+              Accès réservé
+            </h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Vous n'avez pas les permissions nécessaires pour consulter ce
+              tableau de bord.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
     )
   }
-
-  // =====================================================
-  // TRAINER
-  // =====================================================
-
-  if (role === 'trainer') {
-    return (
-      <TrainerDashboard
-        data={dashboard as TrainerDashboard}
-        firstName={firstName}
-        navigate={navigate}
-      />
-    )
-  }
-
-  // =====================================================
-  // LEARNER
-  // =====================================================
 
   return (
-    <LearnerDashboard
-      data={dashboard as LearnerDashboard}
+    <GlobalDashboard
+      stats={dashboard}
       firstName={firstName}
       navigate={navigate}
+      role={role}
     />
   )
 }
@@ -304,7 +276,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           value={stats.total_projects}
           description={`${stats.published_projects} publiés`}
           icon={FolderGit2}
-          onClick={() => navigate('/projets')}
+          onClick={() => navigate('/programmes')}
         />
       </div>
 
@@ -533,465 +505,6 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
 }
 
 // =====================================================
-// TRAINER DASHBOARD
-// =====================================================
-
-interface TrainerDashboardProps extends DashboardProps {
-  data: TrainerDashboard
-}
-
-const TrainerDashboard: React.FC<TrainerDashboardProps> = ({
-  data,
-  firstName,
-  navigate,
-}) => {
-  return (
-    <DashboardLayout>
-      <DashboardHeader
-        label="Espace formateur"
-        title={`Bonjour, ${firstName} 👋`}
-        description="Suivez vos cohortes, apprenants, projets et corrections."
-      />
-
-      {/* =====================================================
-          ACTIVITÉ
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Mon activité"
-        description="Les indicateurs liés à votre activité de formateur."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardStatCard
-          title="Cohortes"
-          value={data.total_assigned_cohorts}
-          description="cohortes assignées"
-          icon={GraduationCap}
-          onClick={() => navigate('/cohortes')}
-        />
-
-        <DashboardStatCard
-          title="Apprenants"
-          value={data.total_students}
-          description="apprenants suivis"
-          icon={Users}
-          onClick={() => navigate('/cohortes')}
-        />
-
-        <DashboardStatCard
-          title="Mentorés"
-          value={data.direct_mentees_count}
-          description="mentorés directs"
-          icon={Users}
-          onClick={() => navigate('/cohortes')}
-        />
-
-        <DashboardStatCard
-          title="À corriger"
-          value={data.pending_reviews_count}
-          description="livrables en attente"
-          icon={ClipboardCheck}
-          onClick={() => navigate('/evaluations')}
-        />
-      </div>
-
-      {/* =====================================================
-          COHORTES
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Mes cohortes"
-        description="Résumé de vos cohortes assignées."
-      />
-
-      {data.cohorts_summary.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {data.cohorts_summary.map((cohort) => (
-            <div
-              key={cohort.cohort_id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white">
-                    {cohort.cohort_name}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {cohort.program_name}
-                  </p>
-                </div>
-
-                <span className="rounded-full bg-[#FF6B0B]/10 px-3 py-1 text-xs font-semibold text-[#FF6B0B]">
-                  {cohort.status}
-                </span>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-400">
-                    Apprenants
-                  </p>
-
-                  <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-                    {cohort.learners_count}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-slate-400">
-                    Progression
-                  </p>
-
-                  <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-                    {cohort.average_progress}%
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                <div
-                  className="h-full rounded-full bg-[#FF6B0B] transition-all"
-                  style={{
-                    width: `${Math.min(
-                      Math.max(
-                        cohort.average_progress,
-                        0,
-                      ),
-                      100,
-                    )}%`,
-                  }}
-                />
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                <span>
-                  {formatDate(cohort.start_date)}
-                </span>
-
-                <span>
-                  {formatDate(cohort.end_date)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={GraduationCap}
-          title="Aucune cohorte"
-          description="Aucune cohorte ne vous est actuellement assignée."
-        />
-      )}
-
-      {/* =====================================================
-          LIVRABLES EN ATTENTE
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Livrables à corriger"
-        description="Les livrables récemment soumis par vos apprenants."
-      />
-
-      {data.pending_reviews.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-          <div className="divide-y divide-slate-100 dark:divide-white/5">
-            {data.pending_reviews.map((review) => (
-              <div
-                key={review.deliverable_id}
-                className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <ClipboardCheck className="size-4 text-[#FF6B0B]" />
-
-                    <h3 className="truncate font-semibold text-slate-900 dark:text-white">
-                      {review.project_title}
-                    </h3>
-                  </div>
-
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {review.learner_name} ·{' '}
-                    {review.cohort_name}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Version {review.version} ·{' '}
-                    {formatDateTime(
-                      review.submitted_at,
-                    )}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2">
-                  {review.repo_url && (
-                    <a
-                      href={review.repo_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
-                    >
-                      Repository
-                    </a>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate('/evaluations')
-                    }
-                    className="flex items-center gap-2 rounded-xl bg-[#FF6B0B] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#FF6B0B]/90"
-                  >
-                    <Eye className="size-3.5" />
-                    Corriger
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <EmptyState
-          icon={CheckCircle2}
-          title="Aucun livrable en attente"
-          description="Tous les livrables ont été traités."
-        />
-      )}
-
-      {/* =====================================================
-          ÉVALUATIONS RÉCENTES
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Évaluations récentes"
-        description="Vos dernières corrections."
-      />
-
-      {data.recent_reviews.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {data.recent_reviews.map((review) => (
-            <div
-              key={review.deliverable_id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h3 className="truncate font-semibold text-slate-900 dark:text-white">
-                    {review.project_title}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {review.learner_name}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    {review.cohort_name}
-                  </p>
-                </div>
-
-                <span className="shrink-0 text-lg font-bold text-[#FF6B0B]">
-                  {review.score}/100
-                </span>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300">
-                  {review.status}
-                </span>
-
-                <span className="text-xs text-slate-400">
-                  {formatDateTime(review.reviewed_at)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={Clock}
-          title="Aucune évaluation récente"
-          description="Vos dernières corrections apparaîtront ici."
-        />
-      )}
-    </DashboardLayout>
-  )
-}
-
-// =====================================================
-// LEARNER DASHBOARD
-// =====================================================
-
-interface LearnerDashboardProps extends DashboardProps {
-  data: LearnerDashboard
-}
-
-const LearnerDashboard: React.FC<LearnerDashboardProps> = ({
-  data,
-  firstName,
-  navigate,
-}) => {
-  return (
-    <DashboardLayout>
-      <DashboardHeader
-        label="Espace apprenant"
-        title={`Bonjour, ${firstName} 👋`}
-        description="Retrouvez ici les informations relatives à votre parcours."
-      />
-
-      {/* =====================================================
-          MON PARCOURS
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Mon parcours"
-        description="Suivez votre progression dans votre formation."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardStatCard
-          title="Programmes"
-          value={data.total_programs}
-          description={`${data.active_programs} actifs`}
-          icon={BookOpen}
-          onClick={() => navigate('/programmes')}
-        />
-
-        <DashboardStatCard
-          title="Cohortes"
-          value={data.active_cohorts}
-          description={`${data.upcoming_cohorts} à venir`}
-          icon={GraduationCap}
-          onClick={() => navigate('/cohortes')}
-        />
-
-        <DashboardStatCard
-          title="Projets"
-          value={data.total_projects}
-          description={`${data.published_projects} publiés`}
-          icon={FolderGit2}
-          onClick={() => navigate('/projets')}
-        />
-
-        <DashboardStatCard
-          title="Évaluations"
-          value={data.total_evaluations}
-          description={`${data.total_pending_evaluations} en attente`}
-          icon={ClipboardCheck}
-          onClick={() => navigate('/evaluations')}
-        />
-      </div>
-
-      {/* =====================================================
-          PROGRESSION
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Ma progression"
-        description="Vos indicateurs de progression et de performance."
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <RateCard
-          title="Complétion"
-          value={data.global_completion_rate}
-          icon={Target}
-        />
-
-        <RateCard
-          title="Validation"
-          value={data.global_validation_rate}
-          icon={CheckCircle2}
-        />
-
-        <RateCard
-          title="Score moyen"
-          value={data.average_score}
-          icon={TrendingUp}
-          suffix="/100"
-        />
-      </div>
-
-      {/* =====================================================
-          EVALUATIONS
-      ===================================================== */}
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <InfoCard
-          title="Mes évaluations"
-          icon={ClipboardCheck}
-          items={[
-            ['Total', data.total_evaluations],
-            [
-              'Validées',
-              data.total_validated_evaluations,
-            ],
-            [
-              'En attente',
-              data.total_pending_evaluations,
-            ],
-            [
-              'Rejetées',
-              data.total_rejected_evaluations,
-            ],
-          ]}
-        />
-
-        <InfoCard
-          title="Mes cohortes"
-          icon={GraduationCap}
-          items={[
-            ['Total', data.total_cohorts],
-            ['Actives', data.active_cohorts],
-            ['À venir', data.upcoming_cohorts],
-            ['Terminées', data.completed_cohorts],
-          ]}
-        />
-      </div>
-
-      {/* =====================================================
-          CERTIFICATS
-      ===================================================== */}
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
-            <Award className="size-5" />
-          </div>
-
-          <div>
-            <h2 className="font-bold text-slate-900 dark:text-white">
-              Mes certificats
-            </h2>
-
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Suivez l’état de vos certificats.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-end gap-2">
-          <span className="text-3xl font-bold text-slate-900 dark:text-white">
-            {data.issued_certificates}
-          </span>
-
-          <span className="mb-1 text-sm text-slate-500 dark:text-slate-400">
-            délivré(s)
-          </span>
-        </div>
-
-        {data.pending_certificates > 0 && (
-          <p className="mt-2 text-xs text-slate-400">
-            {data.pending_certificates} certificat(s) en
-            attente
-          </p>
-        )}
-      </div>
-    </DashboardLayout>
-  )
-}
-
-// =====================================================
 // LAYOUT
 // =====================================================
 
@@ -1113,22 +626,24 @@ const DashboardStatCard: React.FC<
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04]"
+      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex size-11 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl transition-transform group-hover:scale-125 dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex items-start justify-between">
+        <div className="flex size-11 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] transition-transform group-hover:scale-105 dark:bg-[#FF6B0B]/15">
           <Icon className="size-5" />
         </div>
 
         <ArrowRight className="size-4 text-slate-300 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 dark:text-slate-600" />
       </div>
 
-      <div className="mt-4">
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+      <div className="relative mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {title}
         </p>
 
-        <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+        <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
           {formatNumber(value)}
         </p>
 
@@ -1160,20 +675,22 @@ const KpiCard: React.FC<KpiCardProps> = ({
   icon: Icon,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
         <Icon className="size-5" />
       </div>
 
-      <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+      <p className="relative mt-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {title}
       </p>
 
-      <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+      <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
         {formatNumber(value)}
       </p>
 
-      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+      <p className="relative mt-1 text-xs text-slate-400 dark:text-slate-500">
         {description}
       </p>
     </div>
@@ -1200,20 +717,22 @@ const RateCard: React.FC<RateCardProps> = ({
   suffix = '%',
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-      <div className="flex items-center justify-between">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {title}
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+          <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
             {formatDecimal(value)}
             {suffix}
           </p>
         </div>
 
-        <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+        <div className="flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
           <Icon className="size-5" />
         </div>
       </div>
@@ -1239,9 +758,11 @@ const InfoCard: React.FC<InfoCardProps> = ({
   items,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/10">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/10">
+        <div className="flex size-9 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
           <Icon className="size-4" />
         </div>
 
@@ -1315,9 +836,11 @@ const QuickActions: React.FC<QuickActionsProps> = ({
               key={action.title}
               type="button"
               onClick={() => navigate(action.href)}
-              className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04]"
+              className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
             >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+              <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+              <div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
                 <Icon className="size-5" />
               </div>
 
@@ -1336,40 +859,6 @@ const QuickActions: React.FC<QuickActionsProps> = ({
           )
         })}
       </div>
-    </div>
-  )
-}
-
-// =====================================================
-// EMPTY STATE
-// =====================================================
-
-interface EmptyStateProps {
-  icon: React.ComponentType<{
-    className?: string
-  }>
-  title: string
-  description: string
-}
-
-const EmptyState: React.FC<EmptyStateProps> = ({
-  icon: Icon,
-  title,
-  description,
-}) => {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-white/[0.02]">
-      <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
-        <Icon className="size-6" />
-      </div>
-
-      <h3 className="mt-4 font-semibold text-slate-900 dark:text-white">
-        {title}
-      </h3>
-
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        {description}
-      </p>
     </div>
   )
 }
@@ -1394,44 +883,6 @@ const formatDecimal = (value: number) => {
   return new Intl.NumberFormat('fr-FR', {
     maximumFractionDigits: 1,
   }).format(value)
-}
-
-const formatDate = (value: string) => {
-  if (!value) {
-    return '-'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date)
-}
-
-const formatDateTime = (value: string) => {
-  if (!value) {
-    return '-'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
 }
 
 // =====================================================

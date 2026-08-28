@@ -403,7 +403,7 @@ export const ProgrammeListPage: React.FC = () => {
         columns={columns}
         data={filteredData}
         isLoading={isLoading}
-        searchPlaceholder="Rechercher un programme..."
+        hideSearch
         emptyMessage={
           isError
             ? 'Impossible de charger les programmes.'

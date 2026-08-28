@@ -37,8 +37,6 @@ const UsersPage: React.FC = () => {
 
         const data = await getUsers()
 
-        console.log('UTILISATEURS RÉCUPÉRÉS :', data)
-
         setUsers(data)
       } catch (err) {
         console.error(

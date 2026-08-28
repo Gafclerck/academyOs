@@ -2,6 +2,8 @@ import axios from 'axios'
 
 interface DRFErrorResponse {
   detail?: string
+  message?: string
+  error?: string
   non_field_errors?: string[]
   [key: string]: unknown
 }
@@ -13,6 +15,7 @@ interface ParsedApiError {
 
 export function parseApiError(
   error: unknown,
+  fallback = 'Une erreur inattendue est survenue.',
 ): ParsedApiError {
   if (!axios.isAxiosError(error)) {
     if (error instanceof Error) {
@@ -22,7 +25,7 @@ export function parseApiError(
     }
 
     return {
-      message: 'Une erreur inattendue est survenue.',
+      message: fallback,
     }
   }
 
@@ -33,7 +36,27 @@ export function parseApiError(
     }
   }
 
-  const data = error.response.data as DRFErrorResponse
+  const raw = error.response.data
+
+  if (typeof raw === 'string') {
+    return {
+      message: raw,
+    }
+  }
+
+  if (Array.isArray(raw)) {
+    const first = raw.find(
+      (item): item is string => typeof item === 'string',
+    )
+
+    if (first) {
+      return { message: first }
+    }
+
+    return { message: fallback }
+  }
+
+  const data = raw as DRFErrorResponse
 
   if (typeof data?.detail === 'string') {
     return {
@@ -67,12 +90,19 @@ export function parseApiError(
     }
   }
 
+  if (typeof data?.message === 'string') {
+    return {
+      message: data.message,
+      fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+    }
+  }
+
   const firstError = Object.values(fieldErrors)[0]
 
   return {
     message:
       firstError ||
-      `Erreur serveur (${error.response.status}).`,
+      fallback,
     fieldErrors:
       Object.keys(fieldErrors).length > 0
         ? fieldErrors

@@ -1,36 +1,4 @@
-import api from '@/api/api'
-import { tokenStore } from '@/lib/tokenStore'
-
-// =====================================================
-// AXIOS — AUTHORIZATION
-// =====================================================
-
-api.interceptors.request.use((config) => {
-  const token = tokenStore.getAccessToken()
-
-  if (token) {
-    config.headers = config.headers ?? {}
-    config.headers.Authorization = `Bearer ${token}`
-  }
-
-  return config
-})
-
-// =====================================================
-// TYPES COMMUNS
-// =====================================================
-
-export type DashboardRole =
-  | 'admin'
-  | 'organizer'
-  | 'trainer'
-  | 'learner'
-
-// =====================================================
-// DASHBOARD GLOBAL
-// GET /api/v1/dashboard/stats/
-// Admin / Organisateur
-// =====================================================
+import API from '@/api/api'
 
 export interface DashboardStats {
   total_users: number
@@ -72,13 +40,14 @@ export interface DashboardStats {
   evaluations_by_status: Record<string, number>
   competency_levels_distribution: Record<string, number>
 
-  recent_evaluations: Array<Record<string, unknown>>
+  recent_evaluations: RecentEvaluation[]
 }
 
-// =====================================================
-// DASHBOARD FORMATEUR
-// GET /api/v1/dashboard/trainer/
-// =====================================================
+export interface RecentEvaluation {
+  score: number | null
+  evaluated_by: string | null
+  updated_at: string
+}
 
 export interface TrainerPendingReview {
   deliverable_id: string
@@ -90,7 +59,7 @@ export interface TrainerPendingReview {
   cohort_name: string
   project_title: string
   version: number
-  submitted_at: string
+  submitted_at: string | null
   repo_url: string
   live_url: string
 }
@@ -100,8 +69,8 @@ export interface TrainerCohortSummary {
   cohort_name: string
   program_name: string
   status: string
-  start_date: string
-  end_date: string
+  start_date: string | null
+  end_date: string | null
   learners_count: number
   average_progress: number
 }
@@ -112,175 +81,203 @@ export interface TrainerRecentReview {
   cohort_name: string
   project_title: string
   status: string
-  score: number
-  reviewed_at: string
+  score: number | null
+  reviewed_at: string | null
 }
 
-export interface TrainerDashboard {
+export interface TrainerDashboardStats {
   total_assigned_cohorts: number
   total_students: number
   direct_mentees_count: number
-
   pending_reviews_count: number
   pending_reviews: TrainerPendingReview[]
-
   cohorts_summary: TrainerCohortSummary[]
-
   recent_reviews: TrainerRecentReview[]
 }
 
-// =====================================================
-// DASHBOARD APPRENANT
-// GET /api/v1/dashboard/learner/
-// =====================================================
+export interface ProjectStatItem {
+  project_id: string
+  title: string
+  order: number
+  total_criteria_count: number
+  total_learners_count: number
+  evaluated_count: number
+  validated_count: number
+  revision_count: number
+  pending_count: number
+  validation_percentage: number
+  average_score: number | null
+}
 
-export interface LearnerDashboard {
-  total_programs: number
-  active_programs: number
+export interface CompetencyStatItem {
+  competency_name: string
+  average_score: number | null
+  mastered_count: number
+  acquired_count: number
+  in_progress_count: number
+  not_acquired_count: number
+}
 
-  total_cohorts: number
-  active_cohorts: number
-  upcoming_cohorts: number
-  completed_cohorts: number
+export interface LearnerProgressItem {
+  enrollment_id: string
+  user_id: string
+  full_name: string
+  email: string
+  mentor_name: string | null
+  validated_projects_count: number
+  total_projects_count: number
+  progress_percentage: number
+  average_score: number | null
+  status: string
+}
 
+export interface LearnerAtRiskItem {
+  enrollment_id: string
+  user_id: string
+  full_name: string
+  email: string
+  progress_percentage: number
+  reason: string
+}
+
+export interface CohortDetailedStats {
+  cohort_id: string
+  cohort_name: string
+  program_id: string
+  program_name: string
+  status: string
+  start_date: string | null
+  end_date: string | null
+  total_learners: number
+  active_learners: number
+  completed_learners: number
+  dropped_learners: number
+  suspended_learners: number
+  total_trainers: number
+  assigned_mentors_count: number
+  unassigned_mentors_count: number
   total_projects: number
-  published_projects: number
-
-  total_evaluations: number
-  total_validated_evaluations: number
-  total_rejected_evaluations: number
-  total_pending_evaluations: number
-
-  total_certificates: number
-  issued_certificates: number
-  pending_certificates: number
-
-  global_completion_rate: number
-  global_validation_rate: number
-  average_score: number
-
-  recent_evaluations: Array<Record<string, unknown>>
-
-  cohorts_by_status?: Record<string, number>
-  evaluations_by_status?: Record<string, number>
+  average_progress: number
+  validation_rate: number
+  completion_rate: number
+  average_score: number | null
+  projects_stats: ProjectStatItem[]
+  competency_stats: CompetencyStatItem[]
+  learners_progress: LearnerProgressItem[]
+  learners_at_risk_count: number
+  learners_at_risk: LearnerAtRiskItem[]
 }
 
-// =====================================================
-// UNION
-// =====================================================
-
-export type DashboardData =
-  | DashboardStats
-  | TrainerDashboard
-  | LearnerDashboard
-
-// =====================================================
-// HELPERS DE TYPE
-// =====================================================
-
-export const isGlobalDashboard = (
-  data: DashboardData,
-): data is DashboardStats => {
-  return 'total_users' in data
+export interface EnrollmentProgressData {
+  enrollment_id: string
+  user_id: string
+  full_name: string
+  email: string
+  cohort_name: string
+  program_name: string
+  mentor_name: string | null
+  progress_percentage: number
+  average_score: number | null
+  status: string
+  assignments: Array<{
+    assignment_id: string
+    project_id: string
+    project_title: string
+    order: number
+    status: string
+    final_score: number | null
+    deliverables_count: number
+    latest_deliverable: {
+      id: string
+      version: number
+      status: string
+      score: number | null
+      feedback: string
+      submitted_at: string | null
+      reviewed_at: string | null
+      reviewed_by_name: string | null
+    } | null
+  }>
+  competency_scores: Array<{
+    competency_name: string
+    average_score: number | null
+    latest_level: string
+  }>
 }
 
-export const isTrainerDashboard = (
-  data: DashboardData,
-): data is TrainerDashboard => {
-  return 'total_assigned_cohorts' in data
+export interface LearnerCurrentProject {
+  assignment_id: string
+  project_id: string
+  title: string
+  order: number
+  description: string
+  status: string
+  deadline: string | null
 }
 
-export const isLearnerDashboard = (
-  data: DashboardData,
-): data is LearnerDashboard => {
-  return (
-    'global_completion_rate' in data &&
-    !('total_users' in data) &&
-    !('total_assigned_cohorts' in data)
-  )
+export interface LearnerRecentDeliverable {
+  id: string
+  assignment_id: string
+  project_title: string
+  version: number
+  status: string
+  score: number | null
+  feedback: string
+  submitted_at: string | null
+  reviewed_at: string | null
+  reviewed_by_name: string | null
 }
 
-// =====================================================
-// SERVICE
-// =====================================================
+export interface LearnerCompetencyScore {
+  competency_name: string
+  average_score: number | null
+  latest_level: string
+}
+
+export interface LearnerDashboardStats {
+  has_enrollment: boolean
+  enrollment_id: string | null
+  cohort_id: string | null
+  cohort_name: string | null
+  program_name: string | null
+  mentor_name: string | null
+  mentor_email: string | null
+  total_projects: number
+  validated_projects: number
+  progress_percentage: number
+  average_score: number | null
+  current_project: LearnerCurrentProject | null
+  recent_deliverables: LearnerRecentDeliverable[]
+  competency_scores: LearnerCompetencyScore[]
+  certificate_status: string | null
+  certificate_id: string | null
+}
 
 export const dashboardService = {
-  /**
-   * Dashboard global
-   *
-   * GET /api/v1/dashboard/stats/
-   *
-   * Accessible principalement par ADMIN / ORGANIZER.
-   */
   async getStats(): Promise<DashboardStats> {
-    const response = await api.get<DashboardStats>(
-      '/dashboard/stats/',
-    )
-
+    const response = await API.get<DashboardStats>('/dashboard/stats/')
     return response.data
   },
 
-  /**
-   * Dashboard formateur
-   *
-   * GET /api/v1/dashboard/trainer/
-   *
-   * Le backend identifie normalement le formateur
-   * connecté automatiquement.
-   *
-   * Un admin/organizer peut éventuellement utiliser :
-   * /dashboard/trainer/?trainer=<uuid>
-   */
-  async getTrainerDashboard(
-    trainerId?: string,
-  ): Promise<TrainerDashboard> {
-    const response = await api.get<TrainerDashboard>(
-      '/dashboard/trainer/',
-      {
-        params: trainerId
-          ? {
-              trainer: trainerId,
-            }
-          : undefined,
-      },
-    )
-
+  async getTrainerDashboard(trainerId?: string): Promise<TrainerDashboardStats> {
+    const response = await API.get<TrainerDashboardStats>('/dashboard/trainer/', {
+      params: trainerId ? { trainer: trainerId } : undefined,
+    })
     return response.data
   },
 
-  /**
-   * Dashboard apprenant
-   *
-   * GET /api/v1/dashboard/learner/
-   */
-  async getLearnerDashboard(): Promise<LearnerDashboard> {
-    const response = await api.get<LearnerDashboard>(
-      '/dashboard/learner/',
-    )
-
+  async getLearnerDashboard(): Promise<LearnerDashboardStats> {
+    const response = await API.get<LearnerDashboardStats>('/dashboard/learner/')
     return response.data
   },
 
-  /**
-   * Charge automatiquement le dashboard
-   * correspondant au rôle de l'utilisateur connecté.
-   */
-  async getDashboard(
-    role: DashboardRole,
-  ): Promise<DashboardData> {
-    switch (role) {
-      case 'trainer':
-        return this.getTrainerDashboard()
+  async getCohortStats(cohortId: string): Promise<CohortDetailedStats> {
+    const response = await API.get<CohortDetailedStats>(`/cohorts/${cohortId}/stats/`)
+    return response.data
+  },
 
-      case 'learner':
-        return this.getLearnerDashboard()
-
-      case 'admin':
-      case 'organizer':
-      default:
-        return this.getStats()
-    }
+  async getEnrollmentProgress(enrollmentId: string): Promise<EnrollmentProgressData> {
+    const response = await API.get<EnrollmentProgressData>(`/enrollments/${enrollmentId}/progress/`)
+    return response.data
   },
 }
-
-export default dashboardService

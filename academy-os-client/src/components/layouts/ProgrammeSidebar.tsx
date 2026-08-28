@@ -9,8 +9,8 @@ import {
   BookOpen,
   CalendarDays,
   GraduationCap,
-  ClipboardCheck,
   Users,
+  Award,
   ChevronRight,
   Sparkles,
   LogOut,
@@ -44,8 +44,8 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   // ===================================================
-  // DASHBOARD
-  // Admin / Organizer
+  // DASHBOARD / MON ESPACE
+  // Tous les les (label adapté selon le réele)
   // ===================================================
 
   {
@@ -57,8 +57,31 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
 
   // ===================================================
+  // MA FORMATION (Apprenant)
+  // ===================================================
+
+  {
+    name: 'Ma Formation',
+    href: '/formations',
+    icon: BookOpen,
+    description: 'Mon parcours de projets',
+    roles: ['learner'],
+  },
+
+  // ===================================================
+  // MES CERTIFICATS (Apprenant)
+  // ===================================================
+
+  {
+    name: 'Mes Certificats',
+    href: '/certificats',
+    icon: Award,
+    description: 'Certificats obtenus',
+    roles: ['learner'],
+  },
+
+  // ===================================================
   // PROGRAMMES
-  // Tous les rôles
   // ===================================================
 
   {
@@ -70,13 +93,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
       'admin',
       'organizer',
       'trainer',
-      'learner',
     ],
   },
 
   // ===================================================
   // RENTRÉES
-  // Tous les rôles
   // ===================================================
 
   {
@@ -87,14 +108,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     roles: [
       'admin',
       'organizer',
-      'trainer',
-      'learner',
     ],
   },
 
   // ===================================================
   // COHORTES
-  // Tous les rôles
   // ===================================================
 
   {
@@ -106,26 +124,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
       'admin',
       'organizer',
       'trainer',
-      'learner',
-    ],
-  },
-
-
-  // ===================================================
-  // ÉVALUATIONS
-  // Tous les rôles
-  // ===================================================
-
-  {
-    name: 'Évaluations',
-    href: '/evaluations',
-    icon: ClipboardCheck,
-    description: 'Évaluation des livrables & projets',
-    roles: [
-      'admin',
-      'organizer',
-      'trainer',
-      'learner',
     ],
   },
 
@@ -163,13 +161,13 @@ export const ProgrammeSidebar: React.FC<
   const { logout, user } = useAuth()
 
   // ===================================================
-  // RÔLE
+  // R├öLE
   // ===================================================
 
   const role = user?.role as UserRole | undefined
 
   // ===================================================
-  // ITEMS ACCESSIBLES SELON LE RÔLE
+  // ITEMS ACCESSIBLES SELON LE R├öLE
   // ===================================================
 
   const visibleItems = SIDEBAR_ITEMS.filter(
@@ -179,7 +177,7 @@ export const ProgrammeSidebar: React.FC<
   )
 
   // ===================================================
-  // DÉCONNEXION
+  // DéCONNEXION
   // ===================================================
 
   const handleLogout = async () => {
@@ -215,7 +213,7 @@ export const ProgrammeSidebar: React.FC<
     location.pathname === '/profile'
 
   // ===================================================
-  // LABEL DU RÔLE
+  // LABEL DU R├öLE
   // ===================================================
 
   const roleLabel: Record<UserRole, string> = {
@@ -233,13 +231,11 @@ export const ProgrammeSidebar: React.FC<
         border-r border-slate-200
         bg-white
         dark:border-white/10
-        dark:bg-[#151528]
+        dark:bg-[#1f1f38]
       "
     >
 
-      {/* ═══════════════════════════════════════════
-          LOGO
-      ═══════════════════════════════════════════ */}
+      {/* =========================== */}
 
       <div
         className="
@@ -297,9 +293,9 @@ export const ProgrammeSidebar: React.FC<
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════
+      {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
           NAVIGATION
-      ═══════════════════════════════════════════ */}
+      ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
 
       <div
         className="
@@ -333,17 +329,27 @@ export const ProgrammeSidebar: React.FC<
             {visibleItems.map((item) => {
               const Icon = item.icon
 
+              const isLearnerOnDashboard =
+                role === 'learner' && item.href === '/dashboard'
+
+              const displayName = isLearnerOnDashboard
+                ? 'Mon Espace'
+                : item.name
+
+              const displayDescription = isLearnerOnDashboard
+                ? 'Ma progression personnelle'
+                : item.description
+
               const isActive =
                 item.href === '/dashboard'
-                  ? location.pathname === '/dashboard' ||
-                    location.pathname === '/admin/dashboard'
+                  ? location.pathname === '/dashboard'
                   : item.href === '/programmes'
                     ? location.pathname.startsWith(
-                        '/programmes',
-                      )
+                      '/programmes',
+                    )
                     : location.pathname.startsWith(
-                        item.href,
-                      )
+                      item.href,
+                    )
 
               return (
                 <NavLink
@@ -362,16 +368,15 @@ export const ProgrammeSidebar: React.FC<
                     font-medium
                     transition-all
 
-                    ${
-                      isActive
-                        ? `
+                    ${isActive
+                      ? `
                           bg-[#FF6B0B]
                           font-semibold
                           text-white
                           shadow-md
                           shadow-[#FF6B0B]/25
                         `
-                        : `
+                      : `
                           text-slate-600
                           hover:bg-slate-100
                           hover:text-slate-900
@@ -393,7 +398,7 @@ export const ProgrammeSidebar: React.FC<
                     "
                   >
 
-                    {/* ICÔNE */}
+                    {/* IC├öNE */}
 
                     <div
                       className={`
@@ -405,13 +410,12 @@ export const ProgrammeSidebar: React.FC<
                         rounded-lg
                         transition-colors
 
-                        ${
-                          isActive
-                            ? `
+                        ${isActive
+                          ? `
                               bg-white/20
                               text-white
                             `
-                            : `
+                          : `
                               bg-slate-100
                               text-slate-500
 
@@ -432,7 +436,7 @@ export const ProgrammeSidebar: React.FC<
                     <div className="truncate">
 
                       <p className="truncate text-sm leading-tight">
-                        {item.name}
+                        {displayName}
                       </p>
 
                       <p
@@ -440,14 +444,13 @@ export const ProgrammeSidebar: React.FC<
                           truncate
                           text-[10px]
 
-                          ${
-                            isActive
-                              ? 'text-white/80'
-                              : 'text-slate-400 dark:text-slate-500'
+                          ${isActive
+                            ? 'text-white/80'
+                            : 'text-slate-400 dark:text-slate-500'
                           }
                         `}
                       >
-                        {item.description}
+                        {displayDescription}
                       </p>
 
                     </div>
@@ -461,13 +464,12 @@ export const ProgrammeSidebar: React.FC<
                       size-4
                       transition-transform
 
-                      ${
-                        isActive
-                          ? `
+                      ${isActive
+                        ? `
                             text-white
                             opacity-80
                           `
-                          : `
+                        : `
                             text-slate-300
                             opacity-0
 
@@ -488,82 +490,15 @@ export const ProgrammeSidebar: React.FC<
 
         </div>
 
-        {/* ═══════════════════════════════════════════
+        {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
             WORKFLOW
-        ═══════════════════════════════════════════ */}
-
-        <div
-          className="
-            space-y-2
-            rounded-xl
-            border
-            border-slate-200/80
-            bg-slate-50
-            p-3.5
-
-            dark:border-white/5
-            dark:bg-white/[0.02]
-          "
-        >
-
-          <p
-            className="
-              text-xs
-              font-bold
-              text-slate-900
-              dark:text-white
-            "
-          >
-            Architecture P-R-C-P
-          </p>
-
-          <div
-            className="
-              flex
-              items-center
-              gap-1.5
-              text-[11px]
-              font-semibold
-              text-slate-500
-              dark:text-slate-400
-            "
-          >
-            <span className="text-[#FF6B0B]">
-              Prog
-            </span>
-
-            <span>→</span>
-
-            <span>Rentrée</span>
-
-            <span>→</span>
-
-            <span>Coh</span>
-
-            <span>→</span>
-
-            <span>Proj</span>
-          </div>
-
-          <p
-            className="
-              text-[11px]
-              leading-relaxed
-              text-slate-500
-              dark:text-slate-400
-            "
-          >
-            Créez une rentrée depuis un programme,
-            puis rattachez-y vos cohortes.
-          </p>
-
-        </div>
+        ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
 
       </div>
 
-      {/* ═══════════════════════════════════════════
+      {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
           FOOTER / UTILISATEUR
-      ═══════════════════════════════════════════ */}
+      ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
 
       <div
         className="
@@ -575,9 +510,9 @@ export const ProgrammeSidebar: React.FC<
         "
       >
 
-        {/* ═══════════════════════════════════════════
+        {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
             PROFIL UTILISATEUR
-        ═══════════════════════════════════════════ */}
+        ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
 
         <NavLink
           to="/profile"
@@ -593,14 +528,13 @@ export const ProgrammeSidebar: React.FC<
             text-left
             transition-all
 
-            ${
-              isProfileActive
-                ? `
+            ${isProfileActive
+              ? `
                   bg-[#FF6B0B]/10
                   ring-1
                   ring-[#FF6B0B]/20
                 `
-                : `
+              : `
                   bg-slate-50
                   hover:bg-[#FF6B0B]/5
 
@@ -697,9 +631,9 @@ export const ProgrammeSidebar: React.FC<
 
         </NavLink>
 
-        {/* ═══════════════════════════════════════════
-            DÉCONNEXION
-        ═══════════════════════════════════════════ */}
+        {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+            DéCONNEXION
+        ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
 
         <button
           type="button"

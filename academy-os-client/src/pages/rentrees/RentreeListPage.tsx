@@ -572,7 +572,7 @@ export const RentreeListPage: React.FC = () => {
         columns={columns}
         data={filteredRentrees}
         isLoading={isLoading}
-        searchPlaceholder="Rechercher une rentrée..."
+        hideSearch
         emptyMessage={
           isError
             ? 'Impossible de charger les rentrées.'

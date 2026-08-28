@@ -1,5 +1,7 @@
 
 import api from '@/api/api'
+import { extractList } from '@/lib/pagination'
+
 import type {
   ProjectAssignment,
   EvaluationCriterion,
@@ -23,7 +25,7 @@ export const getAssignments = async (params?: {
     params,
   })
 
-  return response.data.results ?? response.data
+  return extractList<ProjectAssignment>(response.data)
 }
 
 export const getAssignment = async (
@@ -64,6 +66,20 @@ export const deleteAssignment = async (
 // LIVRABLES
 // =====================================================
 
+export const getDeliverables = async (params?: {
+  status?: string
+  cohort?: string
+  project?: string
+  assignment?: string
+  user?: string
+}): Promise<Deliverable[]> => {
+  const response = await api.get('/deliverables/', {
+    params,
+  })
+
+  return extractList<Deliverable>(response.data)
+}
+
 export const getAssignmentDeliverables = async (
   assignmentId: string,
 ): Promise<Deliverable[]> => {
@@ -71,7 +87,7 @@ export const getAssignmentDeliverables = async (
     `/assignments/${assignmentId}/deliverables/`,
   )
 
-  return response.data.results ?? response.data
+  return extractList<Deliverable>(response.data)
 }
 
 export const submitDeliverable = async (
@@ -147,7 +163,7 @@ export const getCriteria = async (params?: {
     params,
   })
 
-  return response.data.results ?? response.data
+  return extractList<EvaluationCriterion>(response.data)
 }
 
 export const getCriterion = async (

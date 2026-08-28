@@ -46,6 +46,7 @@ import InviterFormateur from '@/pages/cohortes/InviterFormateur'
 import { ProjetListPage } from '@/pages/projets/ProjetListPage'
 import ProjetCreatePage from '@/pages/projets/ProjetCreatePage'
 import ProjetDetailPage from '@/pages/projets/ProjetDetailPage'
+import ProjetEditPage from '@/pages/projets/ProjetEditPage'
 
 /* ============================================================
    UTILISATEURS
@@ -60,9 +61,10 @@ import Profile from '@/pages/users/Profile'
    DASHBOARD
 ============================================================ */
 
-import AdminDashboard from '@/pages/dashboard/AdminDashboard'
-import ProjetEditPage from '@/pages/projets/ProjetEditPage'
-import EvaluationsPage from '@/pages/evaluations/EvaluationsPage'
+import DashboardDispatcher from '@/pages/dashboard/DashboardDispatcher'
+import MaFormationPage from '@/pages/formations/MaFormationPage'
+import ProjetSoumissionPage from '@/pages/formations/ProjetSoumissionPage'
+import MesCertificatsPage from '@/pages/certificats/MesCertificatsPage'
 
 const AppRoutes = () => {
   return (
@@ -88,7 +90,7 @@ const AppRoutes = () => {
               DASHBOARD
           ================================================== */}
 
-          <Route path="/dashboard" element={<AdminDashboard />} />
+          <Route path="/dashboard" element={<DashboardDispatcher />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           {/* ==================================================
@@ -133,19 +135,28 @@ const AppRoutes = () => {
           <Route path="/cohortes/:id/inviter-formateur" element={<InviterFormateur />} />
 
           {/* ==================================================
-              5. PROJETS
+              5. PROJETS (gérés depuis les programmes)
           ================================================== */}
 
-          <Route path="/projets" element={<ProjetListPage />} />
           <Route path="/programmes/:id/projets" element={<ProjetListPage />} />
           <Route path="/programmes/:id/projets/new" element={<ProjetCreatePage />} />
-          <Route path="/projets/new" element={<ProjetCreatePage />} />
-          <Route path="/projets/:id" element={<ProjetDetailPage />} />
-          <Route path="/projets/:id/edit" element={<ProjetEditPage />} />
+          <Route path="/programmes/:id/projets/:projectId" element={<ProjetDetailPage />} />
+          <Route path="/programmes/:id/projets/:projectId/edit" element={<ProjetEditPage />} />
 
+          {/* ÉVALUATIONS (consultées depuis la cohorte) */}
 
-          {/* ÉVALUATIONS */}
-          <Route path="/evaluations/*" element={<EvaluationsPage />} />
+          {/* ==================================================
+              MA FORMATION (Apprenant)
+          ================================================== */}
+
+          <Route path="/formations" element={<MaFormationPage />} />
+          <Route path="/formations/projets/:assignmentId" element={<ProjetSoumissionPage />} />
+
+          {/* ==================================================
+              MES CERTIFICATS (Apprenant)
+          ================================================== */}
+
+          <Route path="/certificats" element={<MesCertificatsPage />} />
 
           
 
@@ -165,7 +176,7 @@ const AppRoutes = () => {
           FALLBACK
       ====================================================== */}
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
     </Routes>
   )

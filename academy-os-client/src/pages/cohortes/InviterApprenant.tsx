@@ -267,15 +267,7 @@ const InviterApprenant: React.FC = () => {
           (user) => user.email,
         )
 
-      console.log(
-        '👥 APPRENANTS SÉLECTIONNÉS:',
-        selectedLearners,
-      )
 
-      console.log(
-        '📧 EMAILS:',
-        emails,
-      )
 
       const response =
         await addLearners(
