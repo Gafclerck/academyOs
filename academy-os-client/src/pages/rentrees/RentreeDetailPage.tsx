@@ -373,7 +373,7 @@ export const RentreeDetailPage: React.FC = () => {
           p-6
           shadow-sm
           dark:border-white/10
-          dark:bg-[#151528]
+          dark:bg-[#1f1f38]
           sm:p-8
         "
       >
@@ -549,7 +549,7 @@ export const RentreeDetailPage: React.FC = () => {
             hover:-translate-y-0.5
             hover:shadow-md
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 
@@ -625,7 +625,7 @@ export const RentreeDetailPage: React.FC = () => {
             hover:-translate-y-0.5
             hover:shadow-md
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 
@@ -694,7 +694,7 @@ export const RentreeDetailPage: React.FC = () => {
             hover:-translate-y-0.5
             hover:shadow-md
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 
@@ -769,7 +769,7 @@ export const RentreeDetailPage: React.FC = () => {
           border-slate-200
           bg-white
           dark:border-white/10
-          dark:bg-[#151528]
+          dark:bg-[#1f1f38]
         "
       >
 
@@ -930,7 +930,7 @@ export const RentreeDetailPage: React.FC = () => {
             bg-white
             p-6
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 

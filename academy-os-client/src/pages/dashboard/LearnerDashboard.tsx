@@ -60,6 +60,9 @@ export const LearnerDashboard: React.FC = () => {
   const pct = roundPct(data.progress_percentage)
   const current = data.current_project
   const hasEnrollment = data.has_enrollment
+  const recentDeliverables = Array.isArray(data.recent_deliverables)
+    ? data.recent_deliverables
+    : []
 
   return (
     <div className="space-y-8">
@@ -87,7 +90,7 @@ export const LearnerDashboard: React.FC = () => {
       </div>
 
       {!hasEnrollment ? (
-        <Card className="p-10 text-center">
+        <Card className="bg-white p-10 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-white/5">
             <GraduationCap className="size-6" />
           </div>
@@ -102,7 +105,7 @@ export const LearnerDashboard: React.FC = () => {
         <>
           {/* 1. PROGRESSION + MENTOR */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-            <Card className="p-5 lg:col-span-2">
+            <Card className="bg-white p-5 shadow-sm lg:col-span-2 dark:bg-[#1f1f38]">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Progression de la formation
               </p>
@@ -155,7 +158,7 @@ export const LearnerDashboard: React.FC = () => {
               </div>
             </Card>
 
-            <Card className="p-5 lg:col-span-2">
+            <Card className="bg-white p-5 shadow-sm lg:col-span-2 dark:bg-[#1f1f38]">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Votre Mentor
               </p>
@@ -186,7 +189,7 @@ export const LearnerDashboard: React.FC = () => {
 
           {/* 2. PROJET ACTIF */}
           {current && (
-            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-[#151528]">
+            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-4">
                   <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
@@ -220,7 +223,7 @@ export const LearnerDashboard: React.FC = () => {
           )}
 
           {/* 3. DERNIERS FEEDBACKS */}
-          <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]">
+          <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
             <div className="flex items-center gap-3 border-b border-slate-100 p-5 dark:border-white/5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300">
                 <MessageSquare className="size-4" />
@@ -235,13 +238,13 @@ export const LearnerDashboard: React.FC = () => {
               </div>
             </div>
 
-            {data.recent_deliverables.length === 0 ? (
+            {recentDeliverables.length === 0 ? (
               <div className="p-8 text-center text-sm text-slate-500">
                 Aucun retour pour le moment. Vos évaluations apparaîtront ici.
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-white/5">
-                {data.recent_deliverables.map((deliv) => (
+                {recentDeliverables.map((deliv) => (
                   <div
                     key={deliv.id}
                     className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between"
@@ -298,8 +301,9 @@ export const LearnerDashboard: React.FC = () => {
           </Card>
 
           {/* 4. BANDEAU ÉLIGIBILITÉ CERTIFICAT */}
-          <Card className="flex flex-col gap-4 border-[#FF6B0B]/20 bg-gradient-to-r from-[#FF6B0B]/5 to-transparent p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+          <Card className="relative flex flex-col gap-4 border-[#FF6B0B]/20 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:bg-[#1f1f38]">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#FF6B0B]/5 to-transparent" />
+            <div className="relative flex items-center gap-4">
               <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#FF6B0B]/10 text-[#FF6B0B]">
                 <Award className="size-6" />
               </div>

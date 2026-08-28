@@ -97,14 +97,14 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
 
   // ===================================================
-  // RENTR├ëES
+  // RENTRÉES
   // ===================================================
 
   {
-    name: 'Rentr├®es',
+    name: 'Rentrées',
     href: '/rentrees',
     icon: CalendarDays,
-    description: 'Rentr├®es acad├®miques',
+    description: 'Rentrées académiques',
     roles: [
       'admin',
       'organizer',
@@ -124,39 +124,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
       'admin',
       'organizer',
       'trainer',
-    ],
-  },
-
-  // ===================================================
-  // PROJETS
-  // ===================================================
-
-  {
-    name: 'Projets',
-    href: '/projets',
-    icon: FolderGit2,
-    description: 'Suivi des livrables & jalons',
-    roles: [
-      'admin',
-      'organizer',
-      'trainer',
-    ],
-  },
-
-  // ===================================================
-  // ├ëVALUATIONS / MES LIVRABLES
-  // ===================================================
-
-  {
-    name: '├ëvaluations',
-    href: '/evaluations',
-    icon: ClipboardCheck,
-    description: '├ëvaluation des livrables & projets',
-    roles: [
-      'admin',
-      'organizer',
-      'trainer',
-      'learner',
     ],
   },
 
@@ -210,7 +177,7 @@ export const ProgrammeSidebar: React.FC<
   )
 
   // ===================================================
-  // D├ëCONNEXION
+  // DéCONNEXION
   // ===================================================
 
   const handleLogout = async () => {
@@ -264,13 +231,11 @@ export const ProgrammeSidebar: React.FC<
         border-r border-slate-200
         bg-white
         dark:border-white/10
-        dark:bg-[#151528]
+        dark:bg-[#1f1f38]
       "
     >
 
-      {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-          LOGO
-      ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
+      {/* =========================== */}
 
       <div
         className="
@@ -377,15 +342,14 @@ export const ProgrammeSidebar: React.FC<
 
               const isActive =
                 item.href === '/dashboard'
-                  ? location.pathname === '/dashboard' ||
-                    location.pathname === '/admin/dashboard'
+                  ? location.pathname === '/dashboard'
                   : item.href === '/programmes'
                     ? location.pathname.startsWith(
-                        '/programmes',
-                      )
+                      '/programmes',
+                    )
                     : location.pathname.startsWith(
-                        item.href,
-                      )
+                      item.href,
+                    )
 
               return (
                 <NavLink
@@ -404,16 +368,15 @@ export const ProgrammeSidebar: React.FC<
                     font-medium
                     transition-all
 
-                    ${
-                      isActive
-                        ? `
+                    ${isActive
+                      ? `
                           bg-[#FF6B0B]
                           font-semibold
                           text-white
                           shadow-md
                           shadow-[#FF6B0B]/25
                         `
-                        : `
+                      : `
                           text-slate-600
                           hover:bg-slate-100
                           hover:text-slate-900
@@ -447,13 +410,12 @@ export const ProgrammeSidebar: React.FC<
                         rounded-lg
                         transition-colors
 
-                        ${
-                          isActive
-                            ? `
+                        ${isActive
+                          ? `
                               bg-white/20
                               text-white
                             `
-                            : `
+                          : `
                               bg-slate-100
                               text-slate-500
 
@@ -482,10 +444,9 @@ export const ProgrammeSidebar: React.FC<
                           truncate
                           text-[10px]
 
-                          ${
-                            isActive
-                              ? 'text-white/80'
-                              : 'text-slate-400 dark:text-slate-500'
+                          ${isActive
+                            ? 'text-white/80'
+                            : 'text-slate-400 dark:text-slate-500'
                           }
                         `}
                       >
@@ -503,13 +464,12 @@ export const ProgrammeSidebar: React.FC<
                       size-4
                       transition-transform
 
-                      ${
-                        isActive
-                          ? `
+                      ${isActive
+                        ? `
                             text-white
                             opacity-80
                           `
-                          : `
+                        : `
                             text-slate-300
                             opacity-0
 
@@ -533,73 +493,6 @@ export const ProgrammeSidebar: React.FC<
         {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
             WORKFLOW
         ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
-
-        <div
-          className="
-            space-y-2
-            rounded-xl
-            border
-            border-slate-200/80
-            bg-slate-50
-            p-3.5
-
-            dark:border-white/5
-            dark:bg-white/[0.02]
-          "
-        >
-
-          <p
-            className="
-              text-xs
-              font-bold
-              text-slate-900
-              dark:text-white
-            "
-          >
-            Architecture P-R-C-P
-          </p>
-
-          <div
-            className="
-              flex
-              items-center
-              gap-1.5
-              text-[11px]
-              font-semibold
-              text-slate-500
-              dark:text-slate-400
-            "
-          >
-            <span className="text-[#FF6B0B]">
-              Prog
-            </span>
-
-            <span>ÔåÆ</span>
-
-            <span>Rentr├®e</span>
-
-            <span>ÔåÆ</span>
-
-            <span>Coh</span>
-
-            <span>ÔåÆ</span>
-
-            <span>Proj</span>
-          </div>
-
-          <p
-            className="
-              text-[11px]
-              leading-relaxed
-              text-slate-500
-              dark:text-slate-400
-            "
-          >
-            Cr├®ez une rentr├®e depuis un programme,
-            puis rattachez-y vos cohortes.
-          </p>
-
-        </div>
 
       </div>
 
@@ -635,14 +528,13 @@ export const ProgrammeSidebar: React.FC<
             text-left
             transition-all
 
-            ${
-              isProfileActive
-                ? `
+            ${isProfileActive
+              ? `
                   bg-[#FF6B0B]/10
                   ring-1
                   ring-[#FF6B0B]/20
                 `
-                : `
+              : `
                   bg-slate-50
                   hover:bg-[#FF6B0B]/5
 
@@ -740,7 +632,7 @@ export const ProgrammeSidebar: React.FC<
         </NavLink>
 
         {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-            D├ëCONNEXION
+            DéCONNEXION
         ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
 
         <button
@@ -790,7 +682,7 @@ export const ProgrammeSidebar: React.FC<
           </div>
 
           <span>
-            Se d├®connecter
+            Se déconnecter
           </span>
 
         </button>

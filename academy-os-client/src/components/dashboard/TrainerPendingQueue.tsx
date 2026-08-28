@@ -23,7 +23,7 @@ export const TrainerPendingQueue: React.FC<TrainerPendingQueueProps> = ({
 
   return (
     <>
-      <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]">
+      <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
         <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-white/5">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
@@ -59,7 +59,7 @@ export const TrainerPendingQueue: React.FC<TrainerPendingQueueProps> = ({
           <div className="divide-y divide-slate-100 dark:divide-white/5">
             {pendingReviews.map((review) => {
               const formattedDate = review.submitted_at
-                ? new Date(review.submitted_at).toLocaleDateString('fr-FR', {
+                ? new Date(review.submitted_at).toLocaleString('fr-FR', {
                     day: '2-digit',
                     month: 'short',
                     hour: '2-digit',

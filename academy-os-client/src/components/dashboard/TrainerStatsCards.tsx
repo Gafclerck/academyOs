@@ -51,9 +51,9 @@ export const TrainerStatsCards: React.FC<TrainerStatsCardsProps> = ({
         return (
           <Card
             key={index}
-            className={`p-5 transition-all duration-200 hover:shadow-md ${
+            className={`bg-white p-5 transition-all duration-200 shadow-sm hover:shadow-md dark:bg-[#1f1f38] ${
               card.highlight
-                ? 'border-[#FF6B0B]/30 bg-[#FF6B0B]/[0.02]'
+                ? 'border-[#FF6B0B]/40'
                 : 'border-slate-200/80 dark:border-white/10'
             }`}
           >

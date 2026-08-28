@@ -72,7 +72,9 @@ const MesCertificatsPage: React.FC = () => {
       const response = await API.get<MesCertificatsItem[]>(
         '/certificates/me/',
       )
-      setCertificates(response.data ?? [])
+      setCertificates(
+        Array.isArray(response.data) ? response.data : [],
+      )
     } catch {
       setError(true)
     } finally {
@@ -113,7 +115,7 @@ const MesCertificatsPage: React.FC = () => {
           <Spinner />
         </div>
       ) : error ? (
-        <Card className="flex h-64 flex-col items-center justify-center gap-4 p-8 text-center">
+        <Card className="flex h-64 flex-col items-center justify-center gap-4 bg-white p-8 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-500">
             <AlertCircle className="size-6" />
           </div>
@@ -126,7 +128,7 @@ const MesCertificatsPage: React.FC = () => {
           </Button>
         </Card>
       ) : certificates.length === 0 ? (
-        <Card className="p-12 text-center">
+        <Card className="bg-white p-12 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-white/5">
             <Award className="size-6" />
           </div>
@@ -152,7 +154,7 @@ const MesCertificatsPage: React.FC = () => {
             return (
               <Card
                 key={cert.id}
-                className="flex flex-col overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]"
+                className="flex flex-col overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-white/5">
                   <div className="flex size-11 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">

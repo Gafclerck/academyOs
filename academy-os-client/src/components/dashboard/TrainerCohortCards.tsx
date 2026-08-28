@@ -39,7 +39,7 @@ export const TrainerCohortCards: React.FC<TrainerCohortCardsProps> = ({
           return (
             <Card
               key={cohort.cohort_id}
-              className="flex flex-col justify-between rounded-2xl border-slate-200/80 p-5 transition-all duration-200 hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-[#151528]"
+              className="flex flex-col justify-between rounded-2xl border-slate-200/80 p-5 transition-all duration-200 hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
@@ -49,12 +49,12 @@ export const TrainerCohortCards: React.FC<TrainerCohortCardsProps> = ({
                   <Badge
                     variant="outline"
                     className={
-                      cohort.status === 'active'
+                      cohort.status === 'ongoing'
                         ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600'
                         : 'border-slate-200 bg-slate-100 text-slate-600'
                     }
                   >
-                    {cohort.status === 'active' ? 'En cours' : cohort.status}
+                    {cohort.status === 'ongoing' ? 'En cours' : cohort.status}
                   </Badge>
                 </div>
 

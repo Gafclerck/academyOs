@@ -16,7 +16,7 @@ export const TrainerRecentReviews: React.FC<TrainerRecentReviewsProps> = ({
   }
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#151528]">
+    <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
       <div className="flex items-center gap-3 border-b border-slate-100 pb-4 dark:border-white/5">
         <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300">
           <History className="size-4" />

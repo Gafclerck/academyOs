@@ -107,7 +107,7 @@ const MaFormationPage: React.FC = () => {
 
       {/* PROGRESSION */}
       {assignments.length > 0 && (
-        <Card className="p-5">
+        <Card className="bg-white p-5 shadow-sm dark:bg-[#1f1f38]">
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-slate-700 dark:text-slate-200">
               Progression
@@ -130,7 +130,7 @@ const MaFormationPage: React.FC = () => {
           <Spinner />
         </div>
       ) : error ? (
-        <Card className="flex h-64 flex-col items-center justify-center gap-4 p-8 text-center">
+        <Card className="flex h-64 flex-col items-center justify-center gap-4 bg-white p-8 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-500">
             <AlertCircle className="size-6" />
           </div>
@@ -143,7 +143,7 @@ const MaFormationPage: React.FC = () => {
           </Button>
         </Card>
       ) : assignments.length === 0 ? (
-        <Card className="p-10 text-center">
+        <Card className="bg-white p-10 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-white/5">
             <BookOpen className="size-6" />
           </div>
@@ -166,7 +166,7 @@ const MaFormationPage: React.FC = () => {
             return (
               <Card
                 key={assignment.id}
-                className="group flex flex-col overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]"
+                className="group flex flex-col overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]"
               >
                 <div className="flex items-center justify-between p-5 pb-0">
                   <span className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 font-extrabold text-[#FF6B0B]">
@@ -239,7 +239,7 @@ const MaFormationPage: React.FC = () => {
       )}
 
       {/* FOOTER */}
-      <Card className="flex items-center gap-3 p-5">
+      <Card className="flex items-center gap-3 bg-white p-5 shadow-sm dark:bg-[#1f1f38]">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-white/5">
           <FolderGit2 className="size-4" />
         </div>

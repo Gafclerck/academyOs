@@ -158,7 +158,7 @@ const ProjectSubmissionPage: React.FC = () => {
 
   if (error || !assignment) {
     return (
-      <Card className="flex h-96 flex-col items-center justify-center gap-4 p-8 text-center">
+      <Card className="flex h-96 flex-col items-center justify-center gap-4 bg-white p-8 text-center shadow-sm dark:bg-[#1f1f38]">
         <div className="flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-500">
           <FileText className="size-6" />
         </div>
@@ -226,7 +226,7 @@ const ProjectSubmissionPage: React.FC = () => {
 
       {/* STATUT VERROUILLÉ */}
       {assignment.status === 'pending' && (
-        <Card className="flex items-center gap-3 p-5">
+        <Card className="flex items-center gap-3 bg-white p-5 shadow-sm dark:bg-[#1f1f38]">
           <Lock className="size-5 text-slate-400" />
           <p className="text-sm text-slate-500">
             Ce projet sera débloqué lorsque le projet précédent sera
@@ -237,7 +237,7 @@ const ProjectSubmissionPage: React.FC = () => {
 
       {/* FORMULAIRE DE DÉPÔT */}
       {canSubmit && (
-        <Card className="p-6">
+        <Card className="bg-white p-6 shadow-sm dark:bg-[#1f1f38]">
           <div className="flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
               <Upload className="size-4" />
@@ -346,7 +346,7 @@ const ProjectSubmissionPage: React.FC = () => {
       )}
 
       {assignment.status === 'submitted' && (
-        <Card className="flex items-center gap-3 p-5">
+        <Card className="flex items-center gap-3 bg-white p-5 shadow-sm dark:bg-[#1f1f38]">
           <Clock className="size-5 text-amber-500" />
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Votre livrable est en attente de correction par votre
@@ -356,7 +356,7 @@ const ProjectSubmissionPage: React.FC = () => {
       )}
 
       {assignment.status === 'validated' && (
-        <Card className="flex items-center gap-3 border-emerald-500/20 bg-emerald-500/5 p-5">
+        <Card className="flex items-center gap-3 border-emerald-500/20 bg-emerald-500/5 p-5 shadow-sm dark:bg-[#1f1f38]">
           <CheckCircle2 className="size-5 text-emerald-500" />
           <div className="text-sm">
             <p className="font-semibold text-emerald-700 dark:text-emerald-400">
@@ -370,7 +370,7 @@ const ProjectSubmissionPage: React.FC = () => {
       )}
 
       {/* HISTORIQUE DES RETOURS */}
-      <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#151528]">
+      <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
         <div className="flex items-center gap-3 border-b border-slate-100 p-5 dark:border-white/5">
           <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300">
             <MessageSquare className="size-4" />

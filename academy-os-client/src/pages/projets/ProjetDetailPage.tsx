@@ -230,8 +230,8 @@ const getStatusClasses = (
 export const ProjetDetailPage: React.FC = () => {
   const navigate = useNavigate()
 
-  const { id: projetId } =
-    useParams<{ id: string }>()
+  const { projectId: projetId } =
+    useParams<{ projectId: string }>()
 
   const { user } = useAuth()
 
@@ -737,7 +737,7 @@ export const ProjetDetailPage: React.FC = () => {
               shadow-sm
               dark:border-orange-500/10
               dark:from-[#21171b]
-              dark:via-[#151528]
+              dark:via-[#1f1f38]
               dark:to-[#211a17]
               sm:p-8
               lg:p-10
@@ -1012,7 +1012,7 @@ export const ProjetDetailPage: React.FC = () => {
               p-6
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
               sm:p-8
             "
           >
@@ -1088,7 +1088,7 @@ export const ProjetDetailPage: React.FC = () => {
               p-6
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
               sm:p-8
             "
           >
@@ -1421,7 +1421,7 @@ export const ProjetDetailPage: React.FC = () => {
               p-6
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
               sm:p-8
             "
           >
@@ -1532,7 +1532,7 @@ export const ProjetDetailPage: React.FC = () => {
                   type="button"
                   onClick={() =>
                     navigate(
-                      `/projets/${projet.id}/edit`,
+                      `/programmes/${projet.program}/projets/${projet.id}/edit`,
                     )
                   }
                   className="
@@ -1578,7 +1578,7 @@ export const ProjetDetailPage: React.FC = () => {
                 shadow-sm
                 lg:col-span-2
                 dark:border-white/10
-                dark:bg-[#151528]
+                dark:bg-[#1f1f38]
               "
             >
 
@@ -1637,7 +1637,7 @@ export const ProjetDetailPage: React.FC = () => {
                 p-6
                 shadow-sm
                 dark:border-white/10
-                dark:bg-[#151528]
+                dark:bg-[#1f1f38]
               "
             >
 
@@ -1744,7 +1744,7 @@ export const ProjetDetailPage: React.FC = () => {
               p-6
               shadow-sm
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
             "
           >
 
@@ -2210,7 +2210,7 @@ export const ProjetDetailPage: React.FC = () => {
                 p-5
                 shadow-sm
                 dark:border-white/10
-                dark:bg-[#151528]
+                dark:bg-[#1f1f38]
               "
             >
 

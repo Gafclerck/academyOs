@@ -171,12 +171,31 @@ const AdminDashboard: React.FC = () => {
   // ADMIN / ORGANIZER
   // =====================================================
 
+  if (role !== 'admin' && role !== 'organizer') {
+    return (
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+            <AlertCircle className="mx-auto size-6 text-slate-400" />
+            <h2 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
+              Accès réservé
+            </h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Vous n'avez pas les permissions nécessaires pour consulter ce
+              tableau de bord.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <GlobalDashboard
       stats={dashboard}
       firstName={firstName}
       navigate={navigate}
-      role={role as 'admin' | 'organizer'}
+      role={role}
     />
   )
 }
@@ -265,7 +284,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({
           value={stats.total_projects}
           description={`${stats.published_projects} publiés`}
           icon={FolderGit2}
-          onClick={() => navigate('/projets')}
+          onClick={() => navigate('/programmes')}
         />
       </div>
 
@@ -615,22 +634,24 @@ const DashboardStatCard: React.FC<
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04]"
+      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex size-11 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl transition-transform group-hover:scale-125 dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex items-start justify-between">
+        <div className="flex size-11 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] transition-transform group-hover:scale-105 dark:bg-[#FF6B0B]/15">
           <Icon className="size-5" />
         </div>
 
         <ArrowRight className="size-4 text-slate-300 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100 dark:text-slate-600" />
       </div>
 
-      <div className="mt-4">
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+      <div className="relative mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {title}
         </p>
 
-        <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+        <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
           {formatNumber(value)}
         </p>
 
@@ -662,20 +683,22 @@ const KpiCard: React.FC<KpiCardProps> = ({
   icon: Icon,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
         <Icon className="size-5" />
       </div>
 
-      <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+      <p className="relative mt-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {title}
       </p>
 
-      <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+      <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
         {formatNumber(value)}
       </p>
 
-      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+      <p className="relative mt-1 text-xs text-slate-400 dark:text-slate-500">
         {description}
       </p>
     </div>
@@ -702,20 +725,22 @@ const RateCard: React.FC<RateCardProps> = ({
   suffix = '%',
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-      <div className="flex items-center justify-between">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {title}
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+          <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
             {formatDecimal(value)}
             {suffix}
           </p>
         </div>
 
-        <div className="flex size-10 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+        <div className="flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
           <Icon className="size-5" />
         </div>
       </div>
@@ -741,9 +766,11 @@ const InfoCard: React.FC<InfoCardProps> = ({
   items,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/10">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
+      <div className="absolute -right-6 -bottom-6 size-24 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+      <div className="relative flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/10">
+        <div className="flex size-9 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
           <Icon className="size-4" />
         </div>
 
@@ -817,9 +844,11 @@ const QuickActions: React.FC<QuickActionsProps> = ({
               key={action.title}
               type="button"
               onClick={() => navigate(action.href)}
-              className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04]"
+              className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all hover:border-[#FF6B0B]/30 hover:shadow-md dark:border-white/10 dark:bg-[#1f1f38]"
             >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B]">
+              <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+
+              <div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
                 <Icon className="size-5" />
               </div>
 

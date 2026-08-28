@@ -37,14 +37,15 @@ export const CohortStatsTab: React.FC<CohortStatsTabProps> = ({ cohortId }) => {
     <div className="space-y-6">
       {/* 1. INDICATEURS CLÉS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">
             Progression Moyenne
           </p>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+          <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
             {avgProgress}%
           </p>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
+          <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
             <div
               className="h-full rounded-full bg-[#FF6B0B]"
               style={{ width: `${avgProgress}%` }}
@@ -52,34 +53,37 @@ export const CohortStatsTab: React.FC<CohortStatsTabProps> = ({ cohortId }) => {
           </div>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">
             Taux de Validation
           </p>
-          <p className="mt-2 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+          <p className="relative mt-2 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
             {validationRate}%
           </p>
-          <p className="mt-1 text-xs text-slate-400">Des livrables évalués</p>
+          <p className="relative mt-1 text-xs text-slate-400">Des livrables évalués</p>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">
             Effectif Actif
           </p>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+          <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
             {stats.active_learners}/{stats.total_learners}
           </p>
-          <p className="mt-1 text-xs text-slate-400">Apprenants engagés</p>
+          <p className="relative mt-1 text-xs text-slate-400">Apprenants engagés</p>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">
             Note Moyenne
           </p>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+          <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
             {stats.average_score !== null ? `${stats.average_score}/100` : '—'}
           </p>
-          <p className="mt-1 text-xs text-slate-400">Sur tous les projets</p>
+          <p className="relative mt-1 text-xs text-slate-400">Sur tous les projets</p>
         </Card>
       </div>
 
@@ -100,7 +104,7 @@ export const CohortStatsTab: React.FC<CohortStatsTabProps> = ({ cohortId }) => {
             {stats.learners_at_risk.map((learner) => (
               <div
                 key={learner.enrollment_id}
-                className="flex items-center justify-between rounded-xl border border-amber-200/60 bg-white p-3 shadow-xs dark:border-white/10 dark:bg-[#151528]"
+                className="flex items-center justify-between rounded-xl border border-amber-200/60 bg-white p-3 shadow-xs dark:border-white/10 dark:bg-[#1f1f38]"
               >
                 <div>
                   <p className="text-xs font-bold text-slate-900 dark:text-white">
@@ -120,7 +124,7 @@ export const CohortStatsTab: React.FC<CohortStatsTabProps> = ({ cohortId }) => {
       )}
 
       {/* 3. AVANCEMENT PAR PROJET */}
-      <Card className="overflow-hidden p-0">
+      <Card className="overflow-hidden bg-white p-0 shadow-sm dark:bg-[#1f1f38]">
         <div className="border-b border-slate-100 p-4 dark:border-white/5">
           <h3 className="font-bold text-slate-900 dark:text-white">
             Avancement par Projet du Programme

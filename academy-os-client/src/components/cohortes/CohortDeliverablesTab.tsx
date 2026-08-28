@@ -33,12 +33,23 @@ export const CohortDeliverablesTab: React.FC<CohortDeliverablesTabProps> = ({
     enabled: Boolean(cohortId),
   })
 
+  const { data: allDeliverables = [] } = useQuery<Deliverable[]>({
+    queryKey: ['deliverables', 'cohort', cohortId],
+    queryFn: () => getDeliverables({ cohort: cohortId }),
+    enabled: Boolean(cohortId),
+  })
+
+  const toReview = allDeliverables.filter((d) => d.status === 'submitted').length
+  const validated = allDeliverables.filter((d) => d.status === 'validated').length
+  const total = allDeliverables.length
+  const validatedRate = total > 0 ? Math.round((validated / total) * 100) : 0
+
   const handleOpenReview = (deliv: Deliverable) => {
     setSelectedReview({
       deliverable_id: deliv.id,
       assignment_id: deliv.assignment,
       learner_id: deliv.submitted_by || '',
-      learner_name: deliv.submitted_by_email || 'Apprenant',
+      learner_name: deliv.submitted_by_name || deliv.submitted_by_email || 'Apprenant',
       learner_email: deliv.submitted_by_email || '',
       cohort_id: cohortId,
       cohort_name: cohortName,
@@ -61,6 +72,25 @@ export const CohortDeliverablesTab: React.FC<CohortDeliverablesTabProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* INDICATEURS */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">À corriger</p>
+          <p className="relative mt-2 text-2xl font-extrabold text-amber-600 dark:text-amber-400">{toReview}</p>
+        </Card>
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">Validés</p>
+          <p className="relative mt-2 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{validated}</p>
+        </Card>
+        <Card className="relative overflow-hidden bg-white p-4 dark:bg-[#1f1f38]">
+          <div className="absolute -right-6 -bottom-6 size-20 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-slate-400">Taux de validation</p>
+          <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">{validatedRate}%</p>
+        </Card>
+      </div>
+
       {/* FILTRES */}
       <div className="flex flex-wrap gap-2">
         {['all', 'submitted', 'validated', 'rejected'].map((st) => (
@@ -80,11 +110,12 @@ export const CohortDeliverablesTab: React.FC<CohortDeliverablesTabProps> = ({
       </div>
 
       {deliverables.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-slate-500">
-          Aucun livrable ne correspond à ce filtre.
+        <Card className="relative overflow-hidden bg-white p-8 text-center text-sm text-slate-500 dark:bg-[#1f1f38]">
+          <div className="absolute -right-8 -bottom-8 size-28 rounded-full bg-[#FF6B0B]/5 blur-xl dark:bg-[#FF6B0B]/10" />
+          <span className="relative">Aucun livrable ne correspond à ce filtre.</span>
         </Card>
       ) : (
-        <Card className="overflow-hidden p-0">
+        <Card className="overflow-hidden bg-white p-0 shadow-sm dark:bg-[#1f1f38]">
           <div className="divide-y divide-slate-100 dark:divide-white/5">
             {deliverables.map((deliv) => {
               const isSubmitted = deliv.status === 'submitted'
@@ -98,7 +129,7 @@ export const CohortDeliverablesTab: React.FC<CohortDeliverablesTabProps> = ({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-slate-900 dark:text-white">
-                        {deliv.submitted_by_email}
+                        {deliv.submitted_by_name || deliv.submitted_by_email}
                       </span>
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
                         v{deliv.version}

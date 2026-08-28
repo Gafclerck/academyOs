@@ -87,8 +87,13 @@ const CohorteDetailPage: React.FC = () => {
      gestion (édition, ajout d'apprenant, attribution de mentor).
   ============================================================ */
 
-  const isTrainer = user?.role === 'trainer'
-  const canManage = !isTrainer
+  const canManage =
+    user?.role === 'admin' || user?.role === 'organizer'
+
+  const canViewEvaluations =
+    user?.role === 'admin' ||
+    user?.role === 'organizer' ||
+    user?.role === 'trainer'
 
   /* ============================================================
      ÉTATS COHORTE
@@ -423,7 +428,7 @@ const CohorteDetailPage: React.FC = () => {
             border-slate-200
             bg-white
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
           <div
@@ -697,7 +702,7 @@ const CohorteDetailPage: React.FC = () => {
   const cohortStatus =
     cohorte.statut ??
     cohorte.status ??
-    'active'
+    'inactive'
 
   const startDate =
     cohorte.date_debut ??
@@ -763,7 +768,7 @@ const CohorteDetailPage: React.FC = () => {
             bg-white
             p-6
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
             sm:flex-row
             sm:items-center
           "
@@ -904,7 +909,7 @@ const CohorteDetailPage: React.FC = () => {
               bg-white
               p-5
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
             "
           >
             <div className="flex items-center gap-3">
@@ -969,7 +974,7 @@ const CohorteDetailPage: React.FC = () => {
               bg-white
               p-5
               dark:border-white/10
-              dark:bg-[#151528]
+              dark:bg-[#1f1f38]
             "
           >
             <div className="flex items-center gap-3">
@@ -1096,7 +1101,7 @@ const CohorteDetailPage: React.FC = () => {
             p-2
             shadow-sm
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
           {(
@@ -1109,10 +1114,14 @@ const CohorteDetailPage: React.FC = () => {
                 id: 'members',
                 label: 'Apprenants',
               },
-              {
-                id: 'deliverables',
-                label: 'Livrables',
-              },
+              ...(canViewEvaluations
+                ? [
+                    {
+                      id: 'deliverables' as const,
+                      label: 'Évaluations' as const,
+                    },
+                  ]
+                : []),
             ] as const
           ).map((tab) => (
             <button
@@ -1149,7 +1158,7 @@ const CohorteDetailPage: React.FC = () => {
           />
         )}
 
-        {activeTab === 'deliverables' && (
+        {canViewEvaluations && activeTab === 'deliverables' && (
           <CohortDeliverablesTab
             cohortId={cohorte.id ?? id ?? ''}
             cohortName={cohortName}
@@ -1226,7 +1235,7 @@ const CohorteDetailPage: React.FC = () => {
             bg-white
             shadow-sm
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 
@@ -1702,7 +1711,7 @@ const CohorteDetailPage: React.FC = () => {
             bg-white
             shadow-sm
             dark:border-white/10
-            dark:bg-[#151528]
+            dark:bg-[#1f1f38]
           "
         >
 
@@ -1712,6 +1721,7 @@ const CohorteDetailPage: React.FC = () => {
             className="
               flex
               items-center
+              justify-between
               gap-3
               border-b
               border-slate-200
@@ -1764,6 +1774,26 @@ const CohorteDetailPage: React.FC = () => {
               </p>
 
             </div>
+
+            {canManage && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    `/cohortes/${cohorte.id}/inviter-formateur`,
+                  )
+                }
+                className="
+                  gap-2
+                  border-[#FF6B0B]
+                  text-[#FF6B0B]
+                  hover:bg-[#FF6B0B]/10
+                "
+              >
+                <UserPlus className="size-4" />
+                Ajouter un formateur
+              </Button>
+            )}
 
           </div>
 
@@ -2098,7 +2128,7 @@ const CohorteDetailPage: React.FC = () => {
                 bg-white
                 shadow-2xl
                 dark:border-white/10
-                dark:bg-[#151528]
+                dark:bg-[#1f1f38]
               "
             >
 

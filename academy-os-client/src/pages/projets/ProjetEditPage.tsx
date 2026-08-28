@@ -115,8 +115,8 @@ const getAxiosErrorMessage = (
 export const ProjetEditPage: React.FC = () => {
   const navigate = useNavigate()
 
-  const { id } =
-    useParams<{ id: string }>()
+  const { projectId: id } =
+    useParams<{ projectId: string }>()
 
   /* ==========================================================
      STATE
@@ -310,7 +310,7 @@ export const ProjetEditPage: React.FC = () => {
       ------------------------------------------------------ */
 
       navigate(
-        `/projets/${id}`,
+        `/programmes/${updatedProjet.program}/projets/${id}`,
       )
     } catch (err) {
       console.error(
@@ -359,7 +359,7 @@ export const ProjetEditPage: React.FC = () => {
         <button
           type="button"
           onClick={() =>
-            navigate('/projets')
+            navigate('/programmes')
           }
           className="
             flex
@@ -414,7 +414,7 @@ export const ProjetEditPage: React.FC = () => {
             type="button"
             variant="outline"
             onClick={() =>
-              navigate('/projets')
+              navigate('/programmes')
             }
             className="mt-4 rounded-xl"
           >
@@ -441,7 +441,7 @@ export const ProjetEditPage: React.FC = () => {
         type="button"
         onClick={() =>
           navigate(
-            `/projets/${projet.id}`,
+            `/programmes/${projet.program}/projets/${projet.id}`,
           )
         }
         className="
@@ -473,7 +473,7 @@ export const ProjetEditPage: React.FC = () => {
           p-6
           shadow-sm
           dark:border-white/10
-          dark:bg-[#151528]
+          dark:bg-[#1f1f38]
         "
       >
         <div className="flex items-center gap-4">
@@ -545,7 +545,7 @@ export const ProjetEditPage: React.FC = () => {
           p-6
           shadow-sm
           dark:border-white/10
-          dark:bg-[#151528]
+          dark:bg-[#1f1f38]
         "
       >
 
@@ -700,7 +700,7 @@ export const ProjetEditPage: React.FC = () => {
                   disabled:cursor-not-allowed
                   disabled:opacity-60
                   dark:border-white/10
-                  dark:bg-[#151528]
+                  dark:bg-[#1f1f38]
                   dark:text-white
                 "
               >
