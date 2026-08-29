@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
+  keepPreviousData,
   type QueryKey,
 } from '@tanstack/react-query'
 
@@ -35,6 +38,9 @@ export const notificationKeys = {
   list: (params: NotificationListParams) =>
     ['notifications', params] as const,
 
+  infinite: (params: Omit<NotificationListParams, 'page'>) =>
+    ['notifications', 'infinite', params] as const,
+
   unreadCount: ['unread-count'] as const,
 }
 
@@ -65,6 +71,44 @@ export const useUnreadNotificationCount = () => {
     queryKey: notificationKeys.unreadCount,
 
     queryFn: getUnreadNotificationCount,
+
+    staleTime: 0,
+  })
+}
+
+/* ============================================================
+   LISTE INFINIE (page complète)
+============================================================ */
+
+export const useInfiniteNotifications = (
+  options: Omit<NotificationListParams, 'page'> = {},
+) => {
+  const pageSize = options.page_size ?? 20
+  const isRead = options.is_read
+
+  // Paramètres stables pour la clé de cache (évite les refetch
+  // intempestifs si l'objet est recréé à chaque rendu).
+  const params = useMemo(
+    () => ({ page_size: pageSize, is_read: isRead }),
+    [pageSize, isRead],
+  )
+
+  return useInfiniteQuery<NotificationListPage, Error>({
+    queryKey: notificationKeys.infinite(params),
+
+    queryFn: ({ pageParam }) =>
+      getNotifications({ ...params, page: pageParam as number }),
+
+    initialPageParam: 1,
+
+    // `next` est une URL absolue ; on préfère déduire la page courante
+    // du nombre d'éléments déjà chargés.
+    getNextPageParam: (lastPage, allPages) =>
+      allPages.length * pageSize < lastPage.count
+        ? allPages.length + 1
+        : undefined,
+
+    placeholderData: keepPreviousData,
 
     staleTime: 0,
   })

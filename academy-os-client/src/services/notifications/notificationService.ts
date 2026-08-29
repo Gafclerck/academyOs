@@ -10,7 +10,8 @@ import type {
 
 export interface NotificationListParams {
   page: number
-  page_size: number
+  page_size?: number
+  is_read?: boolean | string | null
 }
 
 /* ============================================================

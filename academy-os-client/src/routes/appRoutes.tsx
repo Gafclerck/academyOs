@@ -69,6 +69,8 @@ import MesCertificatsPage from '@/pages/certificats/MesCertificatsPage'
 import { CertificatsPage } from '@/pages/certificats/CertificatsPage'
 import ClaimsPage from '@/pages/reclamations/ClaimsPage'
 
+import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -173,6 +175,12 @@ const AppRoutes = () => {
           ================================================== */}
 
           <Route path="/reclamations" element={<ClaimsPage />}/>
+
+          {/* ==================================================
+              NOTIFICATIONS
+          ================================================== */}
+
+          <Route path="/notifications" element={<NotificationsPage />} />
 
 
           

@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CheckCheck,
-  Check,
-  Clock,
   AlertCircle,
   RefreshCw,
 } from 'lucide-react'
@@ -15,6 +14,10 @@ import {
   useUnreadNotificationCount,
 } from '@/hooks/notifications/useNotifications'
 
+import { notificationTargetPath } from '@/lib/notificationTarget'
+
+import { NotificationItem } from '@/pages/notifications/NotificationItem'
+
 import type { AppNotification } from '@/types/notification'
 
 const NOTIFICATION_BELL_PARAMS = {
@@ -23,41 +26,12 @@ const NOTIFICATION_BELL_PARAMS = {
 } as const
 
 /* =====================================================
-   HELPERS
-===================================================== */
-
-const formatDate = (date: string) => {
-  const value = new Date(date)
-
-  if (Number.isNaN(value.getTime())) {
-    return date
-  }
-
-  return value.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-const formatTime = (date: string) => {
-  const value = new Date(date)
-
-  if (Number.isNaN(value.getTime())) {
-    return ''
-  }
-
-  return value.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-/* =====================================================
    COMPONENT
 ===================================================== */
 
 export const NotificationBell: React.FC = () => {
+  const navigate = useNavigate()
+
   const [open, setOpen] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -136,8 +110,12 @@ export const NotificationBell: React.FC = () => {
       markAsReadMutation.mutate(notification.id)
     }
 
-    // Plus tard, on pourra rediriger selon
-    // notification_type / object_id.
+    const target = notificationTargetPath(notification)
+
+    if (target) {
+      setOpen(false)
+      navigate(target)
+    }
   }
 
   /* =====================================================
@@ -302,94 +280,15 @@ export const NotificationBell: React.FC = () => {
           {notifications.length > 0 && (
             <div className="max-h-[420px] overflow-y-auto">
 
-              {notifications.map(
-                (notification) => (
-                  <button
-                    key={notification.id}
-                    type="button"
-                    onClick={() =>
-                      handleNotificationClick(
-                        notification,
-                      )
-                    }
-                    className={`w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 dark:border-white/5 ${
-                      notification.is_read
-                        ? 'bg-white hover:bg-slate-50 dark:bg-[#1f1f38] dark:hover:bg-white/5'
-                        : 'bg-[#FF6B0B]/5 hover:bg-[#FF6B0B]/10 dark:bg-[#FF6B0B]/10 dark:hover:bg-[#FF6B0B]/15'
-                    }`}
-                  >
-
-                    <div className="flex gap-3">
-
-                      {/* ICÔNE */}
-
-                      <div
-                        className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${
-                          notification.is_read
-                            ? 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-400'
-                            : 'bg-[#FF6B0B]/10 text-[#FF6B0B]'
-                        }`}
-                      >
-                        {notification.is_read ? (
-                          <Check className="size-4" />
-                        ) : (
-                          <Bell className="size-4" />
-                        )}
-                      </div>
-
-                      {/* CONTENU */}
-
-                      <div className="min-w-0 flex-1">
-
-                        <div className="flex items-start justify-between gap-2">
-
-                          <p
-                            className={`text-sm ${
-                              notification.is_read
-                                ? 'font-medium text-slate-700 dark:text-slate-200'
-                                : 'font-bold text-slate-900 dark:text-white'
-                            }`}
-                          >
-                            {notification.title}
-                          </p>
-
-                          {!notification.is_read && (
-                            <span className="mt-1 size-2 shrink-0 rounded-full bg-[#FF6B0B]" />
-                          )}
-
-                        </div>
-
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                          {notification.message}
-                        </p>
-
-                        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-
-                          <Clock className="size-3" />
-
-                          <span>
-                            {formatDate(
-                              notification.created_at,
-                            )}
-                          </span>
-
-                          <span>•</span>
-
-                          <span>
-                            {formatTime(
-                              notification.created_at,
-                            )}
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  </button>
-                ),
-              )}
+              {notifications.map((notification) => (
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onClick={() =>
+                    handleNotificationClick(notification)
+                  }
+                />
+              ))}
 
             </div>
           )}
@@ -405,8 +304,7 @@ export const NotificationBell: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setOpen(false)
-                  // Navigation vers une future page
-                  // complète des notifications.
+                  navigate('/notifications')
                 }}
                 className="text-xs font-semibold text-[#FF6B0B] transition hover:underline"
               >

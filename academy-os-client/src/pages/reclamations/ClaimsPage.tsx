@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import API from '@/api/api'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -203,6 +204,70 @@ const ClaimsPage: React.FC = () => {
 
   const canManageClaims =
     isAdmin || isOrganisateur
+
+  // ==========================================================
+  // DEEP-LINK DEPUIS UNE NOTIFICATION
+  //
+  // ?reclamation=<uuid> → charge la réclamation par son id et
+  // ouvre directement le modal de détail. Compatible même si la
+  // réclamation n'est pas sur la première page.
+  // ==========================================================
+
+  const [searchParams, setSearchParams] =
+    useSearchParams()
+
+  const claimIdParam =
+    searchParams.get('reclamation')
+
+  useEffect(() => {
+    if (!claimIdParam) {
+      return
+    }
+
+    let cancelled = false
+
+    const loadClaimFromParam = async () => {
+      try {
+        const response =
+          await API.get<Claim>(
+            `/claims/${claimIdParam}/`,
+          )
+
+        if (cancelled) {
+          return
+        }
+
+        setSelectedClaim(response.data)
+
+        const nextParams =
+          new URLSearchParams(
+            searchParams,
+          )
+
+        nextParams.delete('reclamation')
+
+        setSearchParams(nextParams, {
+          replace: true,
+        })
+      } catch (error) {
+        if (!cancelled) {
+          console.error(
+            'Erreur lors du chargement de la réclamation :',
+            error,
+          )
+        }
+      }
+    }
+
+    void loadClaimFromParam()
+
+    return () => {
+      cancelled = true
+    }
+    // `searchParams` / `setSearchParams` font partie du cycle de vie
+    // du deep-link et sont recréés à chaque navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimIdParam])
 
   // ==========================================================
   // LOAD CLAIMS
