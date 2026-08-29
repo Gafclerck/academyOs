@@ -11,7 +11,11 @@ from unittest import mock
 from apps.core.tests.factories import UserFactory
 from apps.notifications.consumers import NotificationConsumer
 from apps.notifications.models import Notification
-from apps.notifications.services import create_notification
+from apps.notifications.serializers import NotificationSerializer
+from apps.notifications.services import (
+    _notification_payload,
+    create_notification,
+)
 
 INMEMORY_CHANNEL_LAYERS = {
     'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
@@ -87,3 +91,33 @@ class WebSocketPublishTests(TransactionTestCase):
             )
             mock_notify.assert_not_called()
         mock_notify.assert_called_once_with(notif)
+
+
+@override_settings(CHANNEL_LAYERS=INMEMORY_CHANNEL_LAYERS)
+class WebSocketPayloadTests(TransactionTestCase):
+    """Le payload WebSocket reste aligné sur NotificationSerializer."""
+
+    def test_payload_matches_serializer(self):
+        user = UserFactory()
+        notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="Titre",
+            message="Message",
+        )
+
+        self.assertEqual(
+            _notification_payload(notif),
+            NotificationSerializer(notif).data,
+        )
+
+    def test_payload_contains_read_at(self):
+        user = UserFactory()
+        notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="Titre",
+            message="Message",
+        )
+
+        self.assertIn("read_at", _notification_payload(notif))

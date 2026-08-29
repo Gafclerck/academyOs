@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Notification
+from .serializers import NotificationSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -16,17 +17,12 @@ WS_GROUP_PREFIX = "notification_"
 
 
 def _notification_payload(notification):
-    """Payload minimal diffusé via WebSocket (IDs bruts, pas d'instances)."""
-    return {
-        "id": str(notification.id),
-        "notification_type": notification.notification_type,
-        "title": notification.title,
-        "message": notification.message,
-        "is_read": notification.is_read,
-        "content_type": notification.content_type_id,
-        "object_id": str(notification.object_id) if notification.object_id else None,
-        "created_at": notification.created_at.isoformat() if notification.created_at else None,
-    }
+    """Payload diffusé via WebSocket.
+
+    Contract unique : la forme est celle de ``NotificationSerializer``
+    pour rester aligné avec l'API REST (le front consomme la même shape).
+    """
+    return NotificationSerializer(notification).data
 
 
 def _notify_websocket(notification):
