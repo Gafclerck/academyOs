@@ -1,9 +1,20 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+
+import { notificationKeys } from '@/hooks/notifications/useNotifications'
+import { refreshAccessToken } from '@/lib/refreshAccessToken'
+import { tokenStore } from '@/lib/tokenStore'
 
 import { useAuth } from '@/context/AuthContext'
-import { tokenStore } from '@/lib/tokenStore'
 
 const API_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
@@ -23,41 +34,39 @@ const WS_BASE = (() => {
 const HEARTBEAT_INTERVAL_MS = 30_000
 const PONG_TIMEOUT_MS = 10_000
 const MAX_RETRY_DELAY_MS = 15_000
+const INVALIDATE_DEBOUNCE_MS = 800
 const AUTH_REJECT_CODE = 4401
 
-const NOTIFICATIONS_KEY = ['notifications']
-const UNREAD_COUNT_KEY = ['unread-count']
+type SocketStatus = 'connecting' | 'connected' | 'offline'
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = tokenStore.getRefreshToken()
+interface NotificationSocketValue {
+  status: SocketStatus
+}
 
-  if (!refresh) {
-    return null
-  }
+const NotificationSocketContext =
+  createContext<NotificationSocketValue | null>(null)
 
-  try {
-    const response = await axios.post<{ access: string }>(
-      `${API_URL}/auth/token/refresh/`,
-      { refresh },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-      },
+/**
+ * État de la connexion temps réel. Peut être utilisé par la cloche
+ * ou la future page de notifications.
+ */
+export function useNotificationSocket(): NotificationSocketValue {
+  const context = useContext(NotificationSocketContext)
+
+  if (context === null) {
+    throw new Error(
+      'useNotificationSocket doit être utilisé sous NotificationSocketProvider.',
     )
-
-    tokenStore.setAccessToken(response.data.access)
-
-    return response.data.access
-  } catch {
-    return null
   }
+
+  return context
 }
 
 /**
  * Ouvre un flux WebSocket de notifications temps réel pour l'utilisateur
  * connecté et invalide les données React Query concernées à chaque événement.
+ * Les invalidation sont débouncées pour coalescer les rafales ; en revanche
+ * la réconciliation au (re)connect est immédiate pour combler les trous.
  */
 export const NotificationSocketProvider = ({
   children,
@@ -68,6 +77,35 @@ export const NotificationSocketProvider = ({
   const queryClient = useQueryClient()
   const socketRef = useRef<WebSocket | null>(null)
   const runningRef = useRef(false)
+  const invalidateTimerRef = useRef<number | undefined>(undefined)
+
+  const [status, setStatus] = useState<SocketStatus>(
+    'connecting',
+  )
+
+  const reconcile = useCallback(() => {
+    if (!runningRef.current) {
+      return
+    }
+
+    queryClient.invalidateQueries({
+      queryKey: notificationKeys.all,
+    })
+    queryClient.invalidateQueries({
+      queryKey: notificationKeys.unreadCount,
+    })
+  }, [queryClient])
+
+  const scheduleReconcile = useCallback(() => {
+    if (invalidateTimerRef.current !== undefined) {
+      window.clearTimeout(invalidateTimerRef.current)
+    }
+
+    invalidateTimerRef.current = window.setTimeout(
+      reconcile,
+      INVALIDATE_DEBOUNCE_MS,
+    )
+  }, [reconcile])
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -78,15 +116,12 @@ export const NotificationSocketProvider = ({
     }
 
     runningRef.current = true
+    setStatus('connecting')
+
     let retryDelay = 1_000
     let heartbeatTimer: number | undefined
     let pongTimer: number | undefined
     let pongReceived = true
-
-    const reconcile = () => {
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY })
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY })
-    }
 
     const stopHeartbeat = () => {
       if (heartbeatTimer !== undefined) {
@@ -134,7 +169,8 @@ export const NotificationSocketProvider = ({
 
       socket.onopen = () => {
         retryDelay = 1_000
-        // Reconciliation : récupère les événements émis pendant la coupure.
+        setStatus('connected')
+        // Réconciliation : récupère les événements émis pendant la coupure.
         reconcile()
         startHeartbeat(socket)
       }
@@ -159,12 +195,7 @@ export const NotificationSocketProvider = ({
         }
 
         if (payload.type === 'notification.created') {
-          queryClient.invalidateQueries({
-            queryKey: NOTIFICATIONS_KEY,
-          })
-          queryClient.invalidateQueries({
-            queryKey: UNREAD_COUNT_KEY,
-          })
+          scheduleReconcile()
         }
       }
 
@@ -175,6 +206,7 @@ export const NotificationSocketProvider = ({
       socket.onclose = (event) => {
         stopHeartbeat()
         socketRef.current = null
+        setStatus('offline')
 
         if (!runningRef.current) {
           return
@@ -208,15 +240,52 @@ export const NotificationSocketProvider = ({
       openSocket(token)
     }
 
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === 'visible' &&
+        runningRef.current &&
+        (!socketRef.current ||
+          socketRef.current.readyState !== WebSocket.OPEN)
+      ) {
+        retryDelay = 1_000
+        void attemptConnect(false)
+      }
+    }
+
+    document.addEventListener(
+      'visibilitychange',
+      handleVisibilityChange,
+    )
+
     void attemptConnect(false)
 
     return () => {
       runningRef.current = false
+
+      if (invalidateTimerRef.current !== undefined) {
+        window.clearTimeout(invalidateTimerRef.current)
+        invalidateTimerRef.current = undefined
+      }
+
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityChange,
+      )
+
       stopHeartbeat()
       socketRef.current?.close()
       socketRef.current = null
     }
-  }, [isAuthenticated, queryClient])
+  }, [isAuthenticated, reconcile, scheduleReconcile])
 
-  return <>{children}</>
+  const value = useMemo(
+    () => ({ status }),
+    [status],
+  )
+
+  return (
+    <NotificationSocketContext.Provider value={value}>
+      {children}
+    </NotificationSocketContext.Provider>
+  )
 }

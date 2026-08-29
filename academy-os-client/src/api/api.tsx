@@ -5,7 +5,7 @@ import axios, {
 
 
 import { tokenStore } from '@/lib/tokenStore'
-import type { JwtAuthTokens } from '@/types/auth'
+import { refreshAccessToken } from '@/lib/refreshAccessToken'
 
 const API_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
@@ -20,30 +20,6 @@ const API = axios.create({
   },
 })
 
-let isRefreshing = false
-
-type QueueItem = {
-  resolve: (token: string) => void
-  reject: (error: unknown) => void
-}
-
-let failedQueue: QueueItem[] = []
-
-function processQueue(
-  error: unknown,
-  token: string | null,
-): void {
-  failedQueue.forEach(({ resolve, reject }) => {
-    if (error) {
-      reject(error)
-    } else if (token) {
-      resolve(token)
-    }
-  })
-
-  failedQueue = []
-}
-
 function redirectToLogin(): void {
   if (
     !window.location.pathname.startsWith('/login') &&
@@ -52,6 +28,12 @@ function redirectToLogin(): void {
   ) {
     window.location.href = '/login'
   }
+}
+
+function handleAuthFailure(): void {
+  tokenStore.clear()
+  window.dispatchEvent(new Event('auth:logout'))
+  redirectToLogin()
 }
 
 // ─────────────────────────────────────────────
@@ -102,89 +84,31 @@ API.interceptors.response.use(
     if (
       originalRequest.url?.includes('/auth/token/refresh/')
     ) {
-      tokenStore.clear()
-      window.dispatchEvent(new Event('auth:logout'))
-      redirectToLogin()
+      handleAuthFailure()
 
       return Promise.reject(error)
     }
 
-    const storedRefreshToken = tokenStore.getRefreshToken()
-
-    if (!storedRefreshToken) {
-      tokenStore.clear()
-      window.dispatchEvent(new Event('auth:logout'))
-      redirectToLogin()
-
-      return Promise.reject(error)
-    }
-
-    // ─────────────────────────────────────────
-    // Une autre requête est déjà en train de refresh
-    // ─────────────────────────────────────────
-
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        failedQueue.push({
-          resolve: (newToken: string) => {
-            if (!originalRequest.headers) {
-              originalRequest.headers = {}
-            }
-
-            originalRequest.headers.Authorization =
-              `Bearer ${newToken}`
-
-            resolve(API(originalRequest))
-          },
-          reject,
-        })
-      })
-    }
-
+    // Le refresh est single-flight partagé : toutes les requêtes
+    // 401 concurrentes attendent la même promesse.
     originalRequest._retry = true
-    isRefreshing = true
 
-    try {
-      const response = await axios.post<JwtAuthTokens>(
-        `${API_URL}/auth/token/refresh/`,
-        {
-          refresh: storedRefreshToken,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-        },
-      )
+    const newAccessToken = await refreshAccessToken()
 
-      const newTokens = response.data
+    if (!newAccessToken) {
+      handleAuthFailure()
 
-      tokenStore.setTokens(newTokens)
-
-      processQueue(null, newTokens.access)
-
-      if (!originalRequest.headers) {
-        originalRequest.headers = {}
-      }
-
-      originalRequest.headers.Authorization =
-        `Bearer ${newTokens.access}`
-
-      return API(originalRequest)
-    } catch (refreshError) {
-      processQueue(refreshError, null)
-
-      tokenStore.clear()
-
-      window.dispatchEvent(new Event('auth:logout'))
-
-      redirectToLogin()
-
-      return Promise.reject(refreshError)
-    } finally {
-      isRefreshing = false
+      return Promise.reject(error)
     }
+
+    if (!originalRequest.headers) {
+      originalRequest.headers = {}
+    }
+
+    originalRequest.headers.Authorization =
+      `Bearer ${newAccessToken}`
+
+    return API(originalRequest)
   },
 )
 
