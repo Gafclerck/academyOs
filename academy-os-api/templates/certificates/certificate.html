@@ -2,116 +2,315 @@
 <html lang="fr">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Certificat</title>
-  <style>
-    @page {
-      size: A4 landscape;
-      margin: 0;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1130, initial-scale=1.0">
+    <title>Certificat</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
 
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background-color: #FFFFFF;
-    }
+        * {
+            box-sizing: border-box;
+        }
 
-    .outer-border {
-      box-sizing: border-box;
-      width: 297mm;
-      height: 210mm;
-      padding: 12mm;
-      background: linear-gradient(90deg, #FF7900 0%, #FFA048 100%);
-    }
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 1130px;
+            height: 804px;
+            overflow: hidden;
+        }
 
-    .inner-border {
-      box-sizing: border-box;
-      width: 100%;
-      height: 100%;
-      background-color: #FFFFFF;
-      border: 2px solid #111827;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 10mm;
-    }
+        body {
+            background: #f45a20;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+        }
 
-    .brand {
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: #111827;
-      margin-bottom: 6mm;
-    }
+        .certificate-page {
+            position: relative;
+            width: 1130px;
+            height: 804px;
+            overflow: hidden;
+        }
 
-    .title {
-      font-size: 34px;
-      font-weight: 800;
-      color: #111827;
-      margin-bottom: 10mm;
-      letter-spacing: 2px;
-    }
+        .background {
+            position: absolute;
+            inset: 0;
+            width: 1130px;
+            height: 804px;
+            display: block;
 
-    .intro {
-      font-size: 15px;
-      color: #4B5563;
-      margin-bottom: 4mm;
-    }
+            object-fit: fill;
+        }
 
-    .learner-name {
-      font-size: 30px;
-      font-weight: 700;
-      color: #FF7900;
-      margin-bottom: 8mm;
-      border-bottom: 2px solid #FF7900;
-      padding-bottom: 4mm;
-    }
+        .certificate-card {
+            position: absolute;
 
-    .program-line {
-      font-size: 16px;
-      color: #1F2937;
-      margin-bottom: 2mm;
-    }
+            left: 30px;
+            top: 47px;
+            width: 1070px;
+            height: 726px;
 
-    .program-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: #111827;
-      margin-bottom: 10mm;
-    }
+            background: #ffffff;
+            border-radius: 21px;
+        }
 
-    .footer {
-      margin-top: auto;
-      font-size: 11px;
-      color: #9CA3AF;
-    }
+        .certificate-border {
+            position: absolute;
 
-    .footer strong {
-      color: #4B5563;
-    }
-  </style>
+            left: 23px;
+            top: 21px;
+            right: 23px;
+            bottom: 24px;
+
+            border: 5px solid #3f3f3f;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+
+        .brand {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+
+            display: flex;
+            align-items: center;
+
+            white-space: nowrap;
+        }
+
+        .brand-mark {
+            position: relative;
+            height: 180px;
+        }
+
+        .certificate-title,
+        .recipient,
+        .training {
+            margin: 0;
+            position: absolute;
+            text-align: center;
+            white-space: nowrap;
+
+            font-family: Arial Black, Arial, "Helvetica Neue", sans-serif;
+            font-weight: 900;
+            letter-spacing: -1.6px;
+        }
+
+        .certificate-title {
+            top: 174px;
+            left: 50%;
+            transform: translateX(-50%);
+
+            color: #ed5a22;
+            font-size: 43px;
+            line-height: 1;
+
+            width: 1000px;
+        }
+
+        .intro {
+            position: absolute;
+
+            top: 246px;
+            left: 0;
+            width: 100%;
+
+            margin: 0;
+
+            text-align: center;
+            white-space: nowrap;
+
+            color: #2f2f2f;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+            font-size: 29px;
+            font-weight: 400;
+            line-height: 1.15;
+            letter-spacing: -0.5px;
+        }
+
+        .recipient {
+            top: 321px;
+            left: 0;
+            width: 100%;
+
+            color: #ed5a22;
+            font-size: 59px;
+            line-height: 1;
+            letter-spacing: 0.2px;
+        }
+
+        .achievement {
+            position: absolute;
+
+            top: 418px;
+            left: 0;
+            width: 100%;
+
+            margin: 0;
+            padding: 0 55px;
+
+            text-align: center;
+            white-space: nowrap;
+
+            color: #303030;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+            font-size: 27px;
+            font-weight: 400;
+            line-height: 1.2;
+            letter-spacing: -0.35px;
+        }
+
+        .training {
+            top: 477px;
+            left: 0;
+            width: 100%;
+
+            color: #242424;
+            font-size: 53px;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .date-block {
+            position: absolute;
+
+            left: 173px;
+            top: 600px;
+            width: 145px;
+
+            text-align: center;
+        }
+
+        .date-value {
+            color: #4a4a4a;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 1.25;
+            white-space: nowrap;
+        }
+
+        .dotted-line {
+            width: 100%;
+            height: 1px;
+            margin-top: 3px;
+
+            border-top: 1px dotted #8d8d8d;
+        }
+
+        .field-label {
+            margin-top: 14px;
+
+            color: #454545;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1;
+            letter-spacing: 0.2px;
+        }
+
+
+        .signature-block {
+            position: absolute;
+
+            left: 434px;
+            top: 560px;
+            width: 126px;
+
+            text-align: center;
+        }
+
+        .signature-image {
+            display: block;
+
+            width: 126px;
+            height: 64px;
+
+            object-fit: contain;
+            object-position: center bottom;
+        }
+
+
+        .stamp-block {
+            position: absolute;
+
+            left: 792px;
+            top: 490px;
+
+            width: 200px;
+            height: 200px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stamp-image {
+            display: block;
+
+            width: 290px;
+            height: 290px;
+
+            object-fit: contain;
+            object-position: center;
+        }
+    </style>
 </head>
 
 <body>
-  <div class="outer-border">
-    <div class="inner-border">
-      <div class="brand">Xarala Academy</div>
-      <div class="title">Certificat de réussite</div>
-      <div class="intro">Ce certificat est décerné à</div>
-      <div class="learner-name">{{ learner_name }}</div>
-      <div class="program-line">pour avoir complété avec succès le programme</div>
-      <div class="program-title">{{ program_title }}</div>
-      <div class="program-line">{{ cohort_name }} — délivré le {{ date_generation }}</div>
-      <div class="footer">
-        Certificat n° {{ certificate_id }} — vérifiable sur
-        <strong>{{ verification_url }}</strong>
-      </div>
-    </div>
-  </div>
+    <main class="certificate-page">
+
+        <!-- Background fourni séparément -->
+        <img class="background" src={{ background_image_url }} alt="">
+
+        <!-- Grand support blanc -->
+        <section class="certificate-card">
+            <div class="certificate-border"></div>
+
+            <!-- Logo : texte + symbole CSS pour rester éditable -->
+            <div class="brand" aria-label="Xarala">
+                <img class="brand-mark" src={{ certificate_logo_url }} alt="">
+            </div>
+
+            <!-- Titre -->
+            <h1 class="certificate-title">CERTIFICAT DE FORMATION</h1>
+
+            <!-- Introduction -->
+            <p class="intro">Ce certificat est fièrement décerné à</p>
+
+            <!-- Bénéficiaire -->
+            <h2 class="recipient">{{ learner_name }}</h2>
+
+            <!-- Texte de validation -->
+            <p class="achievement">
+                Pour avoir satisfait avec succès aux exigences du bootcamp
+            </p>
+
+            <h3 class="training"> {{ program_title }} </h3>
+
+            <div class="date-block">
+                <div class="date-value"> {{ date_generation }} </div>
+                <div class="dotted-line"></div>
+                <div class="field-label">DATE</div>
+            </div>
+            <div class="signature-block">
+                <img src={{ signature_image_url }} class="signature-image" alt="Signature">
+                <div class="dotted-line"></div>
+                <div class="field-label">SIGNATURE</div>
+            </div>
+
+            <div class="stamp-block">
+                <!-- Tampon fourni séparément -->
+                <img src={{ stamp_image_url }} class="stamp-image" alt="Tampon Xarala">
+            </div>
+        </section>
+
+    </main>
 </body>
 
 </html>

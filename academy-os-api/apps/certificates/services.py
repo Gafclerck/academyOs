@@ -105,9 +105,14 @@ def generate_certificate_pdf(certificate: Certificate) -> Certificate:
     date_display = certificate.date_generation or timezone.now()
     date_formatted = date_display.strftime("%d/%m/%Y")
 
-    learner_name = (
-        f"{inscription.user.first_name} {inscription.user.last_name}".strip()
-        or inscription.user.email
+    learner_name = (inscription.user.full_name)
+
+    from pathlib import Path
+
+    CERTIFICATE_ASSETS = (
+        Path(settings.BASE_DIR)
+        / "static"
+        / "certificate"
     )
 
     html_content = render_to_string(
@@ -115,10 +120,13 @@ def generate_certificate_pdf(certificate: Certificate) -> Certificate:
         {
             "learner_name": learner_name,
             "program_title": inscription.cohort.program.title,
-            "cohort_name": inscription.cohort.name,
             "date_generation": date_formatted,
             "certificate_id": certificate.id,
             "verification_url": verification_url,
+            "background_image_url":  (CERTIFICATE_ASSETS/"certificate-background.png").as_uri(),
+            "certificate_logo_url": (CERTIFICATE_ASSETS/"certificate-logo.png").as_uri(),
+            "stamp_image_url": (CERTIFICATE_ASSETS/"certificate-stamp.png").as_uri(),
+            "signature_image_url": (CERTIFICATE_ASSETS/"certificate-signature.png").as_uri(),
         },
     )
 
