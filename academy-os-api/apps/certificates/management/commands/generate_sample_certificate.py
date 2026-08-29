@@ -28,7 +28,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--output",
-            default="media/certificates/sample.pdf",
+            default="certificates/sample.pdf",
             help="Chemin de sortie du PDF (défaut : media/certificates/sample.pdf)",
         )
 
@@ -46,15 +46,15 @@ class Command(BaseCommand):
                     "Aucune inscription en base. Création de données sample..."
                 )
             )
-            program = ProgramFactory(title="Programme Xarala — Développement Web Full Stack")
+            program = ProgramFactory(title="Développement Web Full Stack")
             enrollment = EnrollmentFactory(
                 status=Enrollment.StatusEnum.COMPLETED,
                 cohort__name="Promo Dakar 2026",
                 cohort__program=program,
             )
-            enrollment.user.first_name = "Awa"
-            enrollment.user.last_name = "Diop"
-            enrollment.user.save(update_fields=["first_name", "last_name"])
+        enrollment.user.first_name = "Awa"
+        enrollment.user.last_name = "Diop"
+        enrollment.user.save(update_fields=["first_name", "last_name"])
 
         certificate, created = Certificate.objects.get_or_create(
             inscription=enrollment,

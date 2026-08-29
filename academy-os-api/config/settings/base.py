@@ -234,7 +234,6 @@ FRONTEND_ACTIVATE_ACCOUNT_PATH = env('FRONTEND_ACTIVATE_ACCOUNT_PATH', default='
 FRONTEND_COHORTS_PATH = env('FRONTEND_COHORTS_PATH', default='/programmes')
 FRONTEND_LOGO_PATH = env('FRONTEND_LOGO_PATH', default='/logo-xarala.png')
 
-
 # Email
 # https://docs.djangoproject.com/en/5.2/topics/email/#topic-email-configuration
 
