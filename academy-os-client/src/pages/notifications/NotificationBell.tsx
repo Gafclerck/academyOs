@@ -7,38 +7,24 @@ import {
   AlertCircle,
   RefreshCw,
 } from 'lucide-react'
-import API from '@/api/api'
 
-// =====================================================
-// TYPES
-// =====================================================
+import {
+  useMarkAllAsRead,
+  useMarkAsRead,
+  useNotificationList,
+  useUnreadNotificationCount,
+} from '@/hooks/notifications/useNotifications'
 
-interface Notification {
-  id: string
-  notification_type: string
-  title: string
-  message: string
-  is_read: boolean
-  read_at: string | null
-  content_type: number | null
-  object_id: string | null
-  created_at: string
-}
+import type { AppNotification } from '@/types/notification'
 
-interface NotificationsResponse {
-  count: number
-  next: string | null
-  previous: string | null
-  results: Notification[]
-}
+const NOTIFICATION_BELL_PARAMS = {
+  page: 1,
+  page_size: 10,
+} as const
 
-interface UnreadCountResponse {
-  unread_count: number
-}
-
-// =====================================================
-// HELPERS
-// =====================================================
+/* =====================================================
+   HELPERS
+===================================================== */
 
 const formatDate = (date: string) => {
   const value = new Date(date)
@@ -67,116 +53,50 @@ const formatTime = (date: string) => {
   })
 }
 
-// =====================================================
-// COMPONENT
-// =====================================================
+/* =====================================================
+   COMPONENT
+===================================================== */
 
 export const NotificationBell: React.FC = () => {
-  const [notifications, setNotifications] = useState<
-    Notification[]
-  >([])
-
-  const [unreadCount, setUnreadCount] = useState(0)
-
   const [open, setOpen] = useState(false)
-
-  const [loading, setLoading] = useState(false)
-
-  const [error, setError] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // =====================================================
-  // CHARGER LES NOTIFICATIONS
-  // =====================================================
+  const {
+    data: notificationPage,
+    isLoading,
+    isError,
+    refetch,
+  } = useNotificationList(NOTIFICATION_BELL_PARAMS)
 
-  const loadNotifications = async () => {
-    try {
-      setLoading(true)
-      setError(false)
+  const {
+    data: unreadCountData,
+    isError: isCountError,
+    refetch: refetchCount,
+  } = useUnreadNotificationCount()
 
-      const response =
-        await API.get<NotificationsResponse>(
-          '/notifications/',
-          {
-            params: {
-              page: 1,
-              page_size: 10,
-            },
-          },
-        )
+  const markAsReadMutation = useMarkAsRead()
+  const markAllAsReadMutation = useMarkAllAsRead()
 
-      setNotifications(
-        Array.isArray(response.data?.results)
-          ? response.data.results
-          : [],
-      )
-    } catch (error) {
-      console.error(
-        'Erreur lors du chargement des notifications :',
-        error,
-      )
+  const notifications: AppNotification[] =
+    notificationPage?.results ?? []
 
-      setError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const unreadCount = unreadCountData ?? 0
 
-  // =====================================================
-  // CHARGER LE NOMBRE DE NOTIFICATIONS NON LUES
-  // =====================================================
-
-  const loadUnreadCount = async () => {
-    try {
-      const response =
-        await API.get<UnreadCountResponse>(
-          '/notifications/unread-count/',
-        )
-
-      setUnreadCount(
-        response.data?.unread_count ?? 0,
-      )
-    } catch (error) {
-      console.error(
-        'Erreur lors du chargement du nombre de notifications :',
-        error,
-      )
-    }
-  }
-
-  // =====================================================
-  // CHARGEMENT INITIAL
-  // =====================================================
-
-  useEffect(() => {
-    void loadNotifications()
-    void loadUnreadCount()
-
-    const interval = window.setInterval(() => {
-      void loadNotifications()
-      void loadUnreadCount()
-    }, 30000)
-
-    return () => {
-      window.clearInterval(interval)
-    }
-  }, [])
-
-  // =====================================================
-  // CHARGER LES NOTIFICATIONS À L'OUVERTURE
-  // =====================================================
+  /* =====================================================
+     RAFRAÎCHIR À L'OUVERTURE
+  ===================================================== */
 
   useEffect(() => {
     if (open) {
-      void loadNotifications()
-      void loadUnreadCount()
+      void refetch()
+      void refetchCount()
     }
-  }, [open])
+  }, [open, refetch, refetchCount])
 
-  // =====================================================
-  // FERMER EN CLIQUANT À L'EXTÉRIEUR
-  // =====================================================
+  /* =====================================================
+     FERMER EN CLIQUANT À L'EXTÉRIEUR
+  ===================================================== */
 
   useEffect(() => {
     const handleClickOutside = (
@@ -205,96 +125,28 @@ export const NotificationBell: React.FC = () => {
     }
   }, [])
 
-  // =====================================================
-  // MARQUER UNE NOTIFICATION COMME LUE
-  // =====================================================
+  /* =====================================================
+     OUVRIR UNE NOTIFICATION
+  ===================================================== */
 
-  const markAsRead = async (
-    notification: Notification,
+  const handleNotificationClick = (
+    notification: AppNotification,
   ) => {
-    if (notification.is_read) {
-      return
+    if (!notification.is_read) {
+      markAsReadMutation.mutate(notification.id)
     }
-
-    try {
-      await API.patch(
-        `/notifications/${notification.id}/read/`,
-      )
-
-      setNotifications((current) =>
-        current.map((item) =>
-          item.id === notification.id
-            ? {
-                ...item,
-                is_read: true,
-                read_at: new Date().toISOString(),
-              }
-            : item,
-        ),
-      )
-
-      setUnreadCount((current) =>
-        Math.max(0, current - 1),
-      )
-    } catch (error) {
-      console.error(
-        'Erreur lors du marquage de la notification :',
-        error,
-      )
-    }
-  }
-
-  // =====================================================
-  // MARQUER TOUTES LES NOTIFICATIONS COMME LUES
-  // =====================================================
-
-  const markAllAsRead = async () => {
-    if (unreadCount === 0 || loading) {
-      return
-    }
-
-    try {
-      setLoading(true)
-
-      await API.post('/notifications/read-all/')
-
-      setNotifications((current) =>
-        current.map((notification) => ({
-          ...notification,
-          is_read: true,
-          read_at:
-            notification.read_at ??
-            new Date().toISOString(),
-        })),
-      )
-
-      setUnreadCount(0)
-    } catch (error) {
-      console.error(
-        'Erreur lors du marquage des notifications :',
-        error,
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // =====================================================
-  // OUVRIR UNE NOTIFICATION
-  // =====================================================
-
-  const handleNotificationClick = async (
-    notification: Notification,
-  ) => {
-    await markAsRead(notification)
 
     // Plus tard, on pourra rediriger selon
     // notification_type / object_id.
   }
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+  /* =====================================================
+     RENDER
+  ===================================================== */
+
+  const canReadAll =
+    unreadCount > 0 &&
+    !markAllAsReadMutation.isPending
 
   return (
     <div
@@ -356,16 +208,20 @@ export const NotificationBell: React.FC = () => {
               </p>
             </div>
 
-            {unreadCount > 0 && (
+            {canReadAll && (
               <button
                 type="button"
-                onClick={markAllAsRead}
-                disabled={loading}
+                onClick={() =>
+                  markAllAsReadMutation.mutate()
+                }
+                disabled={
+                  markAllAsReadMutation.isPending
+                }
                 className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-[#FF6B0B] transition hover:bg-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCheck className="size-3.5" />
 
-                {loading
+                {markAllAsReadMutation.isPending
                   ? 'Traitement...'
                   : 'Tout lire'}
               </button>
@@ -376,7 +232,7 @@ export const NotificationBell: React.FC = () => {
               CHARGEMENT
           ================================================= */}
 
-          {loading && notifications.length === 0 && (
+          {isLoading && notifications.length === 0 && (
             <div className="flex flex-col items-center justify-center px-4 py-10">
               <RefreshCw className="size-6 animate-spin text-[#FF6B0B]" />
 
@@ -390,7 +246,7 @@ export const NotificationBell: React.FC = () => {
               ERREUR
           ================================================= */}
 
-          {!loading && error && (
+          {!isLoading && (isError || isCountError) && (
             <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
 
               <div className="flex size-10 items-center justify-center rounded-full bg-red-500/10 text-red-500">
@@ -404,8 +260,8 @@ export const NotificationBell: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  void loadNotifications()
-                  void loadUnreadCount()
+                  void refetch()
+                  void refetchCount()
                 }}
                 className="mt-3 text-xs font-semibold text-[#FF6B0B] hover:underline"
               >
@@ -419,8 +275,8 @@ export const NotificationBell: React.FC = () => {
               AUCUNE NOTIFICATION
           ================================================= */}
 
-          {!loading &&
-            !error &&
+          {!isLoading &&
+            !isError &&
             notifications.length === 0 && (
               <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
 
@@ -452,7 +308,7 @@ export const NotificationBell: React.FC = () => {
                     key={notification.id}
                     type="button"
                     onClick={() =>
-                      void handleNotificationClick(
+                      handleNotificationClick(
                         notification,
                       )
                     }
@@ -567,4 +423,3 @@ export const NotificationBell: React.FC = () => {
 }
 
 export default NotificationBell
-
