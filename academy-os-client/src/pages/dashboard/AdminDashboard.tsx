@@ -173,6 +173,11 @@ const AdminDashboard: React.FC = () => {
   const [claimsLoading, setClaimsLoading] = useState(true)
   const [claimsError, setClaimsError] = useState(false)
 
+  // Clé de rechargement des réclamations : incrémentée pour forcer
+  // un refetch léger (refresh manuel, focus ou retour d'onglet).
+  const [claimsReloadKey, setClaimsReloadKey] =
+    useState(0)
+
   const role = user?.role
 
   const firstName =
@@ -263,6 +268,12 @@ const AdminDashboard: React.FC = () => {
               params: {
                 page: 1,
                 page_size: 5,
+                // Seules les réclamations actives (en attente /
+                // en cours) sont pertinentes sur le tableau de
+                // bord : les clôturées disparaissent dès qu'elles
+                // sont traitées.
+                status:
+                  'pending,in_progress',
               },
             },
           )
@@ -287,6 +298,49 @@ const AdminDashboard: React.FC = () => {
     }
 
     void loadLatestClaims()
+  }, [role, claimsReloadKey])
+
+  // =====================================================
+  // REFRESH RÉCLAMATIONS AU FOCUS
+  //
+  // Quand l'admin revient sur la page (ou sur l'onglet), le
+  // panneau se rafraîchit pour refléter les traitements faits
+  // ailleurs (page Réclamations, autre session…).
+  // =====================================================
+
+  useEffect(() => {
+    if (
+      role !== 'admin' &&
+      role !== 'organizer'
+    ) {
+      return
+    }
+
+    const handleResume = () => {
+      setClaimsReloadKey((key) => key + 1)
+    }
+
+    window.addEventListener(
+      'focus',
+      handleResume,
+    )
+
+    document.addEventListener(
+      'visibilitychange',
+      handleResume,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'focus',
+        handleResume,
+      )
+
+      document.removeEventListener(
+        'visibilitychange',
+        handleResume,
+      )
+    }
   }, [role])
 
   // =====================================================
@@ -381,9 +435,11 @@ const AdminDashboard: React.FC = () => {
       claims={claims}
       claimsLoading={claimsLoading}
       claimsError={claimsError}
-      onRefreshClaims={() => {
-        window.location.reload()
-      }}
+      onRefreshClaims={() =>
+        setClaimsReloadKey(
+          (key) => key + 1,
+        )
+      }
     />
   )
 }
@@ -860,7 +916,9 @@ const LatestClaims: React.FC<
                   key={claim.id}
                   type="button"
                   onClick={() =>
-                    navigate('/reclamations')
+                    navigate(
+                      `/reclamations?reclamation=${claim.id}`,
+                    )
                   }
                   className="group flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-white/[0.02] md:flex-row md:items-center"
                 >

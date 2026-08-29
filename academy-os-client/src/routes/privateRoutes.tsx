@@ -28,7 +28,9 @@ const PrivateRoutes = () => {
         to="/login"
         replace
         state={{
-          from: location.pathname,
+          from:
+            location.pathname +
+            location.search,
         }}
       />
     )

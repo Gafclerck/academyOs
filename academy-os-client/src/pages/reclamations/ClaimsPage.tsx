@@ -57,6 +57,13 @@ export interface Claim {
 
   status: ClaimStatus
 
+  status_display?: string
+
+  status_transitions?: Array<{
+    value: ClaimStatus
+    label: string
+  }>
+
   admin_response: string
 
   handled_by: string | null
@@ -72,6 +79,15 @@ interface PaginatedResponse {
   next: string | null
   previous: string | null
   results: Claim[]
+}
+
+interface ClaimStatsData {
+  pending: number
+  in_progress: number
+  resolved: number
+  rejected: number
+  total: number
+  active: number
 }
 
 // ============================================================
@@ -187,6 +203,9 @@ const ClaimsPage: React.FC = () => {
   const [selectedClaim, setSelectedClaim] =
     useState<Claim | null>(null)
 
+  const [stats, setStats] =
+    useState<ClaimStatsData | null>(null)
+
   // ==========================================================
   // PERMISSIONS
   //
@@ -255,6 +274,23 @@ const ClaimsPage: React.FC = () => {
             'Erreur lors du chargement de la réclamation :',
             error,
           )
+
+          setError(
+            'Impossible de charger cette réclamation. Elle a peut-être été supprimée ou vous n\'y avez pas accès.',
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          const nextParams =
+            new URLSearchParams(
+              searchParams,
+            )
+
+          nextParams.delete('reclamation')
+
+          setSearchParams(nextParams, {
+            replace: true,
+          })
         }
       }
     }
@@ -350,6 +386,41 @@ const ClaimsPage: React.FC = () => {
   }, [statusFilter])
 
   // ==========================================================
+  // STATS (KPIs globaux — admin/organisateur uniquement)
+  //
+  // Les compteurs affichés en haut de page reflètent la réalité
+  // de la base (pas le contenu de la page courante, tronqué par
+  // la pagination à 10 lignes).
+  // ==========================================================
+
+  const loadStats = async () => {
+    if (!canManageClaims) {
+      return
+    }
+
+    try {
+      const response =
+        await API.get<ClaimStatsData>(
+          '/claims/stats/',
+        )
+
+      setStats(response.data)
+    } catch (error) {
+      // Best-effort : en cas d'échec, les KPIs retombent sur les
+      // compteurs calculés depuis la page courante.
+      console.error(
+        'Erreur lors du chargement des statistiques :',
+        error,
+      )
+    }
+  }
+
+  useEffect(() => {
+    void loadStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManageClaims])
+
+  // ==========================================================
   // SEARCH
   // ==========================================================
 
@@ -414,13 +485,22 @@ const ClaimsPage: React.FC = () => {
   const handleClaimUpdated = (
     updatedClaim: Claim,
   ) => {
-    setClaims((current) =>
-      current.map((claim) =>
-        claim.id === updatedClaim.id
-          ? updatedClaim
-          : claim,
-      ),
-    )
+    // Un traitement (résolution/rejet) peut faire sortir la
+    // réclamation de la page courante si un filtre est actif :
+    // on recharge la liste plutôt que de remplacer la ligne en
+    // place (qui resterait affichée à tort).
+    if (canManageClaims) {
+      void loadClaims(page, statusFilter)
+      void loadStats()
+    } else {
+      setClaims((current) =>
+        current.map((claim) =>
+          claim.id === updatedClaim.id
+            ? updatedClaim
+            : claim,
+        ),
+      )
+    }
 
     setSelectedClaim(updatedClaim)
   }
@@ -430,28 +510,36 @@ const ClaimsPage: React.FC = () => {
   // ==========================================================
 
   const pendingCount =
-    claims.filter(
-      (claim) =>
-        claim.status === 'pending',
-    ).length
+    stats
+      ? stats.pending
+      : claims.filter(
+          (claim) =>
+            claim.status === 'pending',
+        ).length
 
   const inProgressCount =
-    claims.filter(
-      (claim) =>
-        claim.status === 'in_progress',
-    ).length
+    stats
+      ? stats.in_progress
+      : claims.filter(
+          (claim) =>
+            claim.status === 'in_progress',
+        ).length
 
   const resolvedCount =
-    claims.filter(
-      (claim) =>
-        claim.status === 'resolved',
-    ).length
+    stats
+      ? stats.resolved
+      : claims.filter(
+          (claim) =>
+            claim.status === 'resolved',
+        ).length
 
   const rejectedCount =
-    claims.filter(
-      (claim) =>
-        claim.status === 'rejected',
-    ).length
+    stats
+      ? stats.rejected
+      : claims.filter(
+          (claim) =>
+            claim.status === 'rejected',
+        ).length
 
   // ==========================================================
   // RENDER
@@ -1533,6 +1621,65 @@ const ClaimModal: React.FC<
     useState<string | null>(null)
 
   // ==========================================================
+  // TRANSITIONS AUTORISÉES
+  //
+  // Le backend expose les transitions valides via
+  // `status_transitions` : les actions rapides et le menu de
+  // sélection du statut ne proposent QUE les statuts réellement
+  // atteignables. En l'absence de la donnée (ancienne réponse),
+  // on autorise tous les statuts comme avant.
+  // ==========================================================
+
+  const allowedTransitions = useMemo(
+    () =>
+      (claim.status_transitions ?? []).map(
+        (transition) =>
+          transition.value,
+      ),
+    [claim.status_transitions],
+  )
+
+  const canGoTo = (value: ClaimStatus) =>
+    allowedTransitions.length === 0 ||
+    value === claim.status ||
+    allowedTransitions.includes(value)
+
+  // Options du menu Statut : le statut courant + les transitions
+  // réellement atteignables (labels du backend si fournis).
+  const statusOptions = useMemo(() => {
+    if (allowedTransitions.length === 0) {
+      return (
+        Object.keys(
+          STATUS_CONFIG,
+        ) as ClaimStatus[]
+      ).map((value) => ({
+        value,
+        label: STATUS_CONFIG[value]
+          .label,
+      }))
+    }
+
+    return [
+      ...allowedTransitions,
+      claim.status,
+    ].map((value) => ({
+      value,
+      label:
+        (claim.status_transitions ?? [])
+          .find(
+            (transition) =>
+              transition.value ===
+              value,
+          )?.label ??
+        STATUS_CONFIG[value].label,
+    }))
+  }, [
+    allowedTransitions,
+    claim.status,
+    claim.status_transitions,
+  ])
+
+  // ==========================================================
   // DETECT CHANGES
   // ==========================================================
 
@@ -1560,6 +1707,14 @@ const ClaimModal: React.FC<
   const handleStatusChange = (
     newStatus: ClaimStatus,
   ) => {
+    if (!canGoTo(newStatus)) {
+      setError(
+        `Transition ${status.replace('_', ' ')} → ${newStatus.replace('_', ' ')} non autorisée.`,
+      )
+
+      return
+    }
+
     setError(null)
 
     setStatus(newStatus)
@@ -2139,9 +2294,8 @@ const ClaimModal: React.FC<
 
                 <div className="flex flex-wrap gap-2">
 
-                  {status !== 'in_progress' &&
-                    status !== 'resolved' &&
-                    status !== 'rejected' && (
+                  {canGoTo('in_progress') &&
+                    status !== 'in_progress' && (
                       <button
                         type="button"
                         onClick={
@@ -2175,11 +2329,12 @@ const ClaimModal: React.FC<
                       </button>
                     )}
 
-                  {status !== 'resolved' && (
-                    <button
-                      type="button"
-                      onClick={handleResolve}
-                      disabled={saving}
+                  {canGoTo('resolved') &&
+                    status !== 'resolved' && (
+                      <button
+                        type="button"
+                        onClick={handleResolve}
+                        disabled={saving}
                       className="
                         inline-flex
                         items-center
@@ -2207,11 +2362,12 @@ const ClaimModal: React.FC<
                     </button>
                   )}
 
-                  {status !== 'rejected' && (
-                    <button
-                      type="button"
-                      onClick={handleReject}
-                      disabled={saving}
+                  {canGoTo('rejected') &&
+                    status !== 'rejected' && (
+                      <button
+                        type="button"
+                        onClick={handleReject}
+                        disabled={saving}
                       className="
                         inline-flex
                         items-center
@@ -2300,21 +2456,16 @@ const ClaimModal: React.FC<
                   "
                 >
 
-                  <option value="pending">
-                    En attente
-                  </option>
-
-                  <option value="in_progress">
-                    En cours
-                  </option>
-
-                  <option value="resolved">
-                    Résolue
-                  </option>
-
-                  <option value="rejected">
-                    Rejetée
-                  </option>
+                  {statusOptions.map(
+                    (option) => (
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </option>
+                    ),
+                  )}
 
                 </select>
 

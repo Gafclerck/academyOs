@@ -366,6 +366,38 @@ const MesCertificatsPage: React.FC =
     }, [])
 
     /* ==========================================================
+       RAFRAÎCHIR AU RETOUR SUR LA PAGE
+    ========================================================== */
+
+    useEffect(() => {
+      const handleResume = () => {
+        void loadAll()
+      }
+
+      window.addEventListener(
+        'focus',
+        handleResume,
+      )
+
+      document.addEventListener(
+        'visibilitychange',
+        handleResume,
+      )
+
+      return () => {
+        window.removeEventListener(
+          'focus',
+          handleResume,
+        )
+
+        document.removeEventListener(
+          'visibilitychange',
+          handleResume,
+        )
+      }
+    }, [])
+
+    /* ==========================================================
        DERNIÈRE RÉCLAMATION PAR CERTIFICAT
     ========================================================== */
 
@@ -1020,14 +1052,17 @@ const MesCertificatsPage: React.FC =
                  * La réclamation est possible uniquement
                  * lorsque le certificat est EN_ATTENTE.
                  *
-                 * Si une réclamation existe déjà et n'est
-                 * pas rejetée, on bloque une nouvelle demande.
+                 * Une réclamation non traitée (en attente / en
+                 * cours) bloque une nouvelle demande ; une fois
+                 * traitée (résolue ou rejetée), l'apprenant peut
+                 * à nouveau réclamer.
                  */
 
                 const canClaim =
                   isPending &&
                   (
                     !existingClaim ||
+                    isClaimResolved ||
                     isClaimRejected
                   )
 

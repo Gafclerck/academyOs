@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { useAuth } from '@/context/AuthContext'
@@ -8,6 +8,7 @@ import type { LoginCredentials } from '@/types/auth'
 
 const useLogin = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
 
   const [loading, setLoading] = useState(false)
@@ -25,10 +26,21 @@ const useLogin = () => {
           'Bienvenue sur votre espace Xarala.',
       })
 
-      // Après connexion → Dashboard
-      navigate('/dashboard', {
-        replace: true,
-      })
+      // Après connexion → page d'origine si l'utilisateur avait
+      // été redirigé (state.from), sinon Dashboard. La page
+      // d'origine peut porter une query (?reclamation=<id>).
+      const from =
+        location.state?.from
+
+      navigate(
+        typeof from === 'string' &&
+          from.startsWith('/')
+          ? from
+          : '/dashboard',
+        {
+          replace: true,
+        },
+      )
     } catch (error) {
       const parsedError = parseApiError(error)
 

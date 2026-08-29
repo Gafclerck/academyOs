@@ -28,6 +28,8 @@ export interface Claim {
   message: string
 
   status: ClaimStatus
+  status_display: string
+  status_transitions: Array<{ value: ClaimStatus; label: string }>
 
   admin_response: string
 
@@ -57,7 +59,7 @@ export interface ClaimsResponse {
 export interface GetClaimsParams {
   page?: number
   page_size?: number
-  status?: ClaimStatus
+  status?: ClaimStatus | ClaimStatus[]
 }
 
 /* ============================================================
@@ -164,6 +166,25 @@ export const patchClaim = async (
 }
 
 /* ============================================================
+   STATS — COMPTEURS PAR STATUT
+   GET /api/v1/claims/stats/
+============================================================ */
+
+export interface ClaimStats {
+  pending: number
+  in_progress: number
+  resolved: number
+  rejected: number
+  total: number
+  active: number
+}
+
+export const getClaimsStats = async (): Promise<ClaimStats> => {
+  const response = await API.get<ClaimStats>('/claims/stats/')
+  return response.data
+}
+
+/* ============================================================
    DELETE
    DELETE /api/v1/claims/{id}/
 ============================================================ */
@@ -185,6 +206,7 @@ const claimService = {
   updateClaim,
   patchClaim,
   deleteClaim,
+  getClaimsStats,
 }
 
 export default claimService

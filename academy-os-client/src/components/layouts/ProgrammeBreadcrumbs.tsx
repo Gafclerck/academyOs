@@ -173,6 +173,24 @@ export const ProgrammeBreadcrumbs: React.FC = () => {
     }
 
     // ─────────────────────────────────────────────
+    // RACINE CONNUE
+    // ─────────────────────────────────────────────
+
+    const ROOT_LABELS: Record<
+      string,
+      string
+    > = {
+      reclamations: 'Réclamations',
+      'gestion-certificats':
+        'Certificats',
+      certificats: 'Mes certificats',
+    }
+
+    if (index === 0 && ROOT_LABELS[segment]) {
+      return ROOT_LABELS[segment]
+    }
+
+    // ─────────────────────────────────────────────
     // FALLBACK
     // ─────────────────────────────────────────────
 
