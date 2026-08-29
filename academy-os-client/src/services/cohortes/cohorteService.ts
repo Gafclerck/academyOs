@@ -29,6 +29,17 @@ export const getCohortes = async (): Promise<Cohorte[]> => {
   )
 }
 
+export const getMyCohorts = async (): Promise<Cohorte[]> => {
+  const response = await api.get<CohortesResponse>(
+    '/cohorts/',
+    { params: { enrolled: 'all' } },
+  )
+
+  return extractList<Cohorte>(
+    response.data,
+  )
+}
+
 /* ============================================================
    GET COHORTE
 ============================================================ */

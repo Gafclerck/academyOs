@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   dashboardService,
   type LearnerDashboardStats,
@@ -16,5 +16,6 @@ export function useLearnerDashboard(cohortId?: string) {
     queryKey,
     queryFn: () => dashboardService.getLearnerDashboard(cohortId),
     staleTime: 1000 * 60 * 2,
+    placeholderData: keepPreviousData,
   })
 }

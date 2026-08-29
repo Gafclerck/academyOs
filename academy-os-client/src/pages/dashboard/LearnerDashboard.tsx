@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useLearnerDashboard } from '@/hooks/useLearnerDashboard'
-import { getCohortes } from '@/services/cohortes/cohorteService'
-import type { Cohorte } from '@/types/cohorte'
+import { useFormations } from '@/hooks/useFormations'
+import FormationSelector from '@/components/formations/FormationSelector'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +18,6 @@ import {
   Award,
   MessageSquare,
   ExternalLink,
-  Layers,
 } from 'lucide-react'
 
 const roundPct = (value?: number) => Math.round(value || 0)
@@ -43,34 +42,13 @@ const LEVEL_CLASSES: Record<string, string> = {
 
 export const LearnerDashboard: React.FC = () => {
   const { user } = useAuth()
-  const [cohorts, setCohorts] = useState<Cohorte[]>([])
-  const [selectedCohortId, setSelectedCohortId] = useState<
-    string | null
-  >(null)
+  const { cohorts, selectedCohortId, setSelectedCohortId } =
+    useFormations()
   const { data, isLoading, error, refetch } = useLearnerDashboard(
     selectedCohortId ?? undefined,
   )
 
-  useEffect(() => {
-    let cancelled = false
-    getCohortes()
-      .then((list) => {
-        if (cancelled) return
-        setCohorts(list)
-        if (list.length > 0) {
-          setSelectedCohortId((prev) => prev ?? list[0].id)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setCohorts([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const firstName = user?.first_name || 'Apprenant'
-  const hasMultipleFormations = cohorts.length > 1
 
   if (isLoading) {
     return (
@@ -139,47 +117,11 @@ export const LearnerDashboard: React.FC = () => {
       </div>
 
       {/* SÉLECTEUR DE FORMATION */}
-      {hasMultipleFormations && (
-        <div className="flex flex-wrap gap-2">
-          {cohorts.map((cohort) => {
-            const active = cohort.id === selectedCohortId
-            return (
-              <button
-                key={cohort.id}
-                type="button"
-                onClick={() => setSelectedCohortId(cohort.id)}
-                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-left transition-colors ${
-                  active
-                    ? 'border-[#FF6B0B]/40 bg-[#FF6B0B]/10'
-                    : 'border-slate-200 bg-white hover:border-[#FF6B0B]/40 dark:border-white/10 dark:bg-[#1f1f38]'
-                }`}
-              >
-                <Layers
-                  className={`size-4 ${
-                    active ? 'text-[#FF6B0B]' : 'text-slate-400'
-                  }`}
-                />
-                <span className="min-w-0">
-                  <span
-                    className={`block truncate text-sm font-semibold ${
-                      active
-                        ? 'text-[#FF6B0B]'
-                        : 'text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    {cohort.name}
-                  </span>
-                  {cohort.program_name && (
-                    <span className="block truncate text-[11px] text-slate-400">
-                      {cohort.program_name}
-                    </span>
-                  )}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
+      <FormationSelector
+        cohorts={cohorts}
+        selectedCohortId={selectedCohortId}
+        onSelect={setSelectedCohortId}
+      />
 
       {!hasEnrollment ? (
         <Card className="bg-white p-10 text-center shadow-sm dark:bg-[#1f1f38]">

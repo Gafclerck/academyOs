@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { getAssignments } from '@/services/evaluations/evaluationService'
-import { getCohortes } from '@/services/cohortes/cohorteService'
+import { useFormations } from '@/hooks/useFormations'
+import FormationSelector from '@/components/formations/FormationSelector'
 import type {
   ProjectAssignment,
   AssignmentStatus,
 } from '@/types/evaluation'
-import type { Cohorte } from '@/types/cohorte'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -20,7 +21,6 @@ import {
   AlertCircle,
   RefreshCw,
   FolderGit2,
-  Layers,
 } from 'lucide-react'
 
 const STATUS_CONFIG: Record<
@@ -50,59 +50,37 @@ const STATUS_CONFIG: Record<
 }
 
 const MaFormationPage: React.FC = () => {
-  const [assignments, setAssignments] = useState<
-    ProjectAssignment[]
-  >([])
-  const [cohorts, setCohorts] = useState<Cohorte[]>([])
-  const [selectedCohortId, setSelectedCohortId] = useState<
-    string | null
-  >(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const { cohorts, selectedCohortId, setSelectedCohortId } =
+    useFormations()
 
-  const load = async () => {
-    setLoading(true)
-    setError(false)
-    try {
-      const [data, list] = await Promise.all([
-        getAssignments(),
-        getCohortes().catch(() => [] as Cohorte[]),
-      ])
-      const sorted = [...data].sort(
-        (a, b) => (a.project_order ?? 0) - (b.project_order ?? 0),
-      )
-      setAssignments(sorted)
-      setCohorts(list)
-      if (list.length > 0) {
-        setSelectedCohortId((prev) => prev ?? list[0].id)
-      }
-    } catch {
-      setError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const query = useQuery<ProjectAssignment[]>({
+    queryKey: ['learner-assignments', selectedCohortId ?? 'all'],
+    queryFn: () =>
+      getAssignments(
+        selectedCohortId
+          ? { cohort: selectedCohortId, page_size: 100 }
+          : { page_size: 100 },
+      ),
+  })
 
-  useEffect(() => {
-    void load()
-  }, [])
-
-  const hasMultipleFormations = cohorts.length > 1
   const selectedCohort = cohorts.find(
     (c) => c.id === selectedCohortId,
   )
-  const visibleAssignments = selectedCohortId
-    ? assignments.filter((a) => a.cohort_id === selectedCohortId)
-    : assignments
+  const hasMultipleFormations = cohorts.length > 1
+  const assignments = useMemo(
+    () =>
+      [...(query.data ?? [])].sort(
+        (a, b) => (a.project_order ?? 0) - (b.project_order ?? 0),
+      ),
+    [query.data],
+  )
 
-  const validatedCount = visibleAssignments.filter(
+  const validatedCount = assignments.filter(
     (a) => a.status === 'validated',
   ).length
   const pct =
-    visibleAssignments.length > 0
-      ? Math.round(
-          (validatedCount / visibleAssignments.length) * 100,
-        )
+    assignments.length > 0
+      ? Math.round((validatedCount / assignments.length) * 100)
       : 0
 
   return (
@@ -120,8 +98,8 @@ const MaFormationPage: React.FC = () => {
           </p>
         </div>
         <Button
-          onClick={load}
-          disabled={loading}
+          onClick={() => void query.refetch()}
+          disabled={query.isFetching}
           variant="outline"
           size="sm"
           className="gap-2 self-start rounded-xl border-slate-200 dark:border-white/10"
@@ -132,50 +110,14 @@ const MaFormationPage: React.FC = () => {
       </div>
 
       {/* SÉLECTEUR DE FORMATION */}
-      {hasMultipleFormations && (
-        <div className="flex flex-wrap gap-2">
-          {cohorts.map((cohort) => {
-            const active = cohort.id === selectedCohortId
-            return (
-              <button
-                key={cohort.id}
-                type="button"
-                onClick={() => setSelectedCohortId(cohort.id)}
-                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-left transition-colors ${
-                  active
-                    ? 'border-[#FF6B0B]/40 bg-[#FF6B0B]/10'
-                    : 'border-slate-200 bg-white hover:border-[#FF6B0B]/40 dark:border-white/10 dark:bg-[#1f1f38]'
-                }`}
-              >
-                <Layers
-                  className={`size-4 ${
-                    active ? 'text-[#FF6B0B]' : 'text-slate-400'
-                  }`}
-                />
-                <span className="min-w-0">
-                  <span
-                    className={`block truncate text-sm font-semibold ${
-                      active
-                        ? 'text-[#FF6B0B]'
-                        : 'text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    {cohort.name}
-                  </span>
-                  {cohort.program_name && (
-                    <span className="block truncate text-[11px] text-slate-400">
-                      {cohort.program_name}
-                    </span>
-                  )}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
+      <FormationSelector
+        cohorts={cohorts}
+        selectedCohortId={selectedCohortId}
+        onSelect={setSelectedCohortId}
+      />
 
       {/* PROGRESSION */}
-      {visibleAssignments.length > 0 && (
+      {assignments.length > 0 && (
         <Card className="bg-white p-5 shadow-sm dark:bg-[#1f1f38]">
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-slate-700 dark:text-slate-200">
@@ -187,8 +129,7 @@ const MaFormationPage: React.FC = () => {
               )}
             </span>
             <span className="text-slate-500">
-              {validatedCount}/{visibleAssignments.length} projets
-              validés
+              {validatedCount}/{assignments.length} projets validés
             </span>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
@@ -200,11 +141,11 @@ const MaFormationPage: React.FC = () => {
         </Card>
       )}
 
-      {loading ? (
+      {query.isLoading ? (
         <div className="flex h-64 items-center justify-center">
           <Spinner />
         </div>
-      ) : error ? (
+      ) : query.isError ? (
         <Card className="flex h-64 flex-col items-center justify-center gap-4 bg-white p-8 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-500">
             <AlertCircle className="size-6" />
@@ -212,12 +153,16 @@ const MaFormationPage: React.FC = () => {
           <p className="text-sm text-slate-500">
             Impossible de charger votre parcours de formation.
           </p>
-          <Button onClick={load} variant="outline" className="gap-2">
+          <Button
+            onClick={() => void query.refetch()}
+            variant="outline"
+            className="gap-2"
+          >
             <RefreshCw className="size-4" />
             Réessayer
           </Button>
         </Card>
-      ) : visibleAssignments.length === 0 ? (
+      ) : assignments.length === 0 ? (
         <Card className="bg-white p-10 text-center shadow-sm dark:bg-[#1f1f38]">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-white/5">
             <BookOpen className="size-6" />
@@ -226,14 +171,14 @@ const MaFormationPage: React.FC = () => {
             Aucun projet assigné
           </h3>
           <p className="mt-1 text-sm text-slate-500">
-            {hasMultipleFormations
-              ? `Aucun projet n'est encore assigné dans la formation ${selectedCohort?.name ?? ''}.`
+            {selectedCohort
+              ? `Aucun projet n'est encore assigné dans la formation ${selectedCohort.name}.`
               : 'Votre parcours sera débloqué dès qu\'un formateur vous assigne des projets.'}
           </p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visibleAssignments.map((assignment, index) => {
+          {assignments.map((assignment, index) => {
             const status =
               STATUS_CONFIG[assignment.status] ??
               STATUS_CONFIG.pending

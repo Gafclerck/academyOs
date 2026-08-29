@@ -20,6 +20,7 @@ export const getAssignments = async (params?: {
   project?: string
   user?: string
   status?: string
+  page_size?: number
 }): Promise<ProjectAssignment[]> => {
   const response = await api.get('/assignments/', {
     params,

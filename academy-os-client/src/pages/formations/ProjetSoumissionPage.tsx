@@ -241,9 +241,16 @@ const ProjectSubmissionPage: React.FC = () => {
                 </p>
               )}
             {assignment.deadline_override && (
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+              <p
+                className={`mt-1 flex items-center gap-1.5 text-xs font-medium ${
+                  new Date(assignment.deadline_override).getTime() <
+                  Date.now()
+                    ? 'text-red-500'
+                    : 'text-slate-500'
+                }`}
+              >
                 <Clock className="size-3.5" />
-                À rendre avant le{' '}
+                Échéance : le{' '}
                 {new Date(assignment.deadline_override).toLocaleDateString(
                   'fr-FR',
                   {

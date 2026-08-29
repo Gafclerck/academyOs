@@ -19,6 +19,9 @@ export interface Cohorte {
   intake?: string | null
   intake_name?: string | null
 
+  enrollment_status?: string | null
+  enrolled_at?: string | null
+
   start_date?: string | null
   end_date?: string | null
 
