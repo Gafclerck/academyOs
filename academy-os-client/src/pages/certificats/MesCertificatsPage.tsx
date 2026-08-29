@@ -1,5 +1,10 @@
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
 import API from '@/api/api'
 
 import { Card } from '@/components/ui/card'
@@ -10,7 +15,6 @@ import {
   Award,
   AlertCircle,
   RefreshCw,
-  FileDown,
   Download,
   GraduationCap,
   CalendarDays,
@@ -45,6 +49,13 @@ export interface MesCertificatsItem {
   url: string | null
 }
 
+interface CertificatesResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: MesCertificatsItem[]
+}
+
 /* ============================================================
    STATUTS CERTIFICATS
 ============================================================ */
@@ -62,7 +73,19 @@ const STATUS_CONFIG: Record<
       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   },
 
+  SENT: {
+    label: 'Envoyé',
+    className:
+      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  },
+
   EN_ATTENTE: {
+    label: 'En attente',
+    className:
+      'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  },
+
+  PENDING: {
     label: 'En attente',
     className:
       'bg-amber-500/10 text-amber-600 dark:text-amber-400',
@@ -72,18 +95,6 @@ const STATUS_CONFIG: Record<
     label: 'Généré',
     className:
       'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-  },
-
-  SENT: {
-    label: 'Envoyé',
-    className:
-      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  },
-
-  PENDING: {
-    label: 'En attente',
-    className:
-      'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
 
   REVOKED: {
@@ -133,11 +144,16 @@ const CLAIM_STATUS_CONFIG: Record<
    HELPERS
 ============================================================ */
 
-const normalizeStatus = (status: string) =>
-  status?.toUpperCase?.() ?? ''
+const normalizeStatus = (status: string) => {
+  return status?.toUpperCase?.() ?? ''
+}
 
-const formatDate = (value: string | null) => {
-  if (!value) return '—'
+const formatDate = (
+  value: string | null,
+) => {
+  if (!value) {
+    return '—'
+  }
 
   const date = new Date(value)
 
@@ -145,1178 +161,1489 @@ const formatDate = (value: string | null) => {
     return value
   }
 
-  return date.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return date.toLocaleDateString(
+    'fr-FR',
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    },
+  )
 }
 
 /* ============================================================
    COMPONENT
 ============================================================ */
 
-const MesCertificatsPage: React.FC = () => {
-  /* ============================================================
-     CERTIFICATS
-  ============================================================ */
+const MesCertificatsPage: React.FC =
+  () => {
+    /* ==========================================================
+       CERTIFICATS
+    ========================================================== */
 
-  const [certificates, setCertificates] = useState<
-    MesCertificatsItem[]
-  >([])
+    const [
+      certificates,
+      setCertificates,
+    ] = useState<
+      MesCertificatsItem[]
+    >([])
 
-  const [loading, setLoading] = useState(true)
+    const [
+      loading,
+      setLoading,
+    ] = useState(true)
 
-  const [error, setError] = useState<string | null>(null)
+    const [
+      error,
+      setError,
+    ] = useState<string | null>(
+      null,
+    )
 
-  /* ============================================================
-     RÉCLAMATIONS
-  ============================================================ */
+    /* ==========================================================
+       RÉCLAMATIONS
+    ========================================================== */
 
-  const [claims, setClaims] = useState<Claim[]>([])
+    const [
+      claims,
+      setClaims,
+    ] = useState<Claim[]>([])
 
-  const [claimsLoading, setClaimsLoading] = useState(true)
+    const [
+      claimsLoading,
+      setClaimsLoading,
+    ] = useState(true)
 
-  const [claimsError, setClaimsError] = useState<string | null>(
-    null,
-  )
+    const [
+      claimsError,
+      setClaimsError,
+    ] = useState<string | null>(
+      null,
+    )
 
-  /* ============================================================
-     MODAL RÉCLAMATION
-  ============================================================ */
+    /* ==========================================================
+       MODAL RÉCLAMATION
+    ========================================================== */
 
-  const [selectedCertificate, setSelectedCertificate] =
-    useState<MesCertificatsItem | null>(null)
-
-  const [claimMessage, setClaimMessage] = useState('')
-
-  const [submittingClaim, setSubmittingClaim] =
-    useState(false)
-
-  const [claimSubmitError, setClaimSubmitError] =
-    useState<string | null>(null)
-
-  /* ============================================================
-     SUCCESS
-  ============================================================ */
-
-  const [successMessage, setSuccessMessage] =
-    useState<string | null>(null)
-
-  /* ============================================================
-     CHARGER LES CERTIFICATS
-  ============================================================ */
-
-  const loadCertificates = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await API.get<MesCertificatsItem[]>(
-        '/certificates/me/',
+    const [
+      selectedCertificate,
+      setSelectedCertificate,
+    ] =
+      useState<MesCertificatsItem | null>(
+        null,
       )
 
-      setCertificates(
-        Array.isArray(response.data)
-          ? response.data
-          : [],
-      )
-    } catch (err) {
-      console.error(
-        'Erreur lors du chargement des certificats :',
-        err,
-      )
+    const [
+      claimMessage,
+      setClaimMessage,
+    ] = useState('')
 
-      setError(
-        'Impossible de charger vos certificats pour le moment.',
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
+    const [
+      submittingClaim,
+      setSubmittingClaim,
+    ] = useState(false)
 
-  /* ============================================================
-     CHARGER LES RÉCLAMATIONS
-  ============================================================ */
+    const [
+      claimSubmitError,
+      setClaimSubmitError,
+    ] =
+      useState<string | null>(null)
 
-  const loadClaims = async () => {
-    setClaimsLoading(true)
-    setClaimsError(null)
+    /* ==========================================================
+       SUCCESS
+    ========================================================== */
 
-    try {
-      const response = await getClaims({
-        page: 1,
-        page_size: 100,
-      })
+    const [
+      successMessage,
+      setSuccessMessage,
+    ] =
+      useState<string | null>(null)
 
-      setClaims(
-        Array.isArray(response.results)
-          ? response.results
-          : [],
-      )
-    } catch (err) {
-      console.error(
-        'Erreur lors du chargement des réclamations :',
-        err,
-      )
+    /* ==========================================================
+       CHARGER LES CERTIFICATS
+    ========================================================== */
 
-      setClaimsError(
-        'Impossible de charger le statut de vos réclamations.',
-      )
-    } finally {
-      setClaimsLoading(false)
-    }
-  }
+    const loadCertificates =
+      async () => {
+        setLoading(true)
+        setError(null)
 
-  /* ============================================================
-     CHARGEMENT INITIAL
-  ============================================================ */
+        try {
+          const response =
+            await API.get<
+              MesCertificatsItem[] |
+              CertificatesResponse
+            >(
+              '/certificates/me/',
+            )
 
-  const loadAll = async () => {
-    await Promise.all([
-      loadCertificates(),
-      loadClaims(),
-    ])
-  }
+          const data =
+            response.data
 
-  useEffect(() => {
-    void loadAll()
-  }, [])
+          /*
+           * Le backend peut retourner :
+           *
+           * 1. directement un tableau
+           * 2. une réponse paginée avec results
+           */
 
-  /* ============================================================
-     RÉCLAMATIONS PAR CERTIFICAT
-  ============================================================ */
+          if (Array.isArray(data)) {
+            setCertificates(data)
+          } else {
+            setCertificates(
+              Array.isArray(
+                data?.results,
+              )
+                ? data.results
+                : [],
+            )
+          }
+        } catch (err) {
+          console.error(
+            'Erreur lors du chargement des certificats :',
+            err,
+          )
 
-  const claimsByCertificate = useMemo(() => {
-    const map = new Map<string, Claim>()
-
-    claims.forEach((claim) => {
-      if (!claim.certificate) return
-
-      const existing = map.get(claim.certificate)
-
-      if (!existing) {
-        map.set(claim.certificate, claim)
-        return
+          setError(
+            'Impossible de charger vos certificats pour le moment.',
+          )
+        } finally {
+          setLoading(false)
+        }
       }
 
-      const existingDate = new Date(
-        existing.created_at,
-      ).getTime()
+    /* ==========================================================
+       CHARGER LES RÉCLAMATIONS
+    ========================================================== */
 
-      const currentDate = new Date(
-        claim.created_at,
-      ).getTime()
+    const loadClaims =
+      async () => {
+        setClaimsLoading(true)
+        setClaimsError(null)
 
-      if (currentDate > existingDate) {
-        map.set(claim.certificate, claim)
+        try {
+          const response =
+            await getClaims({
+              page: 1,
+              page_size: 100,
+            })
+
+          setClaims(
+            Array.isArray(
+              response.results,
+            )
+              ? response.results
+              : [],
+          )
+        } catch (err) {
+          console.error(
+            'Erreur lors du chargement des réclamations :',
+            err,
+          )
+
+          setClaimsError(
+            'Impossible de charger le statut de vos réclamations.',
+          )
+        } finally {
+          setClaimsLoading(false)
+        }
       }
-    })
 
-    return map
-  }, [claims])
+    /* ==========================================================
+       CHARGEMENT INITIAL
+    ========================================================== */
 
-  /* ============================================================
-     OUVRIR LE MODAL
-  ============================================================ */
+    const loadAll =
+      async () => {
+        await Promise.all([
+          loadCertificates(),
+          loadClaims(),
+        ])
+      }
 
-  const openClaimModal = (
-    certificate: MesCertificatsItem,
-  ) => {
-    setSelectedCertificate(certificate)
-    setClaimMessage('')
-    setClaimSubmitError(null)
-    setSuccessMessage(null)
-  }
+    useEffect(() => {
+      void loadAll()
+    }, [])
 
-  /* ============================================================
-     FERMER LE MODAL
-  ============================================================ */
+    /* ==========================================================
+       DERNIÈRE RÉCLAMATION PAR CERTIFICAT
+    ========================================================== */
 
-  const closeClaimModal = () => {
-    if (submittingClaim) return
+    const claimsByCertificate =
+      useMemo(() => {
+        const map =
+          new Map<
+            string,
+            Claim
+          >()
 
-    setSelectedCertificate(null)
-    setClaimMessage('')
-    setClaimSubmitError(null)
-  }
+        claims.forEach(
+          (claim) => {
+            if (!claim.certificate) {
+              return
+            }
 
-  /* ============================================================
-     ENVOYER UNE RÉCLAMATION
-  ============================================================ */
+            const existing =
+              map.get(
+                claim.certificate,
+              )
 
-  const handleSubmitClaim = async () => {
-    if (!selectedCertificate) return
+            if (!existing) {
+              map.set(
+                claim.certificate,
+                claim,
+              )
 
-    const certificateId = selectedCertificate.id
+              return
+            }
 
-    const existingClaim =
-      claimsByCertificate.get(certificateId)
+            const existingDate =
+              new Date(
+                existing.created_at,
+              ).getTime()
 
-    /*
-     * Une nouvelle réclamation n'est pas autorisée
-     * s'il existe déjà une réclamation active ou résolue.
-     *
-     * Une réclamation rejetée peut être soumise à nouveau.
-     */
-    if (
-      existingClaim &&
-      existingClaim.status !== 'rejected'
-    ) {
-      setClaimSubmitError(
-        'Une réclamation existe déjà pour ce certificat.',
-      )
-      return
-    }
+            const currentDate =
+              new Date(
+                claim.created_at,
+              ).getTime()
 
-    const message = claimMessage.trim()
+            if (
+              currentDate >
+              existingDate
+            ) {
+              map.set(
+                claim.certificate,
+                claim,
+              )
+            }
+          },
+        )
 
-    if (!message) {
-      setClaimSubmitError(
-        'Veuillez saisir un message avant d’envoyer votre réclamation.',
-      )
-      return
-    }
+        return map
+      }, [claims])
 
-    if (message.length < 10) {
-      setClaimSubmitError(
-        'Votre message doit contenir au moins 10 caractères.',
-      )
-      return
-    }
+    /* ==========================================================
+       OUVRIR LE MODAL
+    ========================================================== */
 
-    setSubmittingClaim(true)
-    setClaimSubmitError(null)
-    setSuccessMessage(null)
+    const openClaimModal =
+      (
+        certificate: MesCertificatsItem,
+      ) => {
+        setSelectedCertificate(
+          certificate,
+        )
 
-    try {
-      const newClaim = await createClaim({
-        certificate: certificateId,
-        message,
-      })
+        setClaimMessage('')
 
-      setClaims((previous) => [
-        newClaim,
-        ...previous,
-      ])
+        setClaimSubmitError(
+          null,
+        )
 
-      setSelectedCertificate(null)
-      setClaimMessage('')
+        setSuccessMessage(
+          null,
+        )
+      }
 
-      setSuccessMessage(
-        'Votre réclamation a été envoyée avec succès.',
-      )
-    } catch (err: any) {
-      console.error(
-        'Erreur lors de la création de la réclamation :',
-        err,
-      )
+    /* ==========================================================
+       FERMER LE MODAL
+    ========================================================== */
 
-      const responseData = err?.response?.data
+    const closeClaimModal =
+      () => {
+        if (
+          submittingClaim
+        ) {
+          return
+        }
 
-      setClaimSubmitError(
-        responseData?.detail ||
-          responseData?.message?.[0] ||
-          responseData?.certificate?.[0] ||
-          "Impossible d'envoyer votre réclamation. Veuillez réessayer.",
-      )
-    } finally {
-      setSubmittingClaim(false)
-    }
-  }
+        setSelectedCertificate(
+          null,
+        )
 
-  /* ============================================================
-     ACTUALISER
-  ============================================================ */
+        setClaimMessage('')
 
-  const handleRefresh = async () => {
-    setSuccessMessage(null)
+        setClaimSubmitError(
+          null,
+        )
+      }
 
-    await loadAll()
-  }
+    /* ==========================================================
+       ENVOYER UNE RÉCLAMATION
+    ========================================================== */
 
-  /* ============================================================
-     RENDER
-  ============================================================ */
+    const handleSubmitClaim =
+      async () => {
+        if (
+          !selectedCertificate
+        ) {
+          return
+        }
 
-  return (
-    <div className="space-y-8">
+        const certificate =
+          selectedCertificate
 
-      {/* ========================================================
-          HEADER
-      ======================================================== */}
+        /*
+         * IMPORTANT :
+         *
+         * La réclamation est autorisée
+         * uniquement pour un certificat
+         * EN_ATTENTE / PENDING.
+         */
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        const normalizedStatus =
+          normalizeStatus(
+            certificate.status,
+          )
 
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            Mes Certificats
-          </h1>
+        const isPending =
+          normalizedStatus ===
+            'EN_ATTENTE' ||
+          normalizedStatus ===
+            'PENDING'
 
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Les certificats obtenus au fil de votre formation.
-          </p>
-        </div>
+        if (!isPending) {
+          setClaimSubmitError(
+            'Ce certificat ne peut pas faire l’objet d’une réclamation.',
+          )
 
-        <Button
-          onClick={handleRefresh}
-          disabled={loading || claimsLoading}
-          variant="outline"
-          size="sm"
-          className="
-            gap-2
-            self-start
-            rounded-xl
-            border-slate-200
-            dark:border-white/10
-          "
-        >
-          <RefreshCw
-            className={`size-3.5 ${
-              loading || claimsLoading
-                ? 'animate-spin'
-                : ''
-            }`}
-          />
+          return
+        }
 
-          Actualiser
-        </Button>
+        const existingClaim =
+          claimsByCertificate.get(
+            certificate.id,
+          )
 
-      </div>
+        /*
+         * Si une réclamation existe déjà
+         * et qu'elle n'est pas rejetée,
+         * on ne permet pas une nouvelle réclamation.
+         */
 
-      {/* ========================================================
-          SUCCÈS
-      ======================================================== */}
+        if (
+          existingClaim &&
+          existingClaim.status !==
+            'rejected'
+        ) {
+          setClaimSubmitError(
+            'Une réclamation existe déjà pour ce certificat.',
+          )
 
-      {successMessage && (
+          return
+        }
+
+        const message =
+          claimMessage.trim()
+
+        if (!message) {
+          setClaimSubmitError(
+            'Veuillez saisir un message avant d’envoyer votre réclamation.',
+          )
+
+          return
+        }
+
+        if (
+          message.length < 10
+        ) {
+          setClaimSubmitError(
+            'Votre message doit contenir au moins 10 caractères.',
+          )
+
+          return
+        }
+
+        setSubmittingClaim(
+          true,
+        )
+
+        setClaimSubmitError(
+          null,
+        )
+
+        setSuccessMessage(
+          null,
+        )
+
+        try {
+          const newClaim =
+            await createClaim({
+              certificate:
+                certificate.id,
+              message,
+            })
+
+          setClaims(
+            (previous) => [
+              newClaim,
+              ...previous,
+            ],
+          )
+
+          setSelectedCertificate(
+            null,
+          )
+
+          setClaimMessage('')
+
+          setSuccessMessage(
+            'Votre réclamation a été envoyée avec succès.',
+          )
+        } catch (err: any) {
+          console.error(
+            'Erreur lors de la création de la réclamation :',
+            err,
+          )
+
+          const responseData =
+            err?.response?.data
+
+          setClaimSubmitError(
+            responseData?.detail ||
+              responseData?.message?.[0] ||
+              responseData
+                ?.certificate?.[0] ||
+              "Impossible d'envoyer votre réclamation. Veuillez réessayer.",
+          )
+        } finally {
+          setSubmittingClaim(
+            false,
+          )
+        }
+      }
+
+    /* ==========================================================
+       ACTUALISER
+    ========================================================== */
+
+    const handleRefresh =
+      async () => {
+        setSuccessMessage(
+          null,
+        )
+
+        await loadAll()
+      }
+
+    /* ==========================================================
+       RENDER
+    ========================================================== */
+
+    return (
+      <div className="space-y-8">
+
+        {/* ======================================================
+            HEADER
+        ====================================================== */}
+
         <div
           className="
             flex
-            items-start
-            gap-3
-            rounded-2xl
-            border
-            border-emerald-200
-            bg-emerald-50
-            p-4
-            dark:border-emerald-500/20
-            dark:bg-emerald-500/10
-          "
-        >
-          <CheckCircle2
-            className="
-              mt-0.5
-              size-5
-              shrink-0
-              text-emerald-500
-            "
-          />
-
-          <p className="text-sm text-emerald-700 dark:text-emerald-300">
-            {successMessage}
-          </p>
-        </div>
-      )}
-
-      {/* ========================================================
-          ERREUR RÉCLAMATIONS
-      ======================================================== */}
-
-      {claimsError && (
-        <div
-          className="
-            flex
-            items-start
-            gap-3
-            rounded-2xl
-            border
-            border-amber-200
-            bg-amber-50
-            p-4
-            dark:border-amber-500/20
-            dark:bg-amber-500/10
-          "
-        >
-          <AlertCircle
-            className="
-              mt-0.5
-              size-5
-              shrink-0
-              text-amber-500
-            "
-          />
-
-          <p className="text-sm text-amber-700 dark:text-amber-300">
-            {claimsError}
-          </p>
-        </div>
-      )}
-
-      {/* ========================================================
-          LOADING
-      ======================================================== */}
-
-      {loading ? (
-
-        <div className="flex h-64 items-center justify-center">
-          <Spinner />
-        </div>
-
-      ) : error ? (
-
-        <Card
-          className="
-            flex
-            h-64
             flex-col
-            items-center
-            justify-center
             gap-4
-            bg-white
-            p-8
-            text-center
-            shadow-sm
-            dark:bg-[#1f1f38]
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
           "
         >
-          <div
-            className="
-              flex
-              size-12
-              items-center
-              justify-center
-              rounded-full
-              bg-red-500/10
-              text-red-500
-            "
-          >
-            <AlertCircle className="size-6" />
-          </div>
+          <div>
+            <h1
+              className="
+                text-2xl
+                font-extrabold
+                text-slate-900
+                dark:text-white
+              "
+            >
+              Mes Certificats
+            </h1>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {error}
-          </p>
+            <p
+              className="
+                text-sm
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+              Les certificats obtenus au
+              fil de votre formation.
+            </p>
+          </div>
 
           <Button
-            onClick={handleRefresh}
+            onClick={
+              handleRefresh
+            }
+            disabled={
+              loading ||
+              claimsLoading
+            }
             variant="outline"
-            className="gap-2"
+            size="sm"
+            className="
+              gap-2
+              self-start
+              rounded-xl
+              border-slate-200
+              dark:border-white/10
+            "
           >
-            <RefreshCw className="size-4" />
-            Réessayer
+            <RefreshCw
+              className={`size-3.5 ${
+                loading ||
+                claimsLoading
+                  ? 'animate-spin'
+                  : ''
+              }`}
+            />
+
+            Actualiser
           </Button>
-        </Card>
+        </div>
 
-      ) : certificates.length === 0 ? (
+        {/* ======================================================
+            MESSAGE SUCCÈS
+        ====================================================== */}
 
-        <Card
-          className="
-            bg-white
-            p-12
-            text-center
-            shadow-sm
-            dark:bg-[#1f1f38]
-          "
-        >
+        {successMessage && (
           <div
             className="
-              mx-auto
               flex
-              size-12
+              items-start
+              gap-3
+              rounded-2xl
+              border
+              border-emerald-200
+              bg-emerald-50
+              p-4
+              dark:border-emerald-500/20
+              dark:bg-emerald-500/10
+            "
+          >
+            <CheckCircle2
+              className="
+                mt-0.5
+                size-5
+                shrink-0
+                text-emerald-500
+              "
+            />
+
+            <p
+              className="
+                text-sm
+                text-emerald-700
+                dark:text-emerald-300
+              "
+            >
+              {successMessage}
+            </p>
+          </div>
+        )}
+
+        {/* ======================================================
+            ERREUR RÉCLAMATIONS
+        ====================================================== */}
+
+        {claimsError && (
+          <div
+            className="
+              flex
+              items-start
+              gap-3
+              rounded-2xl
+              border
+              border-amber-200
+              bg-amber-50
+              p-4
+              dark:border-amber-500/20
+              dark:bg-amber-500/10
+            "
+          >
+            <AlertCircle
+              className="
+                mt-0.5
+                size-5
+                shrink-0
+                text-amber-500
+              "
+            />
+
+            <p
+              className="
+                text-sm
+                text-amber-700
+                dark:text-amber-300
+              "
+            >
+              {claimsError}
+            </p>
+          </div>
+        )}
+
+        {/* ======================================================
+            CHARGEMENT
+        ====================================================== */}
+
+        {loading ? (
+          <div
+            className="
+              flex
+              h-64
               items-center
               justify-center
-              rounded-full
-              bg-slate-100
-              text-slate-400
-              dark:bg-white/5
             "
           >
-            <Award className="size-6" />
+            <Spinner />
           </div>
+        ) : error ? (
 
-          <h3
+          /* ====================================================
+             ERREUR CERTIFICATS
+          ==================================================== */
+
+          <Card
             className="
-              mt-4
-              font-bold
-              text-slate-900
-              dark:text-white
+              flex
+              h-64
+              flex-col
+              items-center
+              justify-center
+              gap-4
+              bg-white
+              p-8
+              text-center
+              shadow-sm
+              dark:bg-[#1f1f38]
             "
           >
-            Aucun certificat pour le moment
-          </h3>
+            <div
+              className="
+                flex
+                size-12
+                items-center
+                justify-center
+                rounded-full
+                bg-red-500/10
+                text-red-500
+              "
+            >
+              <AlertCircle className="size-6" />
+            </div>
 
-          <p
-            className="
-              mx-auto
-              mt-1
-              max-w-sm
-              text-sm
-              text-slate-500
-              dark:text-slate-400
-            "
-          >
-            Votre certificat apparaîtra ici une fois vos projets
-            validés à 80 % et le document généré.
-          </p>
-        </Card>
+            <p
+              className="
+                text-sm
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+              {error}
+            </p>
 
-      ) : (
-
-        /* ======================================================
-           LISTE
-        ====================================================== */
-
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-4
-            md:grid-cols-2
-            xl:grid-cols-3
-          "
-        >
-
-          {certificates.map((cert) => {
-
-            const normalizedStatus =
-              normalizeStatus(cert.status)
-
-            const status =
-              STATUS_CONFIG[normalizedStatus] ?? {
-                label: cert.status,
-                className:
-                  'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300',
+            <Button
+              onClick={
+                handleRefresh
               }
+              variant="outline"
+              className="gap-2"
+            >
+              <RefreshCw className="size-4" />
 
-            const isSent =
-              normalizedStatus === 'ENVOYE' ||
-              normalizedStatus === 'SENT'
+              Réessayer
+            </Button>
+          </Card>
 
-            const existingClaim =
-              claimsByCertificate.get(cert.id)
+        ) : certificates.length ===
+          0 ? (
 
-            const hasClaim =
-              Boolean(existingClaim)
+          /* ====================================================
+             AUCUN CERTIFICAT
+          ==================================================== */
 
-            const isClaimResolved =
-              existingClaim?.status === 'resolved'
+          <Card
+            className="
+              bg-white
+              p-12
+              text-center
+              shadow-sm
+              dark:bg-[#1f1f38]
+            "
+          >
+            <div
+              className="
+                mx-auto
+                flex
+                size-12
+                items-center
+                justify-center
+                rounded-full
+                bg-slate-100
+                text-slate-400
+                dark:bg-white/5
+              "
+            >
+              <Award className="size-6" />
+            </div>
 
-            const isClaimPending =
-              existingClaim?.status === 'pending'
+            <h3
+              className="
+                mt-4
+                font-bold
+                text-slate-900
+                dark:text-white
+              "
+            >
+              Aucun certificat pour
+              le moment
+            </h3>
 
-            const isClaimInProgress =
-              existingClaim?.status === 'in_progress'
+            <p
+              className="
+                mx-auto
+                mt-1
+                max-w-sm
+                text-sm
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+              Votre certificat
+              apparaîtra ici une fois
+              vos projets validés et le
+              document généré.
+            </p>
+          </Card>
 
-            const isClaimRejected =
-              existingClaim?.status === 'rejected'
+        ) : (
 
-            /*
-             * IMPORTANT :
-             *
-             * Le téléchargement dépend uniquement
-             * de cert.url.
-             *
-             * Une réclamation ne doit JAMAIS masquer
-             * le téléchargement si le certificat est disponible.
-             */
-            const hasCertificateFile =
-              Boolean(cert.url)
+          /* ====================================================
+             LISTE DES CERTIFICATS
+          ==================================================== */
 
-            /*
-             * La réclamation est possible si :
-             *
-             * - le certificat n'est pas disponible
-             * - aucune réclamation active n'existe
-             * - ou la dernière réclamation a été rejetée
-             *
-             * Si le certificat est déjà disponible,
-             * l'apprenant n'a normalement plus besoin
-             * de réclamer le certificat.
-             */
-            const canClaim =
-              !hasCertificateFile &&
-              (!hasClaim || isClaimRejected)
+          <div
+            className="
+              grid
+              grid-cols-1
+              gap-4
+              md:grid-cols-2
+              xl:grid-cols-3
+            "
+          >
+            {certificates.map(
+              (cert) => {
 
-            return (
-              <Card
-                key={cert.id}
-                className="
-                  flex
-                  flex-col
-                  overflow-hidden
-                  rounded-2xl
-                  border-slate-200
-                  bg-white
-                  shadow-sm
-                  transition-shadow
-                  hover:shadow-md
-                  dark:border-white/10
-                  dark:bg-[#1f1f38]
-                "
-              >
+                /* ==================================================
+                   STATUT CERTIFICAT
+                ================================================== */
 
-                {/* ==================================================
-                    HEADER
-                ================================================== */}
+                const normalizedStatus =
+                  normalizeStatus(
+                    cert.status,
+                  )
 
-                <div
-                  className="
-                    flex
-                    items-center
-                    justify-between
-                    border-b
-                    border-slate-100
-                    p-5
-                    dark:border-white/5
-                  "
-                >
+                const status =
+                  STATUS_CONFIG[
+                    normalizedStatus
+                  ] ?? {
+                    label:
+                      cert.status,
+                    className:
+                      'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300',
+                  }
 
-                  <div
+                const isSent =
+                  normalizedStatus ===
+                    'ENVOYE' ||
+                  normalizedStatus ===
+                    'SENT'
+
+                const isPending =
+                  normalizedStatus ===
+                    'EN_ATTENTE' ||
+                  normalizedStatus ===
+                    'PENDING'
+
+                const isGenerated =
+                  normalizedStatus ===
+                  'GENERATED'
+
+                const isRevoked =
+                  normalizedStatus ===
+                  'REVOKED'
+
+                /* ==================================================
+                   RÉCLAMATION
+                ================================================== */
+
+                const existingClaim =
+                  claimsByCertificate.get(
+                    cert.id,
+                  )
+
+                const hasClaim =
+                  Boolean(
+                    existingClaim,
+                  )
+
+                const isClaimPending =
+                  existingClaim?.status ===
+                  'pending'
+
+                const isClaimInProgress =
+                  existingClaim?.status ===
+                  'in_progress'
+
+                const isClaimResolved =
+                  existingClaim?.status ===
+                  'resolved'
+
+                const isClaimRejected =
+                  existingClaim?.status ===
+                  'rejected'
+
+                /* ==================================================
+                   ACTIONS
+                ================================================== */
+
+                /*
+                 * Le téléchargement dépend du statut
+                 * du certificat ET de l'URL.
+                 */
+
+                const canDownload =
+                  isSent &&
+                  Boolean(cert.url)
+
+                /*
+                 * La réclamation est possible uniquement
+                 * lorsque le certificat est EN_ATTENTE.
+                 *
+                 * Si une réclamation existe déjà et n'est
+                 * pas rejetée, on bloque une nouvelle demande.
+                 */
+
+                const canClaim =
+                  isPending &&
+                  (
+                    !existingClaim ||
+                    isClaimRejected
+                  )
+
+                return (
+                  <Card
+                    key={cert.id}
                     className="
                       flex
-                      size-11
-                      items-center
-                      justify-center
-                      rounded-xl
-                      bg-[#FF6B0B]/10
-                      text-[#FF6B0B]
+                      flex-col
+                      overflow-hidden
+                      rounded-2xl
+                      border-slate-200
+                      bg-white
+                      shadow-sm
+                      transition-shadow
+                      hover:shadow-md
+                      dark:border-white/10
+                      dark:bg-[#1f1f38]
                     "
                   >
-                    <Award className="size-6" />
-                  </div>
 
-                  <span
-                    className={`
-                      inline-flex
-                      items-center
-                      gap-1.5
-                      rounded-full
-                      px-3
-                      py-1
-                      text-xs
-                      font-semibold
-                      ${status.className}
-                    `}
-                  >
-                    {isSent ? (
-                      <CheckCircle2 className="size-3.5" />
-                    ) : (
-                      <Clock className="size-3.5" />
-                    )}
+                    {/* ==================================================
+                        HEADER CARD
+                    ================================================== */}
 
-                    {status.label}
-                  </span>
-
-                </div>
-
-                {/* ==================================================
-                    CONTENU
-                ================================================== */}
-
-                <div className="flex flex-1 flex-col gap-4 p-5">
-
-                  {/* PROGRAMME / COHORTE */}
-
-                  <div>
-                    <h3
-                      className="
-                        font-bold
-                        text-slate-900
-                        dark:text-white
-                      "
-                    >
-                      {cert.program_title}
-                    </h3>
-
-                    <p
-                      className="
-                        mt-1
-                        flex
-                        items-center
-                        gap-1.5
-                        text-sm
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
-                      <GraduationCap className="size-4 text-slate-400" />
-
-                      {cert.cohort_name}
-                    </p>
-                  </div>
-
-                  {/* DATES */}
-
-                  <div
-                    className="
-                      space-y-1.5
-                      text-xs
-                      text-slate-500
-                      dark:text-slate-400
-                    "
-                  >
-                    <p className="flex items-center gap-1.5">
-
-                      <CalendarDays className="size-3.5 text-slate-400" />
-
-                      Généré le{' '}
-                      {formatDate(cert.date_generation)}
-
-                    </p>
-
-                    {isSent && (
-                      <p className="flex items-center gap-1.5">
-
-                        <CheckCircle2 className="size-3.5 text-slate-400" />
-
-                        Envoyé le{' '}
-                        {formatDate(cert.date_envoi)}
-
-                      </p>
-                    )}
-                  </div>
-
-                  {/* ==================================================
-                      RÉCLAMATION
-                  ================================================== */}
-
-                  {hasClaim && existingClaim && (
                     <div
                       className="
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-slate-50
-                        p-3
-                        dark:border-white/10
-                        dark:bg-white/5
+                        flex
+                        items-center
+                        justify-between
+                        border-b
+                        border-slate-100
+                        p-5
+                        dark:border-white/5
                       "
                     >
 
                       <div
                         className="
                           flex
+                          size-11
                           items-center
-                          justify-between
-                          gap-2
+                          justify-center
+                          rounded-xl
+                          bg-[#FF6B0B]/10
+                          text-[#FF6B0B]
                         "
                       >
-
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-2
-                            text-xs
-                            font-medium
-                            text-slate-600
-                            dark:text-slate-300
-                          "
-                        >
-                          <MessageSquare className="size-3.5" />
-
-                          Ma réclamation
-                        </div>
-
-                        <span
-                          className={`
-                            rounded-full
-                            px-2
-                            py-1
-                            text-[10px]
-                            font-semibold
-                            ${
-                              CLAIM_STATUS_CONFIG[
-                                existingClaim.status
-                              ]?.className ??
-                              'bg-slate-100 text-slate-600'
-                            }
-                          `}
-                        >
-                          {CLAIM_STATUS_CONFIG[
-                            existingClaim.status
-                          ]?.label ??
-                            existingClaim.status}
-                        </span>
-
+                        <Award className="size-6" />
                       </div>
 
-                      {existingClaim.admin_response && (
-                        <div
-                          className="
-                            mt-2
-                            border-t
-                            border-slate-200
-                            pt-2
-                            dark:border-white/10
-                          "
-                        >
-                          <p
-                            className="
-                              text-xs
-                              leading-5
-                              text-slate-500
-                              dark:text-slate-400
-                            "
-                          >
-                            <span className="font-medium">
-                              Réponse :
-                            </span>{' '}
+                      <span
+                        className={`
+                          inline-flex
+                          items-center
+                          gap-1.5
+                          rounded-full
+                          px-3
+                          py-1
+                          text-xs
+                          font-semibold
+                          ${status.className}
+                        `}
+                      >
+                        {isSent ? (
+                          <CheckCircle2 className="size-3.5" />
+                        ) : isRevoked ? (
+                          <AlertCircle className="size-3.5" />
+                        ) : (
+                          <Clock className="size-3.5" />
+                        )}
 
-                            {existingClaim.admin_response}
-                          </p>
-                        </div>
-                      )}
+                        {status.label}
+                      </span>
 
                     </div>
-                  )}
-
-                  {/* ==================================================
-                      ACTIONS
-                  ================================================== */}
-
-                  <div className="mt-auto space-y-2 pt-2">
 
                     {/* ==================================================
-                        1. TÉLÉCHARGEMENT
-                        
-                        IMPORTANT :
-                        Le bouton dépend uniquement de cert.url.
-                        Il reste donc visible même si une réclamation
-                        existe ou a été traitée.
+                        CONTENU CARD
                     ================================================== */}
 
-                    {hasCertificateFile && (
-                      <a
-                        href={cert.url!}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block"
-                      >
-                        <Button
+                    <div
+                      className="
+                        flex
+                        flex-1
+                        flex-col
+                        gap-4
+                        p-5
+                      "
+                    >
+
+                      {/* PROGRAMME */}
+
+                      <div>
+                        <h3
                           className="
-                            w-full
-                            rounded-xl
-                            bg-[#FF6B0B]
-                            text-white
-                            shadow-sm
-                            shadow-[#FF6B0B]/20
-                            transition-all
-                            hover:-translate-y-0.5
-                            hover:bg-[#e85f08]
-                            hover:shadow-md
+                            font-bold
+                            text-slate-900
+                            dark:text-white
                           "
-                          size="sm"
                         >
-                          <Download className="mr-2 size-4" />
+                          {cert.program_title}
+                        </h3>
 
-                          Télécharger le certificat
-                        </Button>
-                      </a>
-                    )}
-
-                    {/* ==================================================
-                        2. RÉCLAMATION
-                        
-                        Seulement si le certificat n'est pas disponible.
-                    ================================================== */}
-
-                    {!hasCertificateFile && canClaim && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() =>
-                          openClaimModal(cert)
-                        }
-                        className="
-                          w-full
-                          rounded-xl
-                          bg-[#FF6B0B]
-                          font-semibold
-                          text-white
-                          shadow-sm
-                          shadow-[#FF6B0B]/20
-                          transition-colors
-                          hover:bg-[#e85f08]
-                        "
-                      >
-                        <MessageSquare className="mr-2 size-4" />
-
-                        {isClaimRejected
-                          ? 'Faire une nouvelle réclamation'
-                          : 'Réclamer mon certificat'}
-                      </Button>
-                    )}
-
-                    {/* ==================================================
-                        3. RÉCLAMATION EN ATTENTE
-                    ================================================== */}
-
-                    {!hasCertificateFile &&
-                      isClaimPending && (
-                        <div
+                        <p
                           className="
+                            mt-1
                             flex
-                            w-full
                             items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            bg-amber-500/10
-                            p-3
-                            text-center
-                            text-xs
-                            font-medium
-                            text-amber-600
-                            dark:text-amber-400
-                          "
-                        >
-                          <Clock className="size-4" />
-
-                          Réclamation en attente
-                        </div>
-                      )}
-
-                    {/* ==================================================
-                        4. RÉCLAMATION EN COURS
-                    ================================================== */}
-
-                    {!hasCertificateFile &&
-                      isClaimInProgress && (
-                        <div
-                          className="
-                            flex
-                            w-full
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            bg-sky-500/10
-                            p-3
-                            text-center
-                            text-xs
-                            font-medium
-                            text-sky-600
-                            dark:text-sky-400
-                          "
-                        >
-                          <Loader2 className="size-4 animate-spin" />
-
-                          Réclamation en cours de traitement
-                        </div>
-                      )}
-
-                    {/* ==================================================
-                        5. RÉCLAMATION RÉSOLUE
-                    ================================================== */}
-
-                    {!hasCertificateFile &&
-                      isClaimResolved && (
-                        <div
-                          className="
-                            flex
-                            w-full
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            bg-emerald-500/10
-                            p-3
-                            text-center
-                            text-xs
-                            font-medium
-                            text-emerald-600
-                            dark:text-emerald-400
-                          "
-                        >
-                          <CheckCircle2 className="size-4" />
-
-                          Réclamation traitée
-                        </div>
-                      )}
-
-                    {/* ==================================================
-                        6. DOCUMENT NON DISPONIBLE
-                    ================================================== */}
-
-                    {!hasCertificateFile &&
-                      !hasClaim && (
-                        <div
-                          className="
-                            w-full
-                            rounded-xl
-                            bg-slate-50
-                            p-3
-                            text-center
-                            text-xs
+                            gap-1.5
+                            text-sm
                             text-slate-500
-                            dark:bg-white/5
                             dark:text-slate-400
                           "
                         >
-                          <FileDown
+                          <GraduationCap
                             className="
-                              mx-auto
-                              mb-1
                               size-4
+                              text-slate-400
                             "
                           />
 
-                          Le document sera disponible une fois envoyé
-                        </div>
-                      )}
+                          {cert.cohort_name}
+                        </p>
+                      </div>
 
-                  </div>
+                      {/* DATES */}
 
-                </div>
+                      <div
+                        className="
+                          space-y-1.5
+                          text-xs
+                          text-slate-500
+                          dark:text-slate-400
+                        "
+                      >
+                        {cert.date_generation && (
+                          <p
+                            className="
+                              flex
+                              items-center
+                              gap-1.5
+                            "
+                          >
+                            <CalendarDays
+                              className="
+                                size-3.5
+                                text-slate-400
+                              "
+                            />
 
-              </Card>
-            )
-          })}
+                            Généré le{' '}
 
-        </div>
-      )}
+                            {formatDate(
+                              cert.date_generation,
+                            )}
+                          </p>
+                        )}
 
-      {/* ==========================================================
-          MODAL RÉCLAMATION
-      ========================================================== */}
+                        {isSent &&
+                          cert.date_envoi && (
+                            <p
+                              className="
+                                flex
+                                items-center
+                                gap-1.5
+                              "
+                            >
+                              <CheckCircle2
+                                className="
+                                  size-3.5
+                                  text-slate-400
+                                "
+                              />
 
-      {selectedCertificate && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-black/50
-            p-4
-            backdrop-blur-sm
-          "
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeClaimModal()
-            }
-          }}
-        >
+                              Envoyé le{' '}
 
+                              {formatDate(
+                                cert.date_envoi,
+                              )}
+                            </p>
+                          )}
+                      </div>
+
+                      {/* ==================================================
+                          INFORMATIONS RÉCLAMATION
+                      ================================================== */}
+
+                      {hasClaim &&
+                        existingClaim && (
+                          <div
+                            className="
+                              rounded-xl
+                              border
+                              border-slate-200
+                              bg-slate-50
+                              p-3
+                              dark:border-white/10
+                              dark:bg-white/5
+                            "
+                          >
+
+                            <div
+                              className="
+                                flex
+                                items-center
+                                justify-between
+                                gap-2
+                              "
+                            >
+
+                              <div
+                                className="
+                                  flex
+                                  items-center
+                                  gap-2
+                                  text-xs
+                                  font-medium
+                                  text-slate-600
+                                  dark:text-slate-300
+                                "
+                              >
+                                <MessageSquare className="size-3.5" />
+
+                                Ma réclamation
+                              </div>
+
+                              <span
+                                className={`
+                                  rounded-full
+                                  px-2
+                                  py-1
+                                  text-[10px]
+                                  font-semibold
+                                  ${
+                                    CLAIM_STATUS_CONFIG[
+                                      existingClaim.status
+                                    ]?.className ??
+                                    'bg-slate-100 text-slate-600'
+                                  }
+                                `}
+                              >
+                                {
+                                  CLAIM_STATUS_CONFIG[
+                                    existingClaim.status
+                                  ]?.label
+                                ??
+                                  existingClaim.status
+                                }
+                              </span>
+
+                            </div>
+
+                            {existingClaim.admin_response && (
+                              <div
+                                className="
+                                  mt-2
+                                  border-t
+                                  border-slate-200
+                                  pt-2
+                                  dark:border-white/10
+                                "
+                              >
+                                <p
+                                  className="
+                                    text-xs
+                                    leading-5
+                                    text-slate-500
+                                    dark:text-slate-400
+                                  "
+                                >
+                                  <span className="font-medium">
+                                    Réponse :
+                                  </span>{' '}
+
+                                  {
+                                    existingClaim.admin_response
+                                  }
+                                </p>
+                              </div>
+                            )}
+
+                          </div>
+                        )}
+
+                      {/* ==================================================
+                          ACTIONS
+                      ================================================== */}
+
+                      <div
+                        className="
+                          mt-auto
+                          space-y-2
+                          pt-2
+                        "
+                      >
+
+                        {/* ==================================================
+                            CERTIFICAT ENVOYÉ
+                            → TÉLÉCHARGEMENT
+                        ================================================== */}
+
+                        {canDownload && (
+                          <a
+                            href={
+                              cert.url!
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                          >
+                            <Button
+                              className="
+                                w-full
+                                rounded-xl
+                                bg-[#FF6B0B]
+                                text-white
+                                shadow-sm
+                                shadow-[#FF6B0B]/20
+                                transition-all
+                                hover:-translate-y-0.5
+                                hover:bg-[#e85f08]
+                                hover:shadow-md
+                              "
+                              size="sm"
+                            >
+                              <Download
+                                className="
+                                  mr-2
+                                  size-4
+                                "
+                              />
+
+                              Télécharger le
+                              certificat
+                            </Button>
+                          </a>
+                        )}
+
+                        {/* ==================================================
+                            CERTIFICAT EN ATTENTE
+                            → RÉCLAMATION
+                        ================================================== */}
+
+                        {canClaim && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() =>
+                              openClaimModal(
+                                cert,
+                              )
+                            }
+                            className="
+                              w-full
+                              rounded-xl
+                              bg-[#FF6B0B]
+                              font-semibold
+                              text-white
+                              shadow-sm
+                              shadow-[#FF6B0B]/20
+                              transition-colors
+                              hover:bg-[#e85f08]
+                            "
+                          >
+                            <MessageSquare
+                              className="
+                                mr-2
+                                size-4
+                              "
+                            />
+
+                            {isClaimRejected
+                              ? 'Faire une nouvelle réclamation'
+                              : 'Réclamer mon certificat'}
+                          </Button>
+                        )}
+
+                        {/* ==================================================
+                            RÉCLAMATION EN ATTENTE
+                        ================================================== */}
+
+                        {isPending &&
+                          isClaimPending && (
+                            <div
+                              className="
+                                flex
+                                w-full
+                                items-center
+                                justify-center
+                                gap-2
+                                rounded-xl
+                                bg-amber-500/10
+                                p-3
+                                text-center
+                                text-xs
+                                font-medium
+                                text-amber-600
+                                dark:text-amber-400
+                              "
+                            >
+                              <Clock className="size-4" />
+
+                              Réclamation en attente
+                            </div>
+                          )}
+
+                        {/* ==================================================
+                            RÉCLAMATION EN COURS
+                        ================================================== */}
+
+                        {isPending &&
+                          isClaimInProgress && (
+                            <div
+                              className="
+                                flex
+                                w-full
+                                items-center
+                                justify-center
+                                gap-2
+                                rounded-xl
+                                bg-sky-500/10
+                                p-3
+                                text-center
+                                text-xs
+                                font-medium
+                                text-sky-600
+                                dark:text-sky-400
+                              "
+                            >
+                              <Loader2
+                                className="
+                                  size-4
+                                  animate-spin
+                                "
+                              />
+
+                              Réclamation en cours
+                              de traitement
+                            </div>
+                          )}
+
+                        {/* ==================================================
+                            RÉCLAMATION RÉSOLUE
+                        ================================================== */}
+
+                        {isPending &&
+                          isClaimResolved && (
+                            <div
+                              className="
+                                flex
+                                w-full
+                                items-center
+                                justify-center
+                                gap-2
+                                rounded-xl
+                                bg-emerald-500/10
+                                p-3
+                                text-center
+                                text-xs
+                                font-medium
+                                text-emerald-600
+                                dark:text-emerald-400
+                              "
+                            >
+                              <CheckCircle2 className="size-4" />
+
+                              Réclamation traitée
+                            </div>
+                          )}
+
+                        {/* ==================================================
+                            CERTIFICAT GÉNÉRÉ
+                        ================================================== */}
+
+                        {isGenerated && (
+                          <div
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              justify-center
+                              gap-2
+                              rounded-xl
+                              bg-sky-500/10
+                              p-3
+                              text-center
+                              text-xs
+                              font-medium
+                              text-sky-600
+                              dark:text-sky-400
+                            "
+                          >
+                            <Clock className="size-4" />
+
+                            Certificat généré,
+                            en attente d'envoi
+                          </div>
+                        )}
+
+                        {/* ==================================================
+                            CERTIFICAT RÉVOQUÉ
+                        ================================================== */}
+
+                        {isRevoked && (
+                          <div
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              justify-center
+                              gap-2
+                              rounded-xl
+                              bg-red-500/10
+                              p-3
+                              text-center
+                              text-xs
+                              font-medium
+                              text-red-600
+                              dark:text-red-400
+                            "
+                          >
+                            <AlertCircle className="size-4" />
+
+                            Ce certificat a été
+                            révoqué
+                          </div>
+                        )}
+
+                        {/* ==================================================
+                            CERTIFICAT EN ATTENTE
+                            SANS RÉCLAMATION
+                        ================================================== */}
+
+                        {isPending &&
+                          !hasClaim && (
+                            <p
+                              className="
+                                text-center
+                                text-[11px]
+                                text-slate-400
+                              "
+                            >
+                              Votre certificat est
+                              encore en attente.
+                            </p>
+                          )}
+
+                      </div>
+
+                    </div>
+                  </Card>
+                )
+              },
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            MODAL RÉCLAMATION
+        ======================================================== */}
+
+        {selectedCertificate && (
           <div
             className="
-              relative
-              w-full
-              max-w-lg
-              overflow-hidden
-              rounded-3xl
-              border
-              border-slate-200
-              bg-white
-              shadow-2xl
-              dark:border-white/10
-              dark:bg-[#1f1f38]
+              fixed
+              inset-0
+              z-50
+              flex
+              items-center
+              justify-center
+              bg-black/50
+              p-4
+              backdrop-blur-sm
             "
+            onMouseDown={(
+              event,
+            ) => {
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                closeClaimModal()
+              }
+            }}
           >
-
-            {/* ======================================================
-                HEADER MODAL
-            ====================================================== */}
 
             <div
               className="
-                flex
-                items-center
-                justify-between
-                border-b
-                border-slate-100
-                p-5
+                relative
+                w-full
+                max-w-lg
+                overflow-hidden
+                rounded-3xl
+                border
+                border-slate-200
+                bg-white
+                shadow-2xl
                 dark:border-white/10
+                dark:bg-[#1f1f38]
               "
             >
 
-              <div className="flex items-center gap-3">
-
-                <div
-                  className="
-                    flex
-                    size-10
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-[#FF6B0B]/10
-                    text-[#FF6B0B]
-                  "
-                >
-                  <MessageSquare className="size-5" />
-                </div>
-
-                <div>
-
-                  <h2
-                    className="
-                      font-bold
-                      text-slate-900
-                      dark:text-white
-                    "
-                  >
-                    Réclamer mon certificat
-                  </h2>
-
-                  <p
-                    className="
-                      text-xs
-                      text-slate-500
-                      dark:text-slate-400
-                    "
-                  >
-                    Envoyez une demande à l'équipe administrative.
-                  </p>
-
-                </div>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={closeClaimModal}
-                disabled={submittingClaim}
-                className="
-                  flex
-                  size-9
-                  items-center
-                  justify-center
-                  rounded-xl
-                  text-slate-400
-                  transition-colors
-                  hover:bg-slate-100
-                  hover:text-slate-700
-                  disabled:cursor-not-allowed
-                  dark:hover:bg-white/10
-                  dark:hover:text-white
-                "
-                aria-label="Fermer"
-              >
-                <X className="size-5" />
-              </button>
-
-            </div>
-
-            {/* ======================================================
-                CONTENU MODAL
-            ====================================================== */}
-
-            <div className="space-y-5 p-5">
-
-              {/* CERTIFICAT */}
+              {/* ==================================================
+                  HEADER MODAL
+              ================================================== */}
 
               <div
                 className="
-                  rounded-2xl
-                  border
-                  border-slate-200
-                  bg-slate-50
-                  p-4
+                  flex
+                  items-center
+                  justify-between
+                  border-b
+                  border-slate-100
+                  p-5
                   dark:border-white/10
-                  dark:bg-white/5
                 "
               >
 
@@ -1326,7 +1653,6 @@ const MesCertificatsPage: React.FC = () => {
                     className="
                       flex
                       size-10
-                      shrink-0
                       items-center
                       justify-center
                       rounded-xl
@@ -1334,134 +1660,278 @@ const MesCertificatsPage: React.FC = () => {
                       text-[#FF6B0B]
                     "
                   >
-                    <Award className="size-5" />
+                    <MessageSquare className="size-5" />
                   </div>
 
-                  <div className="min-w-0">
-
-                    <p
+                  <div>
+                    <h2
                       className="
-                        truncate
-                        font-semibold
+                        font-bold
                         text-slate-900
                         dark:text-white
                       "
                     >
-                      {selectedCertificate.program_title}
-                    </p>
+                      Réclamer mon certificat
+                    </h2>
 
                     <p
                       className="
-                        mt-0.5
-                        flex
-                        items-center
-                        gap-1
                         text-xs
                         text-slate-500
                         dark:text-slate-400
                       "
                     >
-                      <GraduationCap className="size-3.5" />
-
-                      {selectedCertificate.cohort_name}
+                      Envoyez une demande à
+                      l'équipe administrative.
                     </p>
+                  </div>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    closeClaimModal
+                  }
+                  disabled={
+                    submittingClaim
+                  }
+                  className="
+                    flex
+                    size-9
+                    items-center
+                    justify-center
+                    rounded-xl
+                    text-slate-400
+                    transition-colors
+                    hover:bg-slate-100
+                    hover:text-slate-700
+                    disabled:cursor-not-allowed
+                    dark:hover:bg-white/10
+                    dark:hover:text-white
+                  "
+                  aria-label="Fermer"
+                >
+                  <X className="size-5" />
+                </button>
+
+              </div>
+
+              {/* ==================================================
+                  CONTENU MODAL
+              ================================================== */}
+
+              <div className="space-y-5 p-5">
+
+                {/* CERTIFICAT */}
+
+                <div
+                  className="
+                    rounded-2xl
+                    border
+                    border-slate-200
+                    bg-slate-50
+                    p-4
+                    dark:border-white/10
+                    dark:bg-white/5
+                  "
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div
+                      className="
+                        flex
+                        size-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-[#FF6B0B]/10
+                        text-[#FF6B0B]
+                      "
+                    >
+                      <Award className="size-5" />
+                    </div>
+
+                    <div className="min-w-0">
+
+                      <p
+                        className="
+                          truncate
+                          font-semibold
+                          text-slate-900
+                          dark:text-white
+                        "
+                      >
+                        {
+                          selectedCertificate.program_title
+                        }
+                      </p>
+
+                      <p
+                        className="
+                          mt-0.5
+                          flex
+                          items-center
+                          gap-1
+                          text-xs
+                          text-slate-500
+                          dark:text-slate-400
+                        "
+                      >
+                        <GraduationCap className="size-3.5" />
+
+                        {
+                          selectedCertificate.cohort_name
+                        }
+                      </p>
+
+                    </div>
 
                   </div>
 
                 </div>
 
-              </div>
+                {/* MESSAGE */}
 
-              {/* MESSAGE */}
+                <div>
 
-              <div>
+                  <label
+                    htmlFor="claim-message"
+                    className="
+                      mb-2
+                      block
+                      text-sm
+                      font-medium
+                      text-slate-700
+                      dark:text-slate-200
+                    "
+                  >
+                    Message
+                  </label>
 
-                <label
-                  htmlFor="claim-message"
-                  className="
-                    mb-2
-                    block
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    dark:text-slate-200
-                  "
-                >
-                  Message
-                </label>
+                  <textarea
+                    id="claim-message"
+                    value={
+                      claimMessage
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setClaimMessage(
+                        event.target
+                          .value,
+                      )
+                    }
+                    disabled={
+                      submittingClaim
+                    }
+                    rows={5}
+                    placeholder="Expliquez brièvement pourquoi vous réclamez votre certificat..."
+                    className="
+                      w-full
+                      resize-none
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-slate-50
+                      p-3
+                      text-sm
+                      text-slate-900
+                      outline-none
+                      transition-all
+                      placeholder:text-slate-400
+                      focus:border-[#FF6B0B]/60
+                      focus:bg-white
+                      focus:ring-4
+                      focus:ring-[#FF6B0B]/10
+                      disabled:cursor-not-allowed
+                      disabled:opacity-60
+                      dark:border-white/10
+                      dark:bg-white/5
+                      dark:text-white
+                      dark:placeholder:text-slate-600
+                      dark:focus:bg-white/[0.08]
+                    "
+                  />
 
-                <textarea
-                  id="claim-message"
-                  value={claimMessage}
-                  onChange={(event) =>
-                    setClaimMessage(event.target.value)
-                  }
-                  disabled={submittingClaim}
-                  rows={5}
-                  placeholder="Expliquez brièvement pourquoi vous réclamez votre certificat..."
-                  className="
-                    w-full
-                    resize-none
-                    rounded-xl
-                    border
-                    border-slate-200
-                    bg-slate-50
-                    p-3
-                    text-sm
-                    text-slate-900
-                    outline-none
-                    transition-all
-                    placeholder:text-slate-400
-                    focus:border-[#FF6B0B]/60
-                    focus:bg-white
-                    focus:ring-4
-                    focus:ring-[#FF6B0B]/10
-                    disabled:cursor-not-allowed
-                    disabled:opacity-60
-                    dark:border-white/10
-                    dark:bg-white/5
-                    dark:text-white
-                    dark:placeholder:text-slate-600
-                    dark:focus:bg-white/[0.08]
-                  "
-                />
+                  <p
+                    className="
+                      mt-1.5
+                      text-right
+                      text-xs
+                      text-slate-400
+                    "
+                  >
+                    {
+                      claimMessage.length
+                    }{' '}
+                    caractères
+                  </p>
 
-                <p
-                  className="
-                    mt-1.5
-                    text-right
-                    text-xs
-                    text-slate-400
-                  "
-                >
-                  {claimMessage.length} caractères
-                </p>
+                </div>
 
-              </div>
+                {/* ERREUR */}
 
-              {/* ERREUR */}
+                {claimSubmitError && (
+                  <div
+                    className="
+                      flex
+                      items-start
+                      gap-2
+                      rounded-xl
+                      border
+                      border-red-200
+                      bg-red-50
+                      p-3
+                      dark:border-red-500/20
+                      dark:bg-red-500/10
+                    "
+                  >
+                    <AlertCircle
+                      className="
+                        mt-0.5
+                        size-4
+                        shrink-0
+                        text-red-500
+                      "
+                    />
 
-              {claimSubmitError && (
+                    <p
+                      className="
+                        text-xs
+                        leading-5
+                        text-red-600
+                        dark:text-red-300
+                      "
+                    >
+                      {
+                        claimSubmitError
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {/* INFORMATION */}
+
                 <div
                   className="
                     flex
                     items-start
                     gap-2
                     rounded-xl
-                    border
-                    border-red-200
-                    bg-red-50
+                    bg-slate-50
                     p-3
-                    dark:border-red-500/20
-                    dark:bg-red-500/10
+                    dark:bg-white/5
                   "
                 >
-                  <AlertCircle
+                  <CircleDot
                     className="
                       mt-0.5
                       size-4
                       shrink-0
-                      text-red-500
+                      text-[#FF6B0B]
                     "
                   />
 
@@ -1469,137 +1939,110 @@ const MesCertificatsPage: React.FC = () => {
                     className="
                       text-xs
                       leading-5
-                      text-red-600
-                      dark:text-red-300
+                      text-slate-500
+                      dark:text-slate-400
                     "
                   >
-                    {claimSubmitError}
+                    Votre réclamation sera
+                    transmise à
+                    l'administration. Vous
+                    pourrez suivre son
+                    traitement depuis cette
+                    page.
                   </p>
                 </div>
-              )}
 
-              {/* INFORMATION */}
+              </div>
+
+              {/* ==================================================
+                  FOOTER MODAL
+              ================================================== */}
 
               <div
                 className="
                   flex
-                  items-start
+                  flex-col-reverse
                   gap-2
-                  rounded-xl
-                  bg-slate-50
-                  p-3
-                  dark:bg-white/5
-                "
-              >
-                <CircleDot
-                  className="
-                    mt-0.5
-                    size-4
-                    shrink-0
-                    text-[#FF6B0B]
-                  "
-                />
-
-                <p
-                  className="
-                    text-xs
-                    leading-5
-                    text-slate-500
-                    dark:text-slate-400
-                  "
-                >
-                  Votre réclamation sera transmise à
-                  l'administration. Vous pourrez suivre son
-                  traitement depuis cette page.
-                </p>
-              </div>
-
-            </div>
-
-            {/* ======================================================
-                FOOTER MODAL
-            ====================================================== */}
-
-            <div
-              className="
-                flex
-                flex-col-reverse
-                gap-2
-                border-t
-                border-slate-100
-                p-5
-                sm:flex-row
-                sm:justify-end
-                dark:border-white/10
-              "
-            >
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeClaimModal}
-                disabled={submittingClaim}
-                className="
-                  rounded-xl
-                  border-slate-200
+                  border-t
+                  border-slate-100
+                  p-5
+                  sm:flex-row
+                  sm:justify-end
                   dark:border-white/10
                 "
               >
-                Annuler
-              </Button>
 
-              <Button
-                type="button"
-                onClick={handleSubmitClaim}
-                disabled={
-                  submittingClaim ||
-                  !claimMessage.trim()
-                }
-                className="
-                  rounded-xl
-                  bg-[#FF6B0B]
-                  font-semibold
-                  text-white
-                  shadow-sm
-                  shadow-[#FF6B0B]/20
-                  hover:bg-[#e85f08]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                "
-              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={
+                    closeClaimModal
+                  }
+                  disabled={
+                    submittingClaim
+                  }
+                  className="
+                    rounded-xl
+                    border-slate-200
+                    dark:border-white/10
+                  "
+                >
+                  Annuler
+                </Button>
 
-                {submittingClaim ? (
-                  <>
-                    <Loader2
-                      className="
-                        mr-2
-                        size-4
-                        animate-spin
-                      "
-                    />
+                <Button
+                  type="button"
+                  onClick={
+                    handleSubmitClaim
+                  }
+                  disabled={
+                    submittingClaim ||
+                    !claimMessage.trim()
+                  }
+                  className="
+                    rounded-xl
+                    bg-[#FF6B0B]
+                    font-semibold
+                    text-white
+                    shadow-sm
+                    shadow-[#FF6B0B]/20
+                    hover:bg-[#e85f08]
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                  "
+                >
 
-                    Envoi...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 size-4" />
+                  {submittingClaim ? (
+                    <>
+                      <Loader2
+                        className="
+                          mr-2
+                          size-4
+                          animate-spin
+                        "
+                      />
 
-                    Envoyer la réclamation
-                  </>
-                )}
+                      Envoi...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 size-4" />
 
-              </Button>
+                      Envoyer la réclamation
+                    </>
+                  )}
+
+                </Button>
+
+              </div>
 
             </div>
-
           </div>
+        )}
 
-        </div>
-      )}
-
-    </div>
-  )
-}
+      </div>
+    )
+  }
 
 export default MesCertificatsPage
 

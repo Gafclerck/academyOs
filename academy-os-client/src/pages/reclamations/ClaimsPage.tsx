@@ -2742,3 +2742,4 @@ const DetailItem: React.FC<
 }
 
 export default ClaimsPage
+
