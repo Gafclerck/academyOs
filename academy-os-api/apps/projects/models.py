@@ -2,11 +2,11 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 from apps.programs.models import Program
 
 
-class Project(UUIDModel, TimeStampedModel):
+class Project(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Projet rattaché à un programme de formation.
 
     Représente un travail que les apprenants doivent réaliser.
@@ -50,9 +50,10 @@ class Project(UUIDModel, TimeStampedModel):
         db_table = "projects"
         ordering = ["program", "order", "-created_at"]
         constraints = [
-            # Deux projets ne peuvent pas avoir le même rang dans un même programme.
+            # Deux projets ne peuvent pas avoir le même rang dans un même programme parmi les actifs.
             models.UniqueConstraint(
                 fields=["program", "order"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="unique_project_order_per_program",
             )
         ]

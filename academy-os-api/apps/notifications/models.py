@@ -4,10 +4,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 
 
-class Notification(UUIDModel, TimeStampedModel):
+class Notification(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Notification in-app destinée à un utilisateur.
 
     Système réutilisable : chaque feature crée des notifications via

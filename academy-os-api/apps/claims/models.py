@@ -3,10 +3,10 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 
 
-class Claim(UUIDModel, TimeStampedModel):
+class Claim(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Réclamation d'un apprenant concernant son certificat.
 
     Flux : PENDING → IN_PROGRESS → RESOLVED / REJECTED
@@ -68,7 +68,7 @@ class Claim(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["certificate"],
-                condition=models.Q(status__in=["pending", "in_progress"]),
+                condition=models.Q(status__in=["pending", "in_progress"], deleted_at__isnull=True),
                 name="uniq_active_claim_per_certificate",
             ),
         ]

@@ -6,10 +6,18 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
-from apps.core.models import TimeStampedModel, UUIDModel
+from decimal import Decimal
+
+from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+from apps.core.models import TimeStampedModel, UUIDModel, SoftDeletableModel
 
 
-class EvaluationCriterion(UUIDModel, TimeStampedModel):
+class EvaluationCriterion(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Critère d'évaluation ou compétence associée à un projet.
 
     Définit les éléments sur lesquels un apprenant est noté lors
@@ -54,6 +62,7 @@ class EvaluationCriterion(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["project", "order"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="uniq_criterion_order_per_project",
             ),
         ]
@@ -64,7 +73,7 @@ class EvaluationCriterion(UUIDModel, TimeStampedModel):
         return f"{self.project.title} - {self.title} (max: {self.max_score})"
 
 
-class ProjectAssignment(UUIDModel, TimeStampedModel):
+class ProjectAssignment(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Assignation d'un projet du programme à un apprenant inscrit dans une cohorte."""
 
     class StatusEnum(models.TextChoices):
@@ -105,6 +114,7 @@ class ProjectAssignment(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["enrollment", "project"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="unique_assignment_per_enrollment_and_project",
             )
         ]
@@ -115,7 +125,7 @@ class ProjectAssignment(UUIDModel, TimeStampedModel):
         return f"{self.enrollment.user.email} - {self.project.title} ({self.status})"
 
 
-class Deliverable(UUIDModel, TimeStampedModel):
+class Deliverable(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Livrable soumis par un apprenant pour une assignation de projet (gère les versions/itérations)."""
 
     class StatusEnum(models.TextChoices):
@@ -175,6 +185,7 @@ class Deliverable(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["assignment", "version"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="unique_deliverable_version_per_assignment",
             )
         ]
@@ -204,7 +215,7 @@ class Deliverable(UUIDModel, TimeStampedModel):
         return round(Decimal(str(calculated)), 2)
 
 
-class CriterionScore(UUIDModel, TimeStampedModel):
+class CriterionScore(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Note et appréciation pour un critère spécifique dans une évaluation de livrable."""
 
     class LevelEnum(models.TextChoices):
@@ -247,6 +258,7 @@ class CriterionScore(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["deliverable", "criterion"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="uniq_score_per_deliverable_criterion",
             )
         ]
@@ -255,3 +267,4 @@ class CriterionScore(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"{self.criterion.title} : {self.score} ({self.level})"
+

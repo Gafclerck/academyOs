@@ -7,11 +7,16 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
+from apps.core.models import SoftDeleteQuerySet, AllObjectsManager, DeletedObjectsManager
 
-class UserManager(BaseUserManager):
-    """Manager custom : obligatoire car on remplace `username` par `email`."""
+
+class UserManager(BaseUserManager.from_queryset(SoftDeleteQuerySet)):
+    """Manager custom : gère l'email comme identifiant unique et filtre les utilisateurs non supprimés."""
 
     use_in_migrations = True
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
 
     def _create_user(self, email, password, **extra_fields):
         if not email:
@@ -79,6 +84,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     password_reset_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -87,6 +93,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = UserManager()
+    all_objects = AllObjectsManager()
+    deleted_objects = DeletedObjectsManager()
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []   # email + password déjà requis par le manager ; rien d'autre n'est obligatoire à la création
@@ -95,13 +103,40 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = "users"
         ordering = ["-created_at"]
 
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+    def delete(self, using=None, keep_parents=False, hard=False):
+        if hard:
+            return super().delete(using=using, keep_parents=keep_parents)
+        self.deleted_at = timezone.now()
+        self.status = self.Status.ARCHIVED
+        self.is_active = False
+        update_fields = ["deleted_at", "status", "is_active", "updated_at"]
+        self.save(using=using, update_fields=update_fields)
+
+    def restore(self, using=None):
+        self.deleted_at = None
+        self.status = self.Status.ACTIVE
+        self.is_active = True
+        update_fields = ["deleted_at", "status", "is_active", "updated_at"]
+        self.save(using=using, update_fields=update_fields)
+
+    def hard_delete(self, using=None, keep_parents=False):
+        return self.delete(using=using, keep_parents=keep_parents, hard=True)
+
     def save(self, *args, **kwargs):
-        # Synchronise is_active avec status (seul ACTIVE a is_active=True)
-        self.is_active = (self.status == self.Status.ACTIVE)
+        # Synchronise is_active avec status (seul ACTIVE sans deleted_at a is_active=True)
+        if self.deleted_at is not None:
+            self.is_active = False
+            self.status = self.Status.ARCHIVED
+        else:
+            self.is_active = (self.status == self.Status.ACTIVE)
         update_fields = kwargs.get("update_fields")
         if update_fields is not None:
             update_fields = set(update_fields)
-            if "status" in update_fields:
+            if "status" in update_fields or "deleted_at" in update_fields:
                 update_fields.add("is_active")
             kwargs["update_fields"] = list(update_fields)
         super().save(*args, **kwargs)
