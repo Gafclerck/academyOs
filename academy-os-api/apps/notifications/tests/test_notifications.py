@@ -9,6 +9,7 @@ from apps.notifications.services import (
     get_unread_count,
     mark_all_as_read,
     mark_as_read,
+    mark_as_unread,
 )
 
 NOTIFICATIONS_URL = "/api/v1/notifications/"
@@ -78,6 +79,44 @@ class NotificationServiceTests(TestCase):
         with self.assertRaises(PermissionDenied):
             mark_as_read(notif, other)
 
+    def test_mark_as_unread(self):
+        user = UserFactory()
+        notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="T",
+            message="M",
+        )
+        mark_as_read(notif, user)
+        result = mark_as_unread(notif, user)
+        self.assertFalse(result.is_read)
+        self.assertIsNone(result.read_at)
+
+    def test_mark_as_unread_idempotent(self):
+        user = UserFactory()
+        notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="T",
+            message="M",
+        )
+        result = mark_as_unread(notif, user)
+        self.assertFalse(result.is_read)
+        self.assertIsNone(result.read_at)
+
+    def test_mark_as_unread_wrong_user(self):
+        owner = UserFactory()
+        other = UserFactory()
+        notif = create_notification(
+            recipient=owner,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="T",
+            message="M",
+        )
+        mark_as_read(notif, owner)
+        with self.assertRaises(PermissionDenied):
+            mark_as_unread(notif, other)
+
     def test_mark_all_as_read(self):
         user = UserFactory()
         create_notification(
@@ -114,6 +153,19 @@ class NotificationServiceTests(TestCase):
         mark_all_as_read(user)
         self.assertEqual(get_unread_count(user), 0)
         self.assertEqual(get_unread_count(other), 1)
+
+    def test_mark_all_as_read_bumps_updated_at(self):
+        user = UserFactory()
+        notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="T",
+            message="M",
+        )
+        mark_all_as_read(user)
+        notif.refresh_from_db()
+        self.assertIsNotNone(notif.read_at)
+        self.assertEqual(notif.read_at, notif.updated_at)
 
     def test_get_unread_count(self):
         user = UserFactory()
@@ -213,6 +265,35 @@ class NotificationEndpointTests(AuthAPITestCase):
         resp = self.client.patch(f"{NOTIFICATIONS_URL}{notif.id}/read/")
         self.assertEqual(resp.status_code, 404)
 
+    def test_mark_notification_unread(self):
+        user = UserFactory()
+        notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="T",
+            message="M",
+        )
+        mark_as_read(notif, user)
+        self.auth(user)
+        resp = self.client.patch(f"{NOTIFICATIONS_URL}{notif.id}/unread/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data["is_read"])
+        self.assertIsNone(resp.data["read_at"])
+
+    def test_mark_notification_unread_wrong_user(self):
+        owner = UserFactory()
+        other = UserFactory()
+        notif = create_notification(
+            recipient=owner,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="T",
+            message="M",
+        )
+        mark_as_read(notif, owner)
+        self.auth(other)
+        resp = self.client.patch(f"{NOTIFICATIONS_URL}{notif.id}/unread/")
+        self.assertEqual(resp.status_code, 404)
+
     def test_mark_all_read(self):
         user = UserFactory()
         create_notification(
@@ -228,7 +309,46 @@ class NotificationEndpointTests(AuthAPITestCase):
             message="M2",
         )
         self.auth(user)
-        resp = self.client.post(f"{NOTIFICATIONS_URL}read-all/")
+        resp = self.client.patch(f"{NOTIFICATIONS_URL}read-all/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["updated_count"], 2)
         self.assertEqual(get_unread_count(user), 0)
+
+    def test_mark_all_read_via_post_returns_405(self):
+        user = UserFactory()
+        self.auth(user)
+        resp = self.client.post(f"{NOTIFICATIONS_URL}read-all/")
+        self.assertEqual(resp.status_code, 405)
+
+    def test_list_filter_is_read(self):
+        user = UserFactory()
+        unread_notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_CREATED,
+            title="Unread",
+            message="M",
+        )
+        read_notif = create_notification(
+            recipient=user,
+            notification_type=Notification.TypeEnum.CLAIM_UPDATED,
+            title="Read",
+            message="M",
+        )
+        mark_as_read(read_notif, user)
+        self.auth(user)
+
+        resp = self.client.get(f"{NOTIFICATIONS_URL}?is_read=true")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["id"], str(read_notif.id))
+
+        resp = self.client.get(f"{NOTIFICATIONS_URL}?is_read=false")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["id"], str(unread_notif.id))
+
+    def test_list_filter_is_read_invalid(self):
+        user = UserFactory()
+        self.auth(user)
+        resp = self.client.get(f"{NOTIFICATIONS_URL}?is_read=yes")
+        self.assertEqual(resp.status_code, 400)

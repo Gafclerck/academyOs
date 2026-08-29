@@ -1,6 +1,8 @@
 """Services du module claims : création et traitement des réclamations
 de certificats par les apprenants."""
 
+import logging
+
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
@@ -8,10 +10,12 @@ from rest_framework.exceptions import ValidationError
 
 from apps.certificates.models import Certificate
 from apps.notifications.models import Notification
-from apps.notifications.services import create_notification
+from apps.notifications.services import create_notifications
 from apps.users.models import User
 
 from .models import Claim
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_claim_eligibility(learner, certificate):
@@ -50,16 +54,17 @@ def _validate_claim_eligibility(learner, certificate):
 
 
 def _notify_admins_created(claim):
-    """Envoie une notification à tous les admins et organisateurs actifs."""
+    """Envoie (en masse, sans bloquer l'action) une notification à tous les
+    admins et organisateurs actifs quand une réclamation est créée."""
     recipients = User.objects.filter(
         role__in=[User.Role.ADMIN, User.Role.ORGANIZER],
         status=User.Status.ACTIVE,
     )
     learner_email = claim.learner.email
     cert_id_short = str(claim.certificate_id)[:8]
-    for user in recipients:
-        create_notification(
-            recipient=user,
+    try:
+        create_notifications(
+            recipients=recipients,
             notification_type=Notification.TypeEnum.CLAIM_CREATED,
             title="Nouvelle réclamation certificat",
             message=(
@@ -68,21 +73,29 @@ def _notify_admins_created(claim):
             ),
             content_object=claim,
         )
+    except Exception:
+        # Best-effort : une notification défaillante ne doit pas annuler
+        # la création de la réclamation.
+        logger.warning("Échec d'envoi des notifications (réclamation créée)", exc_info=True)
 
 
 def _notify_learner_status_change(claim):
-    """Envoie une notification à l'apprenant quand le statut change."""
+    """Envoie une notification à l'apprenant quand le statut change
+    (best-effort : ne doit pas faire échouer la mise à jour)."""
     status_display = claim.get_status_display()
-    create_notification(
-        recipient=claim.learner,
-        notification_type=Notification.TypeEnum.CLAIM_UPDATED,
-        title="Réclamation mise à jour",
-        message=(
-            f"Le statut de votre réclamation pour le certificat "
-            f"{str(claim.certificate_id)[:8]}… a été mis à jour : {status_display}."
-        ),
-        content_object=claim,
-    )
+    try:
+        create_notifications(
+            recipients=[claim.learner],
+            notification_type=Notification.TypeEnum.CLAIM_UPDATED,
+            title="Réclamation mise à jour",
+            message=(
+                f"Le statut de votre réclamation pour le certificat "
+                f"{str(claim.certificate_id)[:8]}… a été mis à jour : {status_display}."
+            ),
+            content_object=claim,
+        )
+    except Exception:
+        logger.warning("Échec d'envoi de la notification (statut réclamation)", exc_info=True)
 
 
 @transaction.atomic

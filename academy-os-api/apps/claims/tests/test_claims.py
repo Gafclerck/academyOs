@@ -1,5 +1,7 @@
 """Tests de l'app claims : création, traitement, permissions, notifications."""
 
+from unittest import mock
+
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
@@ -123,6 +125,15 @@ class ClaimServiceCreateTests(TestCase):
         with self.assertRaises(ValidationError):
             create_claim(learner, "00000000-0000-0000-0000-000000000000", "Inexistant")
 
+    @mock.patch("apps.claims.services.create_notifications", side_effect=RuntimeError("boom"))
+    def test_create_claim_best_effort_when_notification_fails(self, mock_create):
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        claim = create_claim(learner, certificate.id, "Problème")
+        self.assertEqual(claim.status, Claim.StatusEnum.PENDING)
+        self.assertTrue(Claim.objects.filter(pk=claim.pk).exists())
+        mock_create.assert_called_once()
+
 
 class ClaimServiceUpdateTests(TestCase):
     """Tests unitaires du service update_claim_status."""
@@ -176,6 +187,16 @@ class ClaimServiceUpdateTests(TestCase):
                 notification_type=Notification.TypeEnum.CLAIM_UPDATED,
             ).exists()
         )
+
+    @mock.patch("apps.claims.services.create_notifications", side_effect=RuntimeError("boom"))
+    def test_update_status_best_effort_when_notification_fails(self, mock_create):
+        updated = update_claim_status(
+            self.claim, Claim.StatusEnum.IN_PROGRESS, handled_by=self.admin
+        )
+        self.assertEqual(updated.status, Claim.StatusEnum.IN_PROGRESS)
+        updated.refresh_from_db()
+        self.assertEqual(updated.status, Claim.StatusEnum.IN_PROGRESS)
+        mock_create.assert_called_once()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

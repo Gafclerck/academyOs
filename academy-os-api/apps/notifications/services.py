@@ -1,12 +1,52 @@
 """Services du module notifications : création, lecture, marquage lu/non-lu."""
 
+import logging
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils import timezone
 
-from apps.users.models import User
-
 from .models import Notification
+
+logger = logging.getLogger(__name__)
+
+WS_GROUP_PREFIX = "notification_"
+
+
+def _notification_payload(notification):
+    """Payload minimal diffusé via WebSocket (IDs bruts, pas d'instances)."""
+    return {
+        "id": str(notification.id),
+        "notification_type": notification.notification_type,
+        "title": notification.title,
+        "message": notification.message,
+        "is_read": notification.is_read,
+        "content_type": notification.content_type_id,
+        "object_id": str(notification.object_id) if notification.object_id else None,
+        "created_at": notification.created_at.isoformat() if notification.created_at else None,
+    }
+
+
+def _notify_websocket(notification):
+    """Diffuse l'événement WS au groupe du destinataire (best-effort).
+
+    Ne doit jamais faire échouer l'écriture en base : l'échec est loggé.
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f"{WS_GROUP_PREFIX}{notification.recipient_id}",
+            {
+                "type": "notification.created",
+                "data": _notification_payload(notification),
+            },
+        )
+    except Exception:
+        logger.warning("Échec d'envoi WebSocket de la notification", exc_info=True)
 
 
 @transaction.atomic
@@ -23,20 +63,57 @@ def create_notification(
     ``content_object`` est optionnel : s'il est fourni, GenericForeignKey
     est renseignée automatiquement. Retourne l'objet Notification créé.
     """
+    created = create_notifications(
+        recipients=[recipient],
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        content_object=content_object,
+    )
+    return created[0]
+
+
+@transaction.atomic
+def create_notifications(
+    *,
+    recipients,
+    notification_type,
+    title,
+    message,
+    content_object=None,
+):
+    """Crée des notifications in-app pour plusieurs destinataires en une seule requête.
+
+    ``content_object`` est optionnel : s'il est fourni, GenericForeignKey
+    est renseignée automatiquement pour toutes les lignes. Retourne la liste
+    des objets Notification créés.
+
+    La diffusion WebSocket est déclenchée après commit de la transaction :
+    aucun événement n'est émis si elle est annulée.
+    """
     content_type = None
     object_id = None
     if content_object is not None:
         content_type = ContentType.objects.get_for_model(content_object)
         object_id = content_object.pk
 
-    return Notification.objects.create(
-        recipient=recipient,
-        notification_type=notification_type,
-        title=title,
-        message=message,
-        content_type=content_type,
-        object_id=object_id,
-    )
+    notifications = [
+        Notification(
+            recipient=user,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            content_type=content_type,
+            object_id=object_id,
+        )
+        for user in recipients
+    ]
+    created = Notification.objects.bulk_create(notifications)
+    for notification in created:
+        transaction.on_commit(
+            lambda n=notification: _notify_websocket(n)
+        )
+    return created
 
 
 def mark_as_read(notification, user):
@@ -66,8 +143,25 @@ def mark_all_as_read(user):
     updated = Notification.objects.filter(
         recipient=user,
         is_read=False,
-    ).update(is_read=True, read_at=now)
+    ).update(is_read=True, read_at=now, updated_at=now)
     return updated
+
+
+def mark_as_unread(notification, user):
+    """Marque une notification comme non lue. Vérifie la propriété.
+
+    Retourne la notification mise à jour ou lève PermissionDenied.
+    """
+    from django.core.exceptions import PermissionDenied
+
+    if notification.recipient_id != user.id:
+        raise PermissionDenied("Vous ne pouvez pas modifier une notification qui ne vous appartient pas.")
+
+    if notification.is_read:
+        notification.is_read = False
+        notification.read_at = None
+        notification.save(update_fields=["is_read", "read_at", "updated_at"])
+    return notification
 
 
 def get_unread_count(user):
