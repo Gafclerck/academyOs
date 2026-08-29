@@ -1,10 +1,10 @@
 from django.db import models
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 from .intake import Intake
 
 
-class Cohort(UUIDModel, TimeStampedModel):
+class Cohort(UUIDModel, TimeStampedModel, SoftDeletableModel):
     class StatusEnum(models.TextChoices):
         UPCOMING = "upcoming", "Upcoming"
         ONGOING = "ongoing", "Ongoing"

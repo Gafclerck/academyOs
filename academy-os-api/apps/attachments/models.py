@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
-from apps.core.models import UUIDModel
+from apps.core.models import UUIDModel, SoftDeletableModel
 
 ALLOWED_EXTENSIONS = [
     "pdf", "doc", "docx", "zip", "png", "jpg", "jpeg",
@@ -31,7 +31,7 @@ def attachment_upload_path(instance, filename):
     return f"attachments/{uuid.uuid4()}.{ext}" if ext else f"attachments/{uuid.uuid4()}"
 
 
-class Attachment(UUIDModel):
+class Attachment(UUIDModel, SoftDeletableModel):
     """Fichier téléversé, rattachable à n'importe quelle entité métier
     (Projet, Livrable, Session, Certificat...) via GenericForeignKey.
 

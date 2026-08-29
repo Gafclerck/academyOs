@@ -1,11 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 from apps.users.models import User
 
 
-class TrainerAssignment(UUIDModel, TimeStampedModel):
+class TrainerAssignment(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Affectation : un formateur (mentor) affecté à une cohorte."""
 
     class StatusEnum(models.TextChoices):
@@ -36,6 +36,7 @@ class TrainerAssignment(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["cohort", "user"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="uniq_trainer_assignment_cohort_user",
             )
         ]

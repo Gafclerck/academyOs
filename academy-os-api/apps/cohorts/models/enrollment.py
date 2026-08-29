@@ -1,12 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 from apps.users.models import User
 from .trainer_assignment import TrainerAssignment
 
 
-class Enrollment(UUIDModel, TimeStampedModel):
+class Enrollment(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Inscription : un apprenant inscrit à une cohorte, avec un mentor
     (formateur affecté à la MÊME cohorte) optionnel."""
 
@@ -46,6 +46,7 @@ class Enrollment(UUIDModel, TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["cohort", "user"],
+                condition=models.Q(deleted_at__isnull=True),
                 name="uniq_enrollment_cohort_user",
             )
         ]

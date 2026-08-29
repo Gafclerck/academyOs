@@ -1,10 +1,10 @@
-﻿from django.conf import settings
+from django.conf import settings
 from django.db import models
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 
 
-class Certificate(UUIDModel, TimeStampedModel):
+class Certificate(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Certificat de complétion délivré à un apprenant à la fin d'une formation.
 
     Généré automatiquement une fois la formation terminée, il passe par le
@@ -52,5 +52,15 @@ class Certificate(UUIDModel, TimeStampedModel):
         verbose_name = "Certificat"
         verbose_name_plural = "Certificats"
 
+    def delete(self, using=None, keep_parents=False, hard=False):
+        from django.core.files.storage import default_storage
+        if self.file_path and default_storage.exists(self.file_path):
+            try:
+                default_storage.delete(self.file_path)
+            except Exception:
+                pass
+        super().delete(using=using, keep_parents=keep_parents, hard=hard)
+
     def __str__(self):
         return f"Certificat {self.id} ({self.status})"
+

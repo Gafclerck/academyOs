@@ -1,9 +1,9 @@
 from django.db import models
 
-from apps.core.models import UUIDModel, TimeStampedModel
+from apps.core.models import UUIDModel, TimeStampedModel, SoftDeletableModel
 
 
-class Intake(UUIDModel, TimeStampedModel):
+class Intake(UUIDModel, TimeStampedModel, SoftDeletableModel):
     class StatusEnum(models.TextChoices):
         UPCOMING = "upcoming", "Upcoming"
         ONGOING = "ongoing", "Ongoing"
