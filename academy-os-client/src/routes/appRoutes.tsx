@@ -67,6 +67,7 @@ import ProjetSoumissionPage from '@/pages/formations/ProjetSoumissionPage'
 import MesCertificatsPage from '@/pages/certificats/MesCertificatsPage'
 
 import { CertificatsPage } from '@/pages/certificats/CertificatsPage'
+import ClaimsPage from '@/pages/reclamations/ClaimsPage'
 
 const AppRoutes = () => {
   return (
@@ -166,11 +167,19 @@ const AppRoutes = () => {
 
           <Route path="/gestion-certificats" element={<CertificatsPage />} />
 
-          
+          {/* ==================================================
+              RÉCLAMATIONS DE CERTIFICATS
+              ADMIN / ORGANISATEUR
+          ================================================== */}
 
+          <Route path="/reclamations" element={<ClaimsPage />}/>
+
+
+          
           {/* ==================================================
               6. UTILISATEURS
           ================================================== */}
+          
 
           <Route path="/users" element={<UsersPage />} />
           <Route path="/users/new" element={<AddUserPage />} />
