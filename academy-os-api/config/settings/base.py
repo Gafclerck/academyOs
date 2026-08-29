@@ -225,6 +225,7 @@ REST_FRAMEWORK = {
         'forgot': '5/hour',
         'reset': '5/hour',
         'activate': '5/hour',
+        'claim': '10/hour',
     },
 
 }

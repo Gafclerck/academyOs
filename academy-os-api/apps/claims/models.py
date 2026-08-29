@@ -10,6 +10,7 @@ class Claim(UUIDModel, TimeStampedModel, SoftDeletableModel):
     """Réclamation d'un apprenant concernant son certificat.
 
     Flux : PENDING → IN_PROGRESS → RESOLVED / REJECTED
+           PENDING → RESOLVED / REJECTED (fermeture directe par un admin)
     Réouverture : RESOLVED / REJECTED → IN_PROGRESS
     """
 
@@ -20,7 +21,7 @@ class Claim(UUIDModel, TimeStampedModel, SoftDeletableModel):
         REJECTED = "rejected", "Rejeté"
 
     ALLOWED_TRANSITIONS = {
-        StatusEnum.PENDING: [StatusEnum.IN_PROGRESS],
+        StatusEnum.PENDING: [StatusEnum.IN_PROGRESS, StatusEnum.RESOLVED, StatusEnum.REJECTED],
         StatusEnum.IN_PROGRESS: [StatusEnum.RESOLVED, StatusEnum.REJECTED],
         StatusEnum.RESOLVED: [StatusEnum.IN_PROGRESS],
         StatusEnum.REJECTED: [StatusEnum.IN_PROGRESS],

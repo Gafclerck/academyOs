@@ -572,6 +572,72 @@ class CertificateSendEndpointTests(AuthAPITestCase):
             == 400
         )
 
+    def test_blocks_send_when_active_claim(self, mock_render):
+        from django.core import mail
+
+        from apps.claims.models import Claim
+        from apps.claims.tests.factories import ClaimFactory
+
+        cert = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        ClaimFactory(
+            certificate=cert,
+            status=Claim.StatusEnum.PENDING,
+        )
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(cert.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        result = response.data["results"][0]
+        assert result["ok"] is False
+        assert result["status"] == "claim_active"
+        cert.refresh_from_db()
+        assert cert.status == Certificate.StatusCertificateEnum.PENDING
+        assert len(mail.outbox) == 0
+
+    def test_blocks_send_when_in_progress_claim(self, mock_render):
+        from django.core import mail
+
+        from apps.claims.models import Claim
+        from apps.claims.tests.factories import ClaimFactory
+
+        cert = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        ClaimFactory(
+            certificate=cert,
+            status=Claim.StatusEnum.IN_PROGRESS,
+        )
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(cert.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["results"][0]["status"] == "claim_active"
+        assert len(mail.outbox) == 0
+
+    def test_allows_send_after_claim_resolved(self, mock_render):
+        from django.core import mail
+
+        from apps.claims.models import Claim
+        from apps.claims.tests.factories import ClaimFactory
+
+        cert = CertificateFactory(status=Certificate.StatusCertificateEnum.PENDING)
+        ClaimFactory(
+            certificate=cert,
+            status=Claim.StatusEnum.RESOLVED,
+        )
+        response = self.auth(self.admin).post(
+            f"{CERTIFICATES_URL}send/",
+            {"ids": [str(cert.id)]},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["results"][0]["ok"] is True
+        cert.refresh_from_db()
+        assert cert.status == Certificate.StatusCertificateEnum.SENT
+        assert len(mail.outbox) == 1
+
     def test_organizer_can_generate_certificate(self, mock_render):
         enrollment = EnrollmentFactory()
         response = self.auth(self.organizer).post(

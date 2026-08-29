@@ -8,6 +8,7 @@ class ClaimCreateSerializer(serializers.Serializer):
 
     certificate = serializers.UUIDField(help_text="UUID du certificat concerné")
     message = serializers.CharField(
+        min_length=10,
         max_length=2000,
         help_text="Description de la réclamation",
     )
@@ -32,6 +33,8 @@ class ClaimDetailSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_transitions = serializers.SerializerMethodField()
 
     class Meta:
         model = Claim
@@ -46,6 +49,8 @@ class ClaimDetailSerializer(serializers.ModelSerializer):
             "cohort_name",
             "message",
             "status",
+            "status_display",
+            "status_transitions",
             "admin_response",
             "handled_by",
             "handled_by_email",
@@ -77,18 +82,30 @@ class ClaimDetailSerializer(serializers.ModelSerializer):
     def get_certificate_id_display(self, obj):
         return str(obj.certificate_id)[:8] + "…"
 
+    def get_status_transitions(self, obj):
+        allowed = obj.ALLOWED_TRANSITIONS.get(obj.status, [])
+        return [
+            {"value": value, "label": dict(Claim.StatusEnum.choices)[value]}
+            for value in allowed
+        ]
+
 
 class ClaimUpdateSerializer(serializers.Serializer):
-    """Sérialiseur d'entrée pour la mise à jour d'une réclamation (admin/org)."""
+    """Sérialiseur d'entrée pour la mise à jour d'une réclamation (admin/org).
+
+    `status` est optionnel : un PATCH peut uniquement renseigner
+    `admin_response`. En l'absence de clé `status`, le statut courant est
+    conservé (aucune transition, aucune notification).
+    """
 
     status = serializers.ChoiceField(
         choices=Claim.StatusEnum.choices,
+        required=False,
         help_text="Nouveau statut de la réclamation",
     )
     admin_response = serializers.CharField(
         max_length=2000,
         required=False,
         allow_blank=True,
-        default="",
         help_text="Réponse ou note de traitement",
     )

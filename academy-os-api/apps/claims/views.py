@@ -1,7 +1,9 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import permissions, status as http_status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.cohorts.models import TrainerAssignment
 from apps.users.models import User
@@ -31,7 +33,10 @@ from .services import create_claim, update_claim_status
                 "status",
                 str,
                 OpenApiParameter.QUERY,
-                description="Filtrer par statut ('pending', 'in_progress', 'resolved', 'rejected').",
+                description=(
+                    "Filtrer par statut. Valeurs séparées par des virgules pour "
+                    "plusieurs statuts ('pending,in_progress')."
+                ),
             ),
         ],
         tags=["Claims"],
@@ -77,7 +82,16 @@ class ClaimViewSet(viewsets.ModelViewSet):
             return [IsAdminOrOrganizer()]
         if self.action == "destroy":
             return [CanDeleteClaim()]
+        if self.action == "stats":
+            return [IsAdminOrOrganizer()]
         return [permissions.IsAuthenticated()]
+
+    def get_throttles(self):
+        if self.action == "create":
+            throttle = ScopedRateThrottle()
+            throttle.scope = "claim"
+            return [throttle]
+        return super().get_throttles()
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -88,7 +102,7 @@ class ClaimViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff or user.is_superuser or user.role in (
+        if user.is_superuser or user.role in (
             User.Role.ADMIN,
             User.Role.ORGANIZER,
         ):
@@ -121,18 +135,20 @@ class ClaimViewSet(viewsets.ModelViewSet):
         status_param = self.request.query_params.get("status")
         if status_param:
             valid_statuses = dict(Claim.StatusEnum.choices)
-            if status_param not in valid_statuses:
+            statuses = [s.strip() for s in status_param.split(",") if s.strip()]
+            invalid = [s for s in statuses if s not in valid_statuses]
+            if invalid or not statuses:
                 raise ValidationError(
                     {"status": ["Statut invalide. Valeurs acceptées : pending, in_progress, resolved, rejected."]}
                 )
-            queryset = queryset.filter(status=status_param)
+            queryset = queryset.filter(status__in=statuses)
 
         return queryset
 
     def get_object(self):
         obj = super().get_object()
         user = self.request.user
-        if user.is_staff or user.is_superuser or user.role in (
+        if user.is_superuser or user.role in (
             User.Role.ADMIN,
             User.Role.ORGANIZER,
         ):
@@ -160,8 +176,8 @@ class ClaimViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         updated = update_claim_status(
             claim=claim,
-            new_status=serializer.validated_data["status"],
-            admin_response=serializer.validated_data.get("admin_response", ""),
+            new_status=serializer.validated_data.get("status", claim.status),
+            admin_response=serializer.validated_data.get("admin_response"),
             handled_by=request.user,
         )
         output = ClaimDetailSerializer(updated, context={"request": request})
@@ -169,3 +185,18 @@ class ClaimViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+
+    @action(detail=False, methods=["get"])
+    def stats(self, request):
+        """Compteurs globaux par statut (admin/organisateur uniquement).
+
+        Source des KPIs du dashboard : évite de compter sur la page courante
+        de la liste (qui est tronquée par la pagination).
+        """
+        counts = {
+            s: Claim.objects.filter(status=s).count()
+            for s in dict(Claim.StatusEnum.choices)
+        }
+        counts["total"] = sum(counts.values())
+        counts["active"] = counts[Claim.StatusEnum.PENDING] + counts[Claim.StatusEnum.IN_PROGRESS]
+        return Response(counts)

@@ -2,9 +2,8 @@
 
 from unittest import mock
 
-from django.core.exceptions import PermissionDenied
 from django.test import TestCase
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.cohorts.models import Enrollment
 from apps.cohorts.tests.factories import EnrollmentFactory
@@ -132,7 +131,7 @@ class ClaimServiceCreateTests(TestCase):
         claim = create_claim(learner, certificate.id, "Problème")
         self.assertEqual(claim.status, Claim.StatusEnum.PENDING)
         self.assertTrue(Claim.objects.filter(pk=claim.pk).exists())
-        mock_create.assert_called_once()
+        self.assertEqual(mock_create.call_count, 2)
 
 
 class ClaimServiceUpdateTests(TestCase):
@@ -167,9 +166,46 @@ class ClaimServiceUpdateTests(TestCase):
         )
         self.assertEqual(updated.status, Claim.StatusEnum.REJECTED)
 
-    def test_invalid_transition_pending_to_resolved(self):
+    def test_pending_to_resolved_directly(self):
+        updated = update_claim_status(
+            self.claim, Claim.StatusEnum.RESOLVED, admin_response="Corrigé", handled_by=self.admin
+        )
+        self.assertEqual(updated.status, Claim.StatusEnum.RESOLVED)
+        self.assertEqual(updated.admin_response, "Corrigé")
+        self.assertEqual(updated.handled_by, self.admin)
+        self.assertIsNotNone(updated.handled_at)
+
+    def test_pending_to_rejected_directly(self):
+        updated = update_claim_status(
+            self.claim, Claim.StatusEnum.REJECTED, admin_response="Non fondé", handled_by=self.admin
+        )
+        self.assertEqual(updated.status, Claim.StatusEnum.REJECTED)
+
+    def test_invalid_transition_resolved_to_pending(self):
+        update_claim_status(self.claim, Claim.StatusEnum.RESOLVED, handled_by=self.admin)
         with self.assertRaises(ValidationError):
-            update_claim_status(self.claim, Claim.StatusEnum.RESOLVED, handled_by=self.admin)
+            update_claim_status(self.claim, Claim.StatusEnum.PENDING, handled_by=self.admin)
+
+    def test_admin_response_not_overwritten_when_absent(self):
+        update_claim_status(
+            self.claim, Claim.StatusEnum.IN_PROGRESS, admin_response="Note initiale", handled_by=self.admin
+        )
+        update_claim_status(
+            self.claim, Claim.StatusEnum.RESOLVED, handled_by=self.admin
+        )
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.admin_response, "Note initiale")
+
+    def test_update_admin_response_only_keeps_status(self):
+        update_claim_status(
+            self.claim, Claim.StatusEnum.IN_PROGRESS, admin_response="Première réponse", handled_by=self.admin
+        )
+        update_claim_status(
+            self.claim, Claim.StatusEnum.IN_PROGRESS, admin_response="Réponse enrichie", handled_by=self.admin
+        )
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.status, Claim.StatusEnum.IN_PROGRESS)
+        self.assertEqual(self.claim.admin_response, "Réponse enrichie")
 
     def test_reopen_rejected(self):
         update_claim_status(self.claim, Claim.StatusEnum.IN_PROGRESS, handled_by=self.admin)
@@ -196,7 +232,7 @@ class ClaimServiceUpdateTests(TestCase):
         self.assertEqual(updated.status, Claim.StatusEnum.IN_PROGRESS)
         updated.refresh_from_db()
         self.assertEqual(updated.status, Claim.StatusEnum.IN_PROGRESS)
-        mock_create.assert_called_once()
+        self.assertEqual(mock_create.call_count, 2)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -218,6 +254,22 @@ class ClaimCreateEndpointTests(AuthAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data["status"], "pending")
         self.assertEqual(resp.data["learner_email"], learner.email)
+        self.assertEqual(resp.data["status_display"], "En attente")
+        transition_values = {t["value"] for t in resp.data["status_transitions"]}
+        self.assertEqual(
+            transition_values,
+            {"in_progress", "resolved", "rejected"},
+        )
+
+    def test_message_too_short_returns_400(self):
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        self.auth(learner)
+        resp = self.post_json(CLAIMS_URL, {
+            "certificate": str(certificate.id),
+            "message": "Bref",
+        })
+        self.assertEqual(resp.status_code, 400)
 
     def test_admin_cannot_create_claim(self):
         admin = UserFactory(role=User.Role.ADMIN)
@@ -303,6 +355,59 @@ class ClaimListEndpointTests(AuthAPITestCase):
         resp = self.client.get(f"{CLAIMS_URL}?status=in_progress")
         self.assertEqual(resp.data["count"], 1)
 
+    def test_filter_by_multiple_status(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        enrollment1, learner1 = _make_enrollment()
+        cert1 = _make_certificate(enrollment1)
+        enrollment2, learner2 = _make_enrollment()
+        cert2 = _make_certificate(enrollment2)
+        create_claim(learner1, cert1.id, "Réclamation 1")
+        c2 = create_claim(learner2, cert2.id, "Réclamation 2")
+        update_claim_status(c2, Claim.StatusEnum.IN_PROGRESS, handled_by=admin)
+        enrollment3, learner3 = _make_enrollment()
+        cert3 = _make_certificate(enrollment3)
+        c3 = create_claim(learner3, cert3.id, "Réclamation 3")
+        update_claim_status(c3, Claim.StatusEnum.RESOLVED, handled_by=admin)
+        self.auth(admin)
+        resp = self.client.get(f"{CLAIMS_URL}?status=pending,in_progress")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 2)
+
+    def test_filter_invalid_status_returns_400(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        self.auth(admin)
+        resp = self.client.get(f"{CLAIMS_URL}?status=bogus")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_stats_returns_counts_for_admin(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        enrollment1, learner1 = _make_enrollment()
+        cert1 = _make_certificate(enrollment1)
+        enrollment2, learner2 = _make_enrollment()
+        cert2 = _make_certificate(enrollment2)
+        create_claim(learner1, cert1.id, "Réclamation 1")
+        c2 = create_claim(learner2, cert2.id, "Réclamation 2")
+        update_claim_status(c2, Claim.StatusEnum.IN_PROGRESS, handled_by=admin)
+        enrollment3, learner3 = _make_enrollment()
+        cert3 = _make_certificate(enrollment3)
+        create_claim(learner3, cert3.id, "Réclamation 3")
+        self.auth(admin)
+        resp = self.client.get(f"{CLAIMS_URL}stats/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["pending"], 2)
+        self.assertEqual(resp.data["in_progress"], 1)
+        self.assertEqual(resp.data["resolved"], 0)
+        self.assertEqual(resp.data["active"], 3)
+        self.assertEqual(resp.data["total"], 3)
+
+    def test_stats_forbidden_for_learner(self):
+        enrollment, learner = _make_enrollment()
+        certificate = _make_certificate(enrollment)
+        create_claim(learner, certificate.id, "Réclamation 1")
+        self.auth(learner)
+        resp = self.client.get(f"{CLAIMS_URL}stats/")
+        self.assertEqual(resp.status_code, 403)
+
     def test_unauthenticated_cannot_list(self):
         resp = self.client.get(CLAIMS_URL)
         self.assertEqual(resp.status_code, 401)
@@ -374,12 +479,42 @@ class ClaimUpdateEndpointTests(AuthAPITestCase):
         })
         self.assertEqual(resp.status_code, 403)
 
-    def test_invalid_transition_returns_400(self):
+    def test_admin_can_resolve_pending_directly(self):
         self.auth(self.admin)
         resp = self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {
             "status": "resolved",
+            "admin_response": "Certificat corrigé et envoyé.",
         })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "resolved")
+        self.assertEqual(resp.data["admin_response"], "Certificat corrigé et envoyé.")
+        self.assertEqual(resp.data["handled_by_email"], self.admin.email)
+
+    def test_invalid_transition_returns_400(self):
+        self.auth(self.admin)
+        self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {"status": "in_progress"})
+        resp = self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {"status": "pending"})
         self.assertEqual(resp.status_code, 400)
+
+    def test_admin_response_not_overwritten_when_absent(self):
+        self.auth(self.admin)
+        self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {
+            "status": "in_progress",
+            "admin_response": "Nous examinons.",
+        })
+        resp = self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {"status": "resolved"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["admin_response"], "Nous examinons.")
+
+    def test_patch_admin_response_only_keeps_status(self):
+        self.auth(self.admin)
+        self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {"status": "in_progress"})
+        resp = self.patch_json(f"{CLAIMS_URL}{self.claim.id}/", {
+            "admin_response": "Réponse ajoutée.",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "in_progress")
+        self.assertEqual(resp.data["admin_response"], "Réponse ajoutée.")
 
     def test_update_creates_notification_for_learner(self):
         self.auth(self.admin)

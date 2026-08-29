@@ -60,6 +60,19 @@ def send_certificate_email_task(self, certificate_id):
         if not certificate.file_path or not default_storage.exists(certificate.file_path):
             certificate = generate_certificate_pdf(certificate)
 
+        # Une réclamation active (pending/in_progress) bloque l'envoi : le
+        # certificat reste EN_ATTENTE tant qu'elle n'est pas traitée.
+        from apps.claims.models import Claim
+
+        if Claim.objects.filter(
+            certificate=certificate,
+            status__in=[Claim.StatusEnum.PENDING, Claim.StatusEnum.IN_PROGRESS],
+        ).exists():
+            logger.warning(
+                "Envoi du certificat %s bloqué : réclamation en cours.", certificate_id
+            )
+            return str(certificate.id)
+
         certificate.date_envoi = timezone.now()
         certificate.status = Certificate.StatusCertificateEnum.SENT
         certificate.save(update_fields=["status", "date_envoi", "updated_at"])

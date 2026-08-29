@@ -23,6 +23,16 @@ from .services import generate_certificate
 from .tasks import send_certificate_email_task
 
 
+def _certificate_has_active_claim(certificate) -> bool:
+    """Vrai si une réclamation non traitée (pending/in_progress) existe."""
+    from apps.claims.models import Claim
+
+    return Claim.objects.filter(
+        certificate=certificate,
+        status__in=[Claim.StatusEnum.PENDING, Claim.StatusEnum.IN_PROGRESS],
+    ).exists()
+
+
 class MyCertificatesView(APIView):
     """GET /api/v1/certificates/me/ -- liste les certificats de l'apprenant connecté."""
 
@@ -194,6 +204,9 @@ class CertificateSendView(APIView):
                 continue
             if cert.status == Certificate.StatusCertificateEnum.SENT:
                 results.append({"id": str(cert.id), "ok": False, "status": "skipped"})
+                continue
+            if _certificate_has_active_claim(cert):
+                results.append({"id": str(cert.id), "ok": False, "status": "claim_active"})
                 continue
             try:
                 # Marque l'envoi synchroniquement (idempotence : évite un
