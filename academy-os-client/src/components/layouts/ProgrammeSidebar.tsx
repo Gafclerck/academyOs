@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Sparkles,
   LogOut,
+  MessageSquare,
 } from 'lucide-react'
 
 import { useAuth } from '@/context/AuthContext'
@@ -136,6 +137,20 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     href: '/gestion-certificats',
     icon: Award,
     description: "Gestion & envoi des certificats",
+    roles: [
+      'admin',
+      'organizer',
+    ],
+  },
+  // ===================================================
+  // RÉCLAMATIONS (Admin / Organisateur)
+  // ===================================================
+
+  {
+    name: 'Réclamations',
+    href: '/reclamations',
+    icon: MessageSquare,
+    description: 'Réclamations de certificats',
     roles: [
       'admin',
       'organizer',

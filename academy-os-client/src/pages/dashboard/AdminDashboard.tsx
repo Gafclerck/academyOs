@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 
 import {
@@ -16,10 +15,17 @@ import {
   Target,
   AlertCircle,
   Loader2,
+  MessageSquare,
+  Clock,
+ 
+  XCircle,
+  RefreshCw,
 } from 'lucide-react'
 
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+
+import API from '@/api/api'
 
 import {
   dashboardService,
@@ -35,6 +41,116 @@ interface DashboardProps {
   navigate: ReturnType<typeof useNavigate>
 }
 
+type ClaimStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'resolved'
+  | 'rejected'
+
+interface DashboardClaim {
+  id: string
+  certificate_id_display: string
+  learner_name: string
+  learner_email: string
+  program_title: string
+  cohort_name: string
+  message: string
+  status: ClaimStatus
+  created_at: string
+}
+
+interface ClaimsResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: DashboardClaim[]
+}
+
+// =====================================================
+// CLAIM STATUS
+// =====================================================
+
+const CLAIM_STATUS_CONFIG: Record<
+  ClaimStatus,
+  {
+    label: string
+    className: string
+    icon: React.ComponentType<{
+      className?: string
+    }>
+  }
+> = {
+  pending: {
+    label: 'En attente',
+    className:
+      'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    icon: Clock,
+  },
+
+  in_progress: {
+    label: 'En cours',
+    className:
+      'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    icon: Loader2,
+  },
+
+  resolved: {
+    label: 'Résolue',
+    className:
+      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    icon: CheckCircle2,
+  },
+
+  rejected: {
+    label: 'Rejetée',
+    className:
+      'bg-red-500/10 text-red-600 dark:text-red-400',
+    icon: XCircle,
+  },
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+const formatNumber = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return '0'
+  }
+
+  return new Intl.NumberFormat('fr-FR').format(value)
+}
+
+const formatDecimal = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return '0'
+  }
+
+  return new Intl.NumberFormat('fr-FR', {
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
+const formatDateTime = (value: string | null) => {
+  if (!value) {
+    return '—'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 // =====================================================
 // MAIN DASHBOARD
 // =====================================================
@@ -48,6 +164,14 @@ const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // -----------------------------------------------------
+  // RÉCLAMATIONS
+  // -----------------------------------------------------
+
+  const [claims, setClaims] = useState<DashboardClaim[]>([])
+  const [claimsLoading, setClaimsLoading] = useState(true)
+  const [claimsError, setClaimsError] = useState(false)
 
   const role = user?.role
 
@@ -109,7 +233,60 @@ const AdminDashboard: React.FC = () => {
       }
     }
 
-    loadDashboard()
+    void loadDashboard()
+  }, [role])
+
+  // =====================================================
+  // CHARGEMENT DERNIÈRES RÉCLAMATIONS
+  // =====================================================
+
+  useEffect(() => {
+    const loadLatestClaims = async () => {
+      // Les réclamations sont réservées à l'admin
+      // et à l'organisateur.
+      if (
+        role !== 'admin' &&
+        role !== 'organizer'
+      ) {
+        setClaimsLoading(false)
+        return
+      }
+
+      try {
+        setClaimsLoading(true)
+        setClaimsError(false)
+
+        const response =
+          await API.get<ClaimsResponse>(
+            '/claims/',
+            {
+              params: {
+                page: 1,
+                page_size: 5,
+              },
+            },
+          )
+
+        const data = response.data
+
+        setClaims(
+          Array.isArray(data?.results)
+            ? data.results
+            : [],
+        )
+      } catch (err) {
+        console.error(
+          'Erreur lors du chargement des dernières réclamations :',
+          err,
+        )
+
+        setClaimsError(true)
+      } finally {
+        setClaimsLoading(false)
+      }
+    }
+
+    void loadLatestClaims()
   }, [role])
 
   // =====================================================
@@ -201,6 +378,12 @@ const AdminDashboard: React.FC = () => {
       firstName={firstName}
       navigate={navigate}
       role={role}
+      claims={claims}
+      claimsLoading={claimsLoading}
+      claimsError={claimsError}
+      onRefreshClaims={() => {
+        window.location.reload()
+      }}
     />
   )
 }
@@ -214,6 +397,10 @@ interface GlobalDashboardProps
   extends DashboardProps {
   stats: DashboardStats
   role: 'admin' | 'organizer'
+  claims: DashboardClaim[]
+  claimsLoading: boolean
+  claimsError: boolean
+  onRefreshClaims: () => void
 }
 
 const GlobalDashboard: React.FC<
@@ -223,6 +410,10 @@ const GlobalDashboard: React.FC<
   firstName,
   navigate,
   role,
+  claims,
+  claimsLoading,
+  claimsError,
+  onRefreshClaims,
 }) => {
   const isAdmin = role === 'admin'
 
@@ -260,6 +451,19 @@ const GlobalDashboard: React.FC<
             ? () => navigate('/users/new')
             : undefined
         }
+      />
+
+      {/* =====================================================
+          DERNIÈRES RÉCLAMATIONS
+          AFFICHÉES EN HAUT DU DASHBOARD
+      ===================================================== */}
+
+      <LatestClaims
+        claims={claims}
+        loading={claimsLoading}
+        error={claimsError}
+        navigate={navigate}
+        onRefresh={onRefreshClaims}
       />
 
       {/* =====================================================
@@ -471,13 +675,6 @@ const GlobalDashboard: React.FC<
 
       {/* =====================================================
           ACTIONS ADMINISTRATIVES
-          
-          IMPORTANT :
-          Cette section est affichée uniquement
-          pour l'administrateur.
-          
-          L'organisateur ne voit donc aucune
-          section d'actions rapides en bas.
       ===================================================== */}
 
       {isAdmin && (
@@ -518,6 +715,226 @@ const GlobalDashboard: React.FC<
       )}
 
     </DashboardLayout>
+  )
+}
+
+// =====================================================
+// DERNIÈRES RÉCLAMATIONS
+// =====================================================
+
+interface LatestClaimsProps {
+  claims: DashboardClaim[]
+  loading: boolean
+  error: boolean
+  navigate: ReturnType<typeof useNavigate>
+  onRefresh: () => void
+}
+
+const LatestClaims: React.FC<
+  LatestClaimsProps
+> = ({
+  claims,
+  loading,
+  error,
+  navigate,
+  onRefresh,
+}) => {
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
+
+      {/* HEADER */}
+
+      <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+
+        <div className="flex items-center gap-3">
+
+          <div className="flex size-10 items-center justify-center rounded-xl border border-[#FF6B0B]/20 bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
+            <MessageSquare className="size-5" />
+          </div>
+
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Dernières réclamations
+            </h2>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Les dernières demandes de certificat reçues.
+            </p>
+          </div>
+
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/reclamations')}
+          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#FF6B0B]/30 hover:text-[#FF6B0B] dark:border-white/10 dark:text-slate-300"
+        >
+          Voir toutes
+          <ArrowRight className="size-3.5" />
+        </button>
+
+      </div>
+
+      {/* LOADING */}
+
+      {loading && (
+        <div className="flex min-h-[150px] items-center justify-center">
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <Loader2 className="size-4 animate-spin text-[#FF6B0B]" />
+            Chargement des réclamations...
+          </div>
+        </div>
+      )}
+
+      {/* ERROR */}
+
+      {!loading && error && (
+        <div className="flex min-h-[150px] flex-col items-center justify-center gap-3 px-5 py-8 text-center">
+
+          <div className="flex size-10 items-center justify-center rounded-xl bg-red-500/10 text-red-500">
+            <AlertCircle className="size-5" />
+          </div>
+
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Impossible de charger les dernières réclamations.
+          </p>
+
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#FF6B0B]/30 hover:text-[#FF6B0B] dark:border-white/10 dark:text-slate-300"
+          >
+            <RefreshCw className="size-3.5" />
+            Réessayer
+          </button>
+
+        </div>
+      )}
+
+      {/* EMPTY */}
+
+      {!loading &&
+        !error &&
+        claims.length === 0 && (
+          <div className="flex min-h-[150px] flex-col items-center justify-center px-5 py-8 text-center">
+
+            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-white/5">
+              <MessageSquare className="size-5" />
+            </div>
+
+            <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Aucune réclamation
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Les nouvelles réclamations apparaîtront ici.
+            </p>
+
+          </div>
+        )}
+
+      {/* LISTE */}
+
+      {!loading &&
+        !error &&
+        claims.length > 0 && (
+          <div className="divide-y divide-slate-100 dark:divide-white/5">
+
+            {claims.map((claim) => {
+              const statusConfig =
+                CLAIM_STATUS_CONFIG[claim.status]
+
+              const StatusIcon =
+                statusConfig?.icon ?? Clock
+
+              const statusLabel =
+                statusConfig?.label ??
+                claim.status
+
+              const statusClass =
+                statusConfig?.className ??
+                'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300'
+
+              return (
+                <button
+                  key={claim.id}
+                  type="button"
+                  onClick={() =>
+                    navigate('/reclamations')
+                  }
+                  className="group flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-white/[0.02] md:flex-row md:items-center"
+                >
+
+                  {/* ICÔNE */}
+
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#FF6B0B]/10 text-[#FF6B0B] dark:bg-[#FF6B0B]/15">
+                    <MessageSquare className="size-5" />
+                  </div>
+
+                  {/* INFORMATIONS */}
+
+                  <div className="min-w-0 flex-1">
+
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                        {claim.learner_name || 'Apprenant'}
+                      </p>
+
+                      <span className="hidden text-slate-300 sm:inline dark:text-slate-600">
+                        •
+                      </span>
+
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {claim.program_title || 'Programme'}
+                      </p>
+
+                    </div>
+
+                    <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                      {claim.message || 'Aucun message'}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 dark:text-slate-500">
+
+                      <span>
+                        {claim.cohort_name || 'Cohorte'}
+                      </span>
+
+                      <span className="flex items-center gap-1">
+                        <CalendarDays className="size-3" />
+                        {formatDateTime(
+                          claim.created_at,
+                        )}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                  {/* STATUT */}
+
+                  <div className="flex shrink-0 items-center gap-3">
+
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-semibold ${statusClass}`}
+                    >
+                      <StatusIcon className="size-3.5" />
+                      {statusLabel}
+                    </span>
+
+                    <ArrowRight className="hidden size-4 text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-[#FF6B0B] md:block dark:text-slate-600" />
+
+                  </div>
+
+                </button>
+              )
+            })}
+
+          </div>
+        )}
+
+    </div>
   )
 }
 
@@ -929,37 +1346,6 @@ const QuickActions: React.FC<
 
     </div>
   )
-}
-
-// =====================================================
-// HELPERS
-// =====================================================
-
-const formatNumber = (
-  value: number,
-) => {
-  if (!Number.isFinite(value)) {
-    return '0'
-  }
-
-  return new Intl.NumberFormat(
-    'fr-FR',
-  ).format(value)
-}
-
-const formatDecimal = (
-  value: number,
-) => {
-  if (!Number.isFinite(value)) {
-    return '0'
-  }
-
-  return new Intl.NumberFormat(
-    'fr-FR',
-    {
-      maximumFractionDigits: 1,
-    },
-  ).format(value)
 }
 
 // =====================================================
