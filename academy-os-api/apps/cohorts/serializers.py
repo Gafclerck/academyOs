@@ -26,6 +26,24 @@ class IntakeSerializer(serializers.ModelSerializer):
 
 class CohortSerializer(serializers.ModelSerializer):
     start_date = serializers.DateField(required=False)
+    program_name = serializers.CharField(source="program.title", read_only=True)
+    intake_name = serializers.CharField(source="intake.name", read_only=True)
+    enrollment_status = serializers.SerializerMethodField()
+    enrolled_at = serializers.SerializerMethodField()
+
+    def _my_enrollment(self, obj):
+        enrollments = getattr(obj, "my_enrollment", None)
+        if enrollments:
+            return enrollments[0]
+        return None
+
+    def get_enrollment_status(self, obj):
+        enrollment = self._my_enrollment(obj)
+        return enrollment.status if enrollment else None
+
+    def get_enrolled_at(self, obj):
+        enrollment = self._my_enrollment(obj)
+        return enrollment.enrolled_at if enrollment else None
 
     class Meta:
         model = Cohort
@@ -34,10 +52,14 @@ class CohortSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "program",
+            "program_name",
             "intake",
+            "intake_name",
             "start_date",
             "end_date",
             "status",
+            "enrollment_status",
+            "enrolled_at",
             "created_at",
             "updated_at",
         ]

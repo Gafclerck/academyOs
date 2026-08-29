@@ -1,7 +1,8 @@
 from uuid import UUID
 
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound, ValidationError
@@ -74,7 +75,19 @@ class IntakeViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List all cohorts", tags=["Cohorts"]),
+    list=extend_schema(
+        summary="List all cohorts",
+        description="Liste paginée des cohortes accessibles selon le rôle. Pour un apprenant, `enrolled=all` inclut toutes ses inscriptions (terminées/suspendues) et ajoute `enrollment_status`/`enrolled_at`.",
+        parameters=[
+            OpenApiParameter(
+                name="enrolled",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Apprenant uniquement : `all` pour toutes les inscriptions au lieu des seules cohortes actives.",
+            ),
+        ],
+        tags=["Cohorts"],
+    ),
     create=extend_schema(summary="Create a cohort", tags=["Cohorts"]),
     retrieve=extend_schema(summary="Retrieve a cohort", tags=["Cohorts"]),
     update=extend_schema(summary="Update a cohort", tags=["Cohorts"]),
@@ -100,7 +113,12 @@ class CohortViewSet(viewsets.ModelViewSet):
         return [IsAdmin()]
 
     def get_queryset(self):
-        """Liste les cohortes, filtrable par `intake` et `program` (UUID)."""
+        """Liste les cohortes, filtrable par `intake` et `program` (UUID).
+
+        Pour un apprenant, `enrolled=all` étend la liste à toutes ses
+        inscriptions (formations terminées/suspendues incluses) et enrichit
+        chaque cohorte de `enrollment_status`/`enrolled_at`.
+        """
         queryset = super().get_queryset()
         user = self.request.user
 
@@ -113,11 +131,20 @@ class CohortViewSet(viewsets.ModelViewSet):
             ).values_list("cohort_id", flat=True)
             queryset = queryset.filter(id__in=cohort_ids)
         elif user.role == User.Role.LEARNER:
-            cohort_ids = Enrollment.objects.filter(
-                user=user,
-                status=Enrollment.StatusEnum.ACTIVE,
-            ).values_list("cohort_id", flat=True)
-            queryset = queryset.filter(id__in=cohort_ids)
+            my_enrollments = Enrollment.objects.filter(user=user)
+            list_enrollments = my_enrollments
+            if self.request.query_params.get("enrolled") != "all":
+                list_enrollments = list_enrollments.filter(
+                    status=Enrollment.StatusEnum.ACTIVE
+                )
+            cohort_ids = list_enrollments.values_list("cohort_id", flat=True)
+            queryset = queryset.filter(id__in=cohort_ids).prefetch_related(
+                Prefetch(
+                    "enrollments",
+                    queryset=my_enrollments,
+                    to_attr="my_enrollment",
+                )
+            )
         else:
             return queryset.none()
 

@@ -1,6 +1,7 @@
 from apps.core.tests.base import API_PREFIX, AuthAPITestCase
 from apps.core.tests.factories import UserFactory
 
+from apps.cohorts.models import Enrollment
 from .factories import CohortFactory, EnrollmentFactory, TrainerAssignmentFactory
 
 COHORTS_URL = f"{API_PREFIX}/cohorts/"
@@ -24,6 +25,51 @@ class CohortPermissionTests(AuthAPITestCase):
         response = self.auth(learner).get(COHORTS_URL)
         assert response.status_code == 200
         assert response.data["count"] == 0
+
+    def test_learner_default_lists_only_active_cohorts(self):
+        learner = UserFactory()
+        cohort_active = CohortFactory()
+        cohort_completed = CohortFactory()
+        EnrollmentFactory(
+            user=learner,
+            cohort=cohort_active,
+            status=Enrollment.StatusEnum.ACTIVE,
+        )
+        EnrollmentFactory(
+            user=learner,
+            cohort=cohort_completed,
+            status=Enrollment.StatusEnum.COMPLETED,
+        )
+        response = self.auth(learner).get(COHORTS_URL)
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == str(cohort_active.id)
+
+    def test_learner_enrolled_all_includes_all_and_enriches(self):
+        learner = UserFactory()
+        cohort_active = CohortFactory()
+        cohort_completed = CohortFactory()
+        EnrollmentFactory(
+            user=learner,
+            cohort=cohort_active,
+            status=Enrollment.StatusEnum.ACTIVE,
+        )
+        EnrollmentFactory(
+            user=learner,
+            cohort=cohort_completed,
+            status=Enrollment.StatusEnum.COMPLETED,
+        )
+        response = self.auth(learner).get(COHORTS_URL, {"enrolled": "all"})
+        assert response.status_code == 200
+        assert response.data["count"] == 2
+        by_id = {r["id"]: r for r in response.data["results"]}
+        active_item = by_id[str(cohort_active.id)]
+        completed_item = by_id[str(cohort_completed.id)]
+        assert active_item["enrollment_status"] == "active"
+        assert completed_item["enrollment_status"] == "completed"
+        assert completed_item["enrolled_at"] is not None
+        assert active_item["program_name"] == cohort_active.program.title
+        assert active_item["intake_name"] == cohort_active.intake.name
 
     def test_organizer_can_list_all_cohorts(self):
         organizer = UserFactory(organizer=True)
