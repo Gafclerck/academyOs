@@ -8,10 +8,13 @@ export const learnerDashboardKeys = {
   all: ['learner-dashboard'] as const,
 }
 
-export function useLearnerDashboard() {
+export function useLearnerDashboard(cohortId?: string) {
+  const queryKey = cohortId
+    ? [...learnerDashboardKeys.all, cohortId]
+    : learnerDashboardKeys.all
   return useQuery<LearnerDashboardStats>({
-    queryKey: learnerDashboardKeys.all,
-    queryFn: () => dashboardService.getLearnerDashboard(),
+    queryKey,
+    queryFn: () => dashboardService.getLearnerDashboard(cohortId),
     staleTime: 1000 * 60 * 2,
   })
 }

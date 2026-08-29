@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Spinner } from '@/components/ui/spinner'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
@@ -30,6 +31,7 @@ import {
   MessageSquare,
   Paperclip,
   ExternalLink,
+  Target,
 } from 'lucide-react'
 
 const STATUS_CONFIG: Record<
@@ -74,6 +76,24 @@ const DELIVERABLE_STATUS: Record<
     label: 'À réviser',
     className: 'bg-red-500/10 text-red-600',
   },
+}
+
+const LEVEL_LABELS: Record<string, string> = {
+  mastered: 'Maîtrisé',
+  acquired: 'Acquis',
+  in_progress: 'En cours',
+  not_acquired: 'Non acquis',
+}
+
+const LEVEL_CLASSES: Record<string, string> = {
+  mastered:
+    'border-emerald-500/20 bg-emerald-500/10 text-emerald-600',
+  acquired:
+    'border-sky-500/20 bg-sky-500/10 text-sky-600',
+  in_progress:
+    'border-amber-500/20 bg-amber-500/10 text-amber-600',
+  not_acquired:
+    'border-red-500/20 bg-red-500/10 text-red-600',
 }
 
 const ProjectSubmissionPage: React.FC = () => {
@@ -220,6 +240,20 @@ const ProjectSubmissionPage: React.FC = () => {
                   Note finale : {assignment.final_score}/100
                 </p>
               )}
+            {assignment.deadline_override && (
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <Clock className="size-3.5" />
+                À rendre avant le{' '}
+                {new Date(assignment.deadline_override).toLocaleDateString(
+                  'fr-FR',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  },
+                )}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -482,6 +516,63 @@ const ProjectSubmissionPage: React.FC = () => {
                       </p>
                     </div>
                   )}
+
+                  {deliv.criterion_scores &&
+                    deliv.criterion_scores.length > 0 && (
+                      <details className="mt-3 rounded-xl bg-slate-50 dark:bg-white/5">
+                        <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <Target className="size-3.5" />
+                          Détail de la correction par compétence
+                        </summary>
+                        <div className="space-y-2 px-4 pb-4">
+                          {deliv.criterion_scores.map((cs) => {
+                            const levelClass =
+                              LEVEL_CLASSES[cs.level ?? ''] ??
+                              LEVEL_CLASSES.in_progress
+                            const levelLabel =
+                              LEVEL_LABELS[cs.level ?? ''] ??
+                              cs.level
+                            return (
+                              <div
+                                key={cs.criterion}
+                                className="rounded-lg bg-white p-3 dark:bg-[#1f1f38]"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                    {cs.criterion_title ?? 'Critère'}
+                                  </p>
+                                  {cs.score !== undefined && (
+                                    <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                                      {cs.score}/{cs.max_score ?? '—'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                  {cs.level && (
+                                    <Badge
+                                      variant="outline"
+                                      className={`${levelClass} shrink-0`}
+                                    >
+                                      {levelLabel}
+                                    </Badge>
+                                  )}
+                                  {cs.competency_name && (
+                                    <span className="text-xs text-slate-400">
+                                      {cs.competency_name}
+                                    </span>
+                                  )}
+                                </div>
+                                {cs.feedback && (
+                                  <p className="mt-2 text-sm text-slate-500">
+                                    {cs.feedback}
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </details>
+                    )}
                 </div>
               )
             })}

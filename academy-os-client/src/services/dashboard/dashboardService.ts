@@ -266,8 +266,10 @@ export const dashboardService = {
     return response.data
   },
 
-  async getLearnerDashboard(): Promise<LearnerDashboardStats> {
-    const response = await API.get<LearnerDashboardStats>('/dashboard/learner/')
+  async getLearnerDashboard(cohortId?: string): Promise<LearnerDashboardStats> {
+    const response = await API.get<LearnerDashboardStats>('/dashboard/learner/', {
+      params: cohortId ? { cohort: cohortId } : undefined,
+    })
     return response.data
   },
 

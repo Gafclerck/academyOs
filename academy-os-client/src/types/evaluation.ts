@@ -22,8 +22,13 @@ export interface EvaluationCriterion {
 
 export interface CriterionScore {
   criterion: string
+  criterion_title?: string
+  competency_name?: string
+  max_score?: number
+  weight?: number
   score: number
-  acquisition_level?: string
+  level?: string
+  feedback?: string
 }
 
 export interface ProjectAssignment {

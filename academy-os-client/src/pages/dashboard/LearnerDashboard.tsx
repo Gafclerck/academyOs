@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useLearnerDashboard } from '@/hooks/useLearnerDashboard'
+import { getCohortes } from '@/services/cohortes/cohorteService'
+import type { Cohorte } from '@/types/cohorte'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,15 +18,59 @@ import {
   Award,
   MessageSquare,
   ExternalLink,
+  Layers,
 } from 'lucide-react'
 
 const roundPct = (value?: number) => Math.round(value || 0)
 
+const LEVEL_LABELS: Record<string, string> = {
+  mastered: 'Maîtrisé',
+  acquired: 'Acquis',
+  in_progress: 'En cours',
+  not_acquired: 'Non acquis',
+}
+
+const LEVEL_CLASSES: Record<string, string> = {
+  mastered:
+    'border-emerald-500/20 bg-emerald-500/10 text-emerald-600',
+  acquired:
+    'border-sky-500/20 bg-sky-500/10 text-sky-600',
+  in_progress:
+    'border-amber-500/20 bg-amber-500/10 text-amber-600',
+  not_acquired:
+    'border-red-500/20 bg-red-500/10 text-red-600',
+}
+
 export const LearnerDashboard: React.FC = () => {
   const { user } = useAuth()
-  const { data, isLoading, error, refetch } = useLearnerDashboard()
+  const [cohorts, setCohorts] = useState<Cohorte[]>([])
+  const [selectedCohortId, setSelectedCohortId] = useState<
+    string | null
+  >(null)
+  const { data, isLoading, error, refetch } = useLearnerDashboard(
+    selectedCohortId ?? undefined,
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    getCohortes()
+      .then((list) => {
+        if (cancelled) return
+        setCohorts(list)
+        if (list.length > 0) {
+          setSelectedCohortId((prev) => prev ?? list[0].id)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCohorts([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const firstName = user?.first_name || 'Apprenant'
+  const hasMultipleFormations = cohorts.length > 1
 
   if (isLoading) {
     return (
@@ -63,6 +109,9 @@ export const LearnerDashboard: React.FC = () => {
   const recentDeliverables = Array.isArray(data.recent_deliverables)
     ? data.recent_deliverables
     : []
+  const competencyScores = Array.isArray(data.competency_scores)
+    ? data.competency_scores
+    : []
 
   return (
     <div className="space-y-8">
@@ -88,6 +137,49 @@ export const LearnerDashboard: React.FC = () => {
           Actualiser
         </Button>
       </div>
+
+      {/* SÉLECTEUR DE FORMATION */}
+      {hasMultipleFormations && (
+        <div className="flex flex-wrap gap-2">
+          {cohorts.map((cohort) => {
+            const active = cohort.id === selectedCohortId
+            return (
+              <button
+                key={cohort.id}
+                type="button"
+                onClick={() => setSelectedCohortId(cohort.id)}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-left transition-colors ${
+                  active
+                    ? 'border-[#FF6B0B]/40 bg-[#FF6B0B]/10'
+                    : 'border-slate-200 bg-white hover:border-[#FF6B0B]/40 dark:border-white/10 dark:bg-[#1f1f38]'
+                }`}
+              >
+                <Layers
+                  className={`size-4 ${
+                    active ? 'text-[#FF6B0B]' : 'text-slate-400'
+                  }`}
+                />
+                <span className="min-w-0">
+                  <span
+                    className={`block truncate text-sm font-semibold ${
+                      active
+                        ? 'text-[#FF6B0B]'
+                        : 'text-slate-700 dark:text-slate-200'
+                    }`}
+                  >
+                    {cohort.name}
+                  </span>
+                  {cohort.program_name && (
+                    <span className="block truncate text-[11px] text-slate-400">
+                      {cohort.program_name}
+                    </span>
+                  )}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {!hasEnrollment ? (
         <Card className="bg-white p-10 text-center shadow-sm dark:bg-[#1f1f38]">
@@ -222,7 +314,58 @@ export const LearnerDashboard: React.FC = () => {
             </Card>
           )}
 
-          {/* 3. DERNIERS FEEDBACKS */}
+          {/* 3. COMPÉTENCES */}
+          {competencyScores.length > 0 && (
+            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
+              <div className="flex items-center gap-3 border-b border-slate-100 p-5 dark:border-white/5">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                  <GraduationCap className="size-4" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-900 dark:text-white">
+                    Compétences
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Niveaux d'acquisition estimés sur vos livrables
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
+                {competencyScores.map((comp) => {
+                  const levelClass =
+                    LEVEL_CLASSES[comp.latest_level] ??
+                    LEVEL_CLASSES.in_progress
+                  const levelLabel =
+                    LEVEL_LABELS[comp.latest_level] ??
+                    comp.latest_level
+                  return (
+                    <div
+                      key={comp.competency_name}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-4 dark:bg-white/5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          {comp.competency_name}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Moyenne :{' '}
+                          {comp.average_score !== null &&
+                          comp.average_score !== undefined
+                            ? `${comp.average_score}/100`
+                            : '—'}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={`shrink-0 ${levelClass}`}>
+                        {levelLabel}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* 4. DERNIERS FEEDBACKS */}
           <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
             <div className="flex items-center gap-3 border-b border-slate-100 p-5 dark:border-white/5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300">
@@ -300,7 +443,7 @@ export const LearnerDashboard: React.FC = () => {
             )}
           </Card>
 
-          {/* 4. BANDEAU ÉLIGIBILITÉ CERTIFICAT */}
+          {/* 5. BANDEAU ÉLIGIBILITÉ CERTIFICAT */}
           <Card className="relative flex flex-col gap-4 border-[#FF6B0B]/20 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:bg-[#1f1f38]">
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#FF6B0B]/5 to-transparent" />
             <div className="relative flex items-center gap-4">
