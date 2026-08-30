@@ -574,47 +574,6 @@ const GlobalDashboard: React.FC<
       </div>
 
       {/* =====================================================
-          UTILISATEURS
-      ===================================================== */}
-
-      <DashboardSectionTitle
-        title="Utilisateurs"
-        description="Répartition des utilisateurs de la plateforme."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-        <KpiCard
-          title="Apprenants"
-          value={stats.total_learners}
-          description={`${stats.active_learners} actifs`}
-          icon={Users}
-        />
-
-        <KpiCard
-          title="Formateurs"
-          value={stats.total_trainers}
-          description="formateurs enregistrés"
-          icon={GraduationCap}
-        />
-
-        <KpiCard
-          title="Organisateurs"
-          value={stats.total_organizers}
-          description="organisateurs enregistrés"
-          icon={Users}
-        />
-
-        <KpiCard
-          title="Administrateurs"
-          value={stats.total_admins}
-          description="administrateurs enregistrés"
-          icon={Award}
-        />
-
-      </div>
-
-      {/* =====================================================
           SUIVI
       ===================================================== */}
 
@@ -795,6 +754,12 @@ const LatestClaims: React.FC<
   navigate,
   onRefresh,
 }) => {
+  // Cache la section quand il n'y a aucune réclamation
+  // active (pending/in_progress) à traiter.
+  if (!loading && !error && claims.length === 0) {
+    return null
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#1f1f38]">
 
@@ -866,28 +831,6 @@ const LatestClaims: React.FC<
 
         </div>
       )}
-
-      {/* EMPTY */}
-
-      {!loading &&
-        !error &&
-        claims.length === 0 && (
-          <div className="flex min-h-[150px] flex-col items-center justify-center px-5 py-8 text-center">
-
-            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-white/5">
-              <MessageSquare className="size-5" />
-            </div>
-
-            <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Aucune réclamation
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Les nouvelles réclamations apparaîtront ici.
-            </p>
-
-          </div>
-        )}
 
       {/* LISTE */}
 
