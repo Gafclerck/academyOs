@@ -182,7 +182,7 @@ class Command(BaseCommand):
                 defaults={
                     "title": c_title,
                     "competency_name": competency,
-                    "max_score": Decimal("20.00"),
+                    "max_score": Decimal("100.00"),
                     "weight": Decimal("1.00"),
                     "description": FEEDBACKS[CriterionScore.LevelEnum.ACQUIRED],
                 },
@@ -214,6 +214,25 @@ class Command(BaseCommand):
             )
         return data
 
+    def _overall_score(self, project, criterion_scores_data):
+        """Note globale en /100 = moyenne des ratios score/max_score des critères.
+
+        Le score explicite fourni à review_deliverable court-circuite
+        calculate_score (base 20) et reste cohérent avec la notation /100 de l'UI.
+        """
+        max_by_crit = {
+            str(c.id): c.max_score
+            for c in EvaluationCriterion.objects.filter(project=project)
+        }
+        ratios = []
+        for item in criterion_scores_data:
+            max_score = max_by_crit.get(item["criterion"])
+            if max_score and max_score > 0:
+                ratios.append(Decimal(item["score"]) / max_score)
+        if not ratios:
+            return None
+        return round((sum(ratios) / Decimal(len(ratios))) * Decimal("100.00"), 2)
+
     def _spread(self, cohort, idx, count):
         """Date échelonnée (debut→fin de cohorte) pour la version `idx`/`count`."""
         span = (cohort.end_date - cohort.start_date).days
@@ -241,11 +260,13 @@ class Command(BaseCommand):
             comments=f"Livrable version 1 du projet {assignment.project.order}.",
             status=Deliverable.StatusEnum.SUBMITTED,
         )
+        criterion_scores_data = self._criterion_scores(assignment.project, seed, baseline)
         review_deliverable(
             deliverable=deliverable,
             trainer=trainer,
             status_decision=Deliverable.StatusEnum.VALIDATED,
-            criterion_scores_data=self._criterion_scores(assignment.project, seed, baseline),
+            score=self._overall_score(assignment.project, criterion_scores_data),
+            criterion_scores_data=criterion_scores_data,
         )
         reviewed_at = self._spread(cohort, idx + 1, count + 1)
         Deliverable.objects.filter(pk=deliverable.pk).update(
