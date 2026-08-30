@@ -13,6 +13,13 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+# Render (comme la plupart des PaaS) termine le TLS à son edge et transmet la
+# requête en HTTP avec ce header : sans ça, SECURE_SSL_REDIRECT boucle à l'infini.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Recommandé pour les requêtes POST vers /admin/ derrière un proxy HTTPS.
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
 # En production, les fichiers doivent être stockés en S3 (URLs signées) :
 # le backend 'local' servirait les octets sans authentification.
 if env("STORAGE_BACKEND", default="local") != "s3":

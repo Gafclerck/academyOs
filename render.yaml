@@ -1,0 +1,155 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Blueprint Render — Academy OS API (backend Django/DRF + Channels + Celery)
+# Doc de référence : https://render.com/docs/blueprint-spec
+#
+# ⚠️ Ce fichier suppose que les correctifs listés dans
+#    academy-os-api/RENDER_DEPLOYMENT.md (section 3) ont été appliqués :
+#    - CMD du Dockerfile qui respecte $PORT
+#    - DJANGO_SETTINGS_MODULE fixé explicitement (fait ci-dessous, via envVars)
+#    - SECURE_PROXY_SSL_HEADER dans settings/production.py
+#    - collectstatic + whitenoise pour /admin/ et /api/docs/
+#    - endpoint /healthz/ (utilisé par healthCheckPath)
+#
+# Avant le premier "Deploy Blueprint" sur Render :
+#   1. Ajuste `region` si tu ne veux pas de Frankfurt.
+#      → Choisis une région Supabase proche pour limiter la latence (Render
+#        Frankfurt ↔ Supabase eu-central-1 par ex.), même si rien ne les lie
+#        techniquement puisque la base n'est plus dans le réseau privé Render.
+#   2. Crée le projet Supabase et récupère sa connection string AVANT de
+#      déployer le Blueprint (section 3.8) — sinon le premier `migrate` au
+#      démarrage du service web échouera faute de DATABASE_URL valide.
+#   3. Ajuste ALLOWED_HOSTS / CORS_ALLOWED_ORIGINS / FRONTEND_URL avec tes
+#      vrais domaines une fois connus.
+#   4. Toutes les clés avec `sync: false` devront être saisies à la main
+#      dans le Dashboard Render (Environment → Edit) après la création —
+#      utilise des clés NEUVES, pas celles qui traînaient dans les .env
+#      locaux (voir section 2 du rapport : elles doivent être révoquées).
+# ─────────────────────────────────────────────────────────────────────────
+
+envVarGroups:
+  - name: academy-os-secrets
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        generateValue: true          # Render génère une valeur forte, unique
+      - key: DATABASE_URL
+        sync: false                  # Connection string Supabase (direct, port 5432)
+                                      # ex: postgresql://postgres:<pwd>@db.<ref>.supabase.co:5432/postgres?sslmode=require
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: S3_ACCESS_KEY_ID
+        sync: false                  # nouvelle clé B2 dédiée prod (à créer)
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION_NAME
+        sync: false
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false                  # nouvelle clé SMTP dédiée prod
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false                  # à changer dès la 1ère connexion admin
+
+services:
+  # ── Cache / broker Celery / couche Channels (WebSockets notifications) ──
+  - type: keyvalue
+    name: academy-os-redis
+    plan: starter
+    region: frankfurt
+    maxmemoryPolicy: noeviction      # obligatoire : c'est aussi une file de tâches Celery
+    ipAllowList: []                  # réseau privé Render uniquement, pas d'exposition publique
+
+  # ── API Django (HTTP + WebSockets, servie par Daphne) ──
+  - type: web
+    name: academy-os-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    rootDir: academy-os-api
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz/
+    autoDeployTrigger: commit
+    envVarGroups:
+      - academy-os-secrets
+    envVars:
+      - key: ALLOWED_HOSTS
+        value: academy-os-api.onrender.com   # + ton domaine perso si tu en ajoutes un
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://votre-frontend.onrender.com
+      - key: ACCESS_TOKEN_LIFETIME
+        value: "15"
+      - key: REFRESH_TOKEN_LIFETIME
+        value: "7"
+      - key: FRONTEND_URL
+        value: https://votre-frontend.onrender.com
+      - key: FRONTEND_RESET_PASSWORD_PATH
+        value: /reset-password
+      - key: FRONTEND_ACTIVATE_ACCOUNT_PATH
+        value: /invite-reset-password
+      - key: FRONTEND_COHORTS_PATH
+        value: /programmes
+      - key: FRONTEND_LOGO_PATH
+        value: /logo-xarala.png
+      - key: CHANNEL_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: academy-os-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: academy-os-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: academy-os-redis
+          property: connectionString
+
+  #  Worker Celery (emails, génération de certificats PDF, tâches async) 
+  - type: worker
+    name: academy-os-celery-worker
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    rootDir: academy-os-api
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: celery -A config worker --loglevel=info
+    autoDeployTrigger: commit
+    envVarGroups:
+      - academy-os-secrets
+    envVars:
+      - key: CHANNEL_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: academy-os-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: academy-os-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: academy-os-redis
+          property: connectionString

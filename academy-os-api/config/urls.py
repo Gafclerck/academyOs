@@ -11,6 +11,7 @@ from drf_spectacular.views import (
 API_PREFIX = settings.API_PREFIX.lstrip("/")
 
 urlpatterns = [
+    path("", include("apps.core.urls")),
     path("admin/", admin.site.urls),
     path(f"{API_PREFIX}/", include("apps.users.urls")),
     path(f"{API_PREFIX}/programs/", include("apps.programs.urls")),
