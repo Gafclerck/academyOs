@@ -373,6 +373,49 @@ class ClaimListEndpointTests(AuthAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["count"], 2)
 
+    def test_filter_by_repeated_status_params(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        enrollment1, learner1 = _make_enrollment()
+        cert1 = _make_certificate(enrollment1)
+        enrollment2, learner2 = _make_enrollment()
+        cert2 = _make_certificate(enrollment2)
+        create_claim(learner1, cert1.id, "Réclamation 1")
+        c2 = create_claim(learner2, cert2.id, "Réclamation 2")
+        update_claim_status(c2, Claim.StatusEnum.IN_PROGRESS, handled_by=admin)
+        enrollment3, learner3 = _make_enrollment()
+        cert3 = _make_certificate(enrollment3)
+        c3 = create_claim(learner3, cert3.id, "Réclamation 3")
+        update_claim_status(c3, Claim.StatusEnum.RESOLVED, handled_by=admin)
+        self.auth(admin)
+        resp = self.client.get(
+            f"{CLAIMS_URL}?status=pending&status=in_progress"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 2)
+
+    def test_filter_all_is_ignored(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        enrollment1, learner1 = _make_enrollment()
+        cert1 = _make_certificate(enrollment1)
+        enrollment2, learner2 = _make_enrollment()
+        cert2 = _make_certificate(enrollment2)
+        create_claim(learner1, cert1.id, "Réclamation 1")
+        create_claim(learner2, cert2.id, "Réclamation 2")
+        self.auth(admin)
+        resp = self.client.get(f"{CLAIMS_URL}?status=all")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 2)
+
+    def test_filter_empty_status_is_ignored(self):
+        admin = UserFactory(role=User.Role.ADMIN)
+        enrollment, learner = _make_enrollment()
+        cert = _make_certificate(enrollment)
+        create_claim(learner, cert.id, "Réclamation 1")
+        self.auth(admin)
+        resp = self.client.get(f"{CLAIMS_URL}?status=")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["count"], 1)
+
     def test_filter_invalid_status_returns_400(self):
         admin = UserFactory(role=User.Role.ADMIN)
         self.auth(admin)

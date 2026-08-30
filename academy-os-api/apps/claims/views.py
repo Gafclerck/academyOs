@@ -132,14 +132,27 @@ class ClaimViewSet(viewsets.ModelViewSet):
         else:
             return Claim.objects.none()
 
-        status_param = self.request.query_params.get("status")
-        if status_param:
+        status_params = self.request.query_params.getlist("status")
+        if status_params:
             valid_statuses = dict(Claim.StatusEnum.choices)
-            statuses = [s.strip() for s in status_param.split(",") if s.strip()]
+            statuses = [
+                s.strip()
+                for raw in status_params
+                for s in raw.split(",")
+            ]
+            statuses = [s for s in statuses if s]
+            # "all" ou valeur vide = aucun filtre (sentinelle du frontend).
+            if not statuses or "all" in statuses:
+                return queryset
             invalid = [s for s in statuses if s not in valid_statuses]
-            if invalid or not statuses:
+            if invalid:
                 raise ValidationError(
-                    {"status": ["Statut invalide. Valeurs acceptées : pending, in_progress, resolved, rejected."]}
+                    {
+                        "status": [
+                            "Statut invalide. Valeurs acceptées : "
+                            + ", ".join(valid_statuses)
+                        ]
+                    }
                 )
             queryset = queryset.filter(status__in=statuses)
 
