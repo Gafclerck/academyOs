@@ -87,9 +87,8 @@ services:
     dockerContext: .
     healthCheckPath: /healthz/
     autoDeployTrigger: commit
-    envVarGroups:
-      - academy-os-secrets
     envVars:
+      - fromGroup: academy-os-secrets
       - key: ALLOWED_HOSTS
         value: academy-os-api.onrender.com   # + ton domaine perso si tu en ajoutes un
       - key: CORS_ALLOWED_ORIGINS
@@ -124,7 +123,7 @@ services:
           name: academy-os-redis
           property: connectionString
 
-  #  Worker Celery (emails, génération de certificats PDF, tâches async) 
+  # ── Worker Celery (emails, génération de certificats PDF, tâches async) ──
   - type: worker
     name: academy-os-celery-worker
     runtime: docker
@@ -135,9 +134,8 @@ services:
     dockerContext: .
     dockerCommand: celery -A config worker --loglevel=info
     autoDeployTrigger: commit
-    envVarGroups:
-      - academy-os-secrets
     envVars:
+      - fromGroup: academy-os-secrets
       - key: CHANNEL_REDIS_URL
         fromService:
           type: keyvalue
