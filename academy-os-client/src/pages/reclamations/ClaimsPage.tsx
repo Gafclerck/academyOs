@@ -2450,8 +2450,10 @@ const ClaimModal: React.FC<
                     focus:ring-[#FF6B0B]/10
                     disabled:cursor-not-allowed
                     disabled:opacity-60
+                    [color-scheme:light]
                     dark:border-white/10
                     dark:bg-white/5
+                    dark:[color-scheme:dark]
                     dark:text-white
                   "
                 >
@@ -2461,6 +2463,12 @@ const ClaimModal: React.FC<
                       <option
                         key={option.value}
                         value={option.value}
+                        className="
+                          bg-white
+                          text-slate-900
+                          dark:bg-[#1f1f38]
+                          dark:text-white
+                        "
                       >
                         {option.label}
                       </option>
