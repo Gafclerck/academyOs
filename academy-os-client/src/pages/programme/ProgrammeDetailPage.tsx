@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ChevronRight,
   FolderKanban,
+  Plus,
 } from 'lucide-react'
 
 import { useAuth } from '@/context/AuthContext'
@@ -1293,23 +1294,62 @@ export const ProgrammeDetailPage: React.FC = () => {
 
           </div>
 
-          <div
+<div
             className="
-              rounded-full
-              bg-slate-100
-              px-3
-              py-1
-              text-xs
-              font-semibold
-              text-slate-600
-              dark:bg-white/[0.06]
-              dark:text-slate-300
+              flex
+              items-center
+              gap-3
             "
           >
-            {cohortesCount}{' '}
-            {cohortesCount > 1
-              ? 'cohortes'
-              : 'cohorte'}
+
+            <div
+              className="
+                rounded-full
+                bg-slate-100
+                px-3
+                py-1
+                text-xs
+                font-semibold
+                text-slate-600
+                dark:bg-white/[0.06]
+                dark:text-slate-300
+              "
+            >
+
+              {cohortesCount}{' '}
+
+              {cohortesCount > 1
+                ? 'cohortes'
+                : 'cohorte'}
+
+            </div>
+
+            {isAdmin && programme && (
+              <Button
+                onClick={() =>
+                  navigate(
+                    `/cohortes/new?program=${programme.id}`,
+                  )
+                }
+                className="
+                  rounded-xl
+                  bg-[#FF6B0B]
+                  px-4
+                  font-semibold
+                  text-white
+                  shadow-md
+                  shadow-[#FF6B0B]/20
+                  hover:bg-[#e85f08]
+                "
+              >
+
+                <Plus className="mr-2 size-4" />
+
+                Créer une cohorte
+
+              </Button>
+            )}
+
           </div>
 
         </div>

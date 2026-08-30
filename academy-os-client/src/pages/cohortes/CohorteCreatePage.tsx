@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, AlertCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
@@ -38,6 +38,10 @@ type CohorteFormData = z.infer<typeof cohorteSchema>;
 
 export const CohorteCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Programme pré-sélectionné (arrivée depuis la page de détail du programme).
+  const preselectedProgram = searchParams.get('program') ?? '';
 
   // ── Mutation ────────────────────────────────────────────────
   const createCohorteMutation = useCreateCohorte();
@@ -68,7 +72,7 @@ export const CohorteCreatePage: React.FC = () => {
     defaultValues: {
       name: '',
       description: '',
-      program: '',
+      program: preselectedProgram,
       intake: '',
       start_date: '',
       end_date: '',
@@ -101,7 +105,7 @@ export const CohorteCreatePage: React.FC = () => {
       await createCohorteMutation.mutateAsync(payload);
 
       toast.success('Cohorte créée avec succès.');
-      navigate('/cohortes');
+      navigate(preselectedProgram ? `/programmes/${preselectedProgram}` : '/cohortes');
     } catch (error: any) {
       console.error('Erreur création cohorte :', error);
 
@@ -208,7 +212,7 @@ export const CohorteCreatePage: React.FC = () => {
             <select
               id="program"
               value={selectedProgram}
-              disabled={loadingReferences || createCohorteMutation.isPending}
+              disabled={loadingReferences || createCohorteMutation.isPending || Boolean(preselectedProgram)}
               onChange={(event) => setValue('program', event.target.value, { shouldValidate: true })}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#FF6B0B] focus:ring-2 focus:ring-[#FF6B0B]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#1f1f38] dark:text-white"
             >
@@ -223,6 +227,11 @@ export const CohorteCreatePage: React.FC = () => {
               ))}
             </select>
             {errors.program && <p className="mt-1.5 text-xs text-red-500">{errors.program.message}</p>}
+            {preselectedProgram && (
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                Programme fixé depuis la page programme.
+              </p>
+            )}
           </div>
 
           {/* RENTRÉE */}
@@ -319,7 +328,7 @@ export const CohorteCreatePage: React.FC = () => {
           <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-white/10">
             <button
               type="button"
-              onClick={() => navigate('/cohortes')}
+              onClick={() => navigate(preselectedProgram ? `/programmes/${preselectedProgram}` : '/cohortes')}
               disabled={createCohorteMutation.isPending}
               className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
             >
