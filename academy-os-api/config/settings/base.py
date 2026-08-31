@@ -28,7 +28,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+ALLOWED_HOSTS = env('ALLOWED_HOSTS').split(",")
 
 # Email : piloté par l'environnement. Défaut = console (dev local, zéro config).
 # Pour passer en SMTP réel (dev comme prod), suffit de mettre EMAIL_BACKEND et
