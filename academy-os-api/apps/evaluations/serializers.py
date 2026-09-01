@@ -72,7 +72,7 @@ class CriterionScoreInputSerializer(serializers.Serializer):
     """Données d'entrée pour noter un critère lors d'une correction."""
 
     criterion = serializers.UUIDField(help_text="UUID du critère d'évaluation")
-    score = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, help_text="Note attribuée")
+    score = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=20, help_text="Note attribuée")
     level = serializers.ChoiceField(
         choices=CriterionScore.LevelEnum.choices,
         default=CriterionScore.LevelEnum.IN_PROGRESS,
@@ -195,6 +195,7 @@ class DeliverableReviewSerializer(serializers.Serializer):
         max_digits=5,
         decimal_places=2,
         min_value=0,
+        max_value=20,
         required=False,
         allow_null=True,
         help_text="Note globale manuelle (si omise, calculée automatiquement à partir des criterion_scores)",

@@ -180,7 +180,7 @@ export const LearnerDashboard: React.FC = () => {
                   <p className="text-slate-500">
                     Note moyenne :{' '}
                     <strong className="text-slate-800 dark:text-slate-200">
-                      {data.average_score !== null ? `${data.average_score}/100` : '—'}
+                      {data.average_score !== null ? `${data.average_score}/20` : '—'}
                     </strong>
                   </p>
                   {data.certificate_status && (
@@ -293,7 +293,7 @@ export const LearnerDashboard: React.FC = () => {
                           Moyenne :{' '}
                           {comp.average_score !== null &&
                           comp.average_score !== undefined
-                            ? `${comp.average_score}/100`
+                            ? `${comp.average_score}/20`
                             : '—'}
                         </p>
                       </div>
@@ -359,7 +359,7 @@ export const LearnerDashboard: React.FC = () => {
                     <div className="flex shrink-0 items-center gap-3">
                       {deliv.score !== null && deliv.score !== undefined && (
                         <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {deliv.score}/100
+                          {deliv.score}/20
                         </span>
                       )}
                       <Badge

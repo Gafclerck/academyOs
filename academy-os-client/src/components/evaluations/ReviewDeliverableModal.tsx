@@ -31,8 +31,8 @@ interface ReviewDeliverableModalProps {
 }
 
 const SCORE_MIN = 0
-const SCORE_MAX = 100
-const SCORE_STEP = 5
+const SCORE_MAX = 20
+const SCORE_STEP = 0.5
 
 const fmtDate = (value: string | null) => {
   if (!value) return '—'
@@ -59,20 +59,20 @@ export const ReviewDeliverableModal: React.FC<ReviewDeliverableModalProps> = ({
   onOpenChange,
 }) => {
   const [status, setStatus] = useState<'validated' | 'rejected'>('validated')
-  const [score, setScore] = useState<number>(80)
+  const [score, setScore] = useState<number>(16)
   const [feedback, setFeedback] = useState<string>('')
 
   const reviewMutation = useDeliverableReview(() => {
     onOpenChange(false)
     setFeedback('')
-    setScore(80)
+    setScore(16)
     setStatus('validated')
   })
 
   useEffect(() => {
     if (open) {
       setStatus('validated')
-      setScore(80)
+      setScore(16)
       setFeedback('')
     }
   }, [open, deliverable?.deliverable_id])
@@ -251,7 +251,7 @@ export const ReviewDeliverableModal: React.FC<ReviewDeliverableModalProps> = ({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-[170px_minmax(0,1fr)]">
                 <div className="space-y-2">
                   <Label htmlFor="score" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Note (/100) *
+                    Note (/20) *
                   </Label>
 
                   <div className="flex items-center gap-2">

@@ -58,7 +58,7 @@ export const TrainerRecentReviews: React.FC<TrainerRecentReviewsProps> = ({
               <div className="flex items-center gap-3">
                 {review.score !== null && review.score !== undefined ? (
                   <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                    {review.score}/100
+                    {review.score}/20
                   </span>
                 ) : null}
 

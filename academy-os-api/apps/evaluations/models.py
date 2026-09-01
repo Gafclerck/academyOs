@@ -2,15 +2,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
-from django.core.validators import MinValueValidator
-from django.db import models
-from django.utils import timezone
-
-from decimal import Decimal
-
-from django.conf import settings
-from django.contrib.contenttypes.fields import GenericRelation
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -41,7 +33,7 @@ class EvaluationCriterion(UUIDModel, TimeStampedModel, SoftDeletableModel):
         max_digits=5,
         decimal_places=2,
         default=20.00,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(0), MaxValueValidator(20)],
         help_text="Note maximale possible pour ce critère",
     )
     weight = models.DecimalField(
@@ -104,7 +96,7 @@ class ProjectAssignment(UUIDModel, TimeStampedModel, SoftDeletableModel):
         decimal_places=2,
         null=True,
         blank=True,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(0), MaxValueValidator(20)],
         help_text="Note finale obtenue sur l'assignation de projet",
     )
 
@@ -174,7 +166,7 @@ class Deliverable(UUIDModel, TimeStampedModel, SoftDeletableModel):
         decimal_places=2,
         null=True,
         blank=True,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(0), MaxValueValidator(20)],
         help_text="Note attribuée pour cette version de livrable",
     )
     feedback = models.TextField(blank=True, default="")
@@ -238,7 +230,7 @@ class CriterionScore(UUIDModel, TimeStampedModel, SoftDeletableModel):
         max_digits=5,
         decimal_places=2,
         default=0.00,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(0), MaxValueValidator(20)],
         help_text="Note attribuée pour ce critère",
     )
     level = models.CharField(

@@ -237,7 +237,7 @@ const ProjectSubmissionPage: React.FC = () => {
             {assignment.final_score !== null &&
               assignment.final_score !== undefined && (
                 <p className="mt-1 text-sm text-slate-500">
-                  Note finale : {assignment.final_score}/100
+                  Note finale : {assignment.final_score}/20
                 </p>
               )}
             {assignment.deadline_override && (
@@ -462,7 +462,7 @@ const ProjectSubmissionPage: React.FC = () => {
                       {deliv.score !== null &&
                         deliv.score !== undefined && (
                           <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
-                            {deliv.score}/100
+                            {deliv.score}/20
                           </span>
                         )}
                     </div>

@@ -641,7 +641,7 @@ const GlobalDashboard: React.FC<
           title="Score moyen"
           value={stats.average_score}
           icon={TrendingUp}
-          suffix="/100"
+          suffix="/20"
         />
 
       </div>

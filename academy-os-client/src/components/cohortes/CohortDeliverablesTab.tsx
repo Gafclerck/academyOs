@@ -168,7 +168,7 @@ export const CohortDeliverablesTab: React.FC<CohortDeliverablesTabProps> = ({
                   <div className="flex items-center gap-3">
                     {deliv.score !== null && deliv.score !== undefined && (
                       <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {deliv.score}/100
+                        {deliv.score}/20
                       </span>
                     )}
 

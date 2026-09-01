@@ -15,6 +15,7 @@ import {
   FolderOpen,
   GraduationCap,
   Loader2,
+  Plus,
   ShieldCheck,
   AlertCircle,
   Users,
@@ -848,7 +849,15 @@ export const ProjetListPage: React.FC = () => {
 
           </div>
 
-          {/* Aucun bouton de création */}
+          {isAdmin && (
+            <Button
+              onClick={() => navigate(`/programmes/${programmeId}/projets/new`)}
+              className="h-11 rounded-xl bg-[#FF6B0B] px-5 font-semibold text-white shadow-lg shadow-[#FF6B0B]/25 hover:bg-[#ff7a24]"
+            >
+              <Plus className="mr-2 size-4" />
+              Nouveau Projet
+            </Button>
+          )}
         </div>
       )}
 

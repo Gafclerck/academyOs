@@ -81,7 +81,7 @@ export const CohortStatsTab: React.FC<CohortStatsTabProps> = ({ cohortId }) => {
             Note Moyenne
           </p>
           <p className="relative mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
-            {stats.average_score !== null ? `${stats.average_score}/100` : '—'}
+            {stats.average_score !== null ? `${stats.average_score}/20` : '—'}
           </p>
           <p className="relative mt-1 text-xs text-slate-400">Sur tous les projets</p>
         </Card>

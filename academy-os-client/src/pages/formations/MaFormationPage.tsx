@@ -221,7 +221,7 @@ const MaFormationPage: React.FC = () => {
                   {assignment.final_score !== null &&
                     assignment.final_score !== undefined && (
                       <p className="mt-2 text-xs font-semibold text-slate-500">
-                        Note finale : {assignment.final_score}/100
+                        Note finale : {assignment.final_score}/20
                       </p>
                     )}
 
