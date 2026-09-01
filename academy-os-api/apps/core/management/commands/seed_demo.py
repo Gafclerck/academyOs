@@ -182,7 +182,7 @@ class Command(BaseCommand):
                 defaults={
                     "title": c_title,
                     "competency_name": competency,
-                    "max_score": Decimal("100.00"),
+                    "max_score": Decimal("20.00"),
                     "weight": Decimal("1.00"),
                     "description": FEEDBACKS[CriterionScore.LevelEnum.ACQUIRED],
                 },
@@ -215,10 +215,10 @@ class Command(BaseCommand):
         return data
 
     def _overall_score(self, project, criterion_scores_data):
-        """Note globale en /100 = moyenne des ratios score/max_score des critères.
+        """Note globale en /20 = moyenne des ratios score/max_score des critères.
 
         Le score explicite fourni à review_deliverable court-circuite
-        calculate_score (base 20) et reste cohérent avec la notation /100 de l'UI.
+        calculate_score (base 20) et reste cohérent avec la notation /20.
         """
         max_by_crit = {
             str(c.id): c.max_score
@@ -231,7 +231,7 @@ class Command(BaseCommand):
                 ratios.append(Decimal(item["score"]) / max_score)
         if not ratios:
             return None
-        return round((sum(ratios) / Decimal(len(ratios))) * Decimal("100.00"), 2)
+        return round((sum(ratios) / Decimal(len(ratios))) * Decimal("20.00"), 2)
 
     def _spread(self, cohort, idx, count):
         """Date échelonnée (debut→fin de cohorte) pour la version `idx`/`count`."""
