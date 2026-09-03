@@ -179,7 +179,7 @@
         .date-block {
             position: absolute;
 
-            left: 173px;
+            left: 130px;
             top: 600px;
             width: 145px;
 
@@ -218,7 +218,7 @@
         .signature-block {
             position: absolute;
 
-            left: 434px;
+            left: 380px;
             top: 560px;
             width: 126px;
 
@@ -240,7 +240,7 @@
             position: absolute;
 
             left: 792px;
-            top: 490px;
+            top: 500px;
 
             width: 200px;
             height: 200px;
@@ -258,6 +258,39 @@
 
             object-fit: contain;
             object-position: center;
+        }
+
+        .verification-block {
+            position: absolute;
+
+            left: 561px;
+            top: 550px;
+            width: 178px;
+
+            text-align: center;
+        }
+
+        .verification-qr {
+            display: block;
+
+            margin: 0 auto 8px;
+
+            width: 92px;
+            height: 92px;
+
+            object-fit: contain;
+        }
+
+        .verification-label {
+            margin: 0;
+
+            color: #454545;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+            font-size: 13px;
+            font-weight: 400;
+            line-height: 1.15;
+
+            white-space: normal;
         }
     </style>
 </head>
@@ -307,6 +340,14 @@
             <div class="stamp-block">
                 <!-- Tampon fourni séparément -->
                 <img src={{ stamp_image_url }} class="stamp-image" alt="Tampon Xarala">
+            </div>
+
+            <div class="verification-block">
+                <img src={{ qr_code_data_uri }} class="verification-qr" alt="QR code de vérification">
+                <p class="verification-label">
+                    Vérifiez l'authenticité :<br>
+                    {{ certificate_id }}
+                </p>
             </div>
         </section>
 

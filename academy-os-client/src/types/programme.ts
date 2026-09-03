@@ -89,6 +89,20 @@ export interface CertificateSendPayload {
 }
 
 /* ============================================================
+   CERTIFICAT PUBLIC (vérification sans authentification)
+   Aligné sur apps/certificates/serializers.py ->
+   CertificatePublicSerializer (GET /certificates/{id}/).
+============================================================ */
+
+export interface CertificatePublic {
+  id: string
+  learner_name: string
+  program_title: string
+  status: StatutCertificat
+  date_envoi: string | null
+}
+
+/* ============================================================
    BACKEND USERS
 ============================================================ */
 

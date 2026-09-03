@@ -1,3 +1,4 @@
+import axios from 'axios'
 import api from '@/api/api'
 import { parseApiError } from '@/lib/errorUtils'
 import {
@@ -6,6 +7,7 @@ import {
 
 import type {
   CertificateAdminItem,
+  CertificatePublic,
   CertificateSendPayload,
   CertificateSendResult,
   StatutCertificat,
@@ -55,5 +57,38 @@ export async function sendCertificats(
     throw new Error(
       parseApiError(err, "Impossible d'envoyer les certificats.").message,
     )
+  }
+}
+
+/**
+ * Récupère les informations publiques de vérification d'un certificat.
+ *
+ * Utilise un client axios dédié (sans les intercepteurs de `api`) afin que
+ * la page publique reste accessible sans authentification et ne soit jamais
+ * redirigée vers /login (y compris si un jeton expiré traîne en localStorage).
+ */
+export async function getCertificatPublic(
+  id: string,
+): Promise<CertificatePublic> {
+  const publicClient = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+    timeout: 15000,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  })
+  try {
+    const { data } = await publicClient.get<CertificatePublic>(
+      `/certificates/${id}/`,
+    )
+    return data
+  } catch (err) {
+    const status = axios.isAxiosError(err) ? err.response?.status ?? null : null
+    const error = new Error(
+      parseApiError(err, 'Certificat introuvable ou non émis.').message,
+    )
+    ;(error as Error & { status?: number | null }).status = status
+    throw error
   }
 }

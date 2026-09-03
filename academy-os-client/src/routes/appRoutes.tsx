@@ -71,6 +71,8 @@ import ClaimsPage from '@/pages/reclamations/ClaimsPage'
 
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
 
+import CertificateVerificationPage from '@/pages/certificats/CertificateVerificationPage'
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -83,6 +85,13 @@ const AppRoutes = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/invite-reset-password" element={<InviteResetPassword />} />
+
+      {/* ======================================================
+          VÉRIFICATION PUBLIQUE DE CERTIFICAT (sans auth)
+          Accessible à tous via le QR / lien imprimé sur le PDF.
+      ====================================================== */}
+
+      <Route path="/certificats/:id" element={<CertificateVerificationPage />} />
 
       {/* ======================================================
           ROUTES PROTÉGÉES

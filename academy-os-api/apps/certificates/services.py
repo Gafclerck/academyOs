@@ -84,6 +84,18 @@ def trigger_certificate_if_eligible(enrollment) -> Optional[Certificate]:
     return certificate
 
 
+def _qr_data_uri(url: str) -> str:
+    """Génère un QR code (SVG en data-URI) pour l'URL de vérification.
+
+    Utilise `segno` (pur Python, sans dépendance système) et produit un
+    SVG compact intégrable directement dans le HTML du certificat.
+    """
+    import segno
+
+    qr = segno.make_qr(url, error="m")
+    return qr.svg_data_uri(scale=4)
+
+
 def _render_pdf_bytes(html_content: str) -> bytes:
     """Rend HTML → PDF via WeasyPrint.
 
@@ -123,6 +135,7 @@ def generate_certificate_pdf(certificate: Certificate) -> Certificate:
             "date_generation": date_formatted,
             "certificate_id": certificate.id,
             "verification_url": verification_url,
+            "qr_code_data_uri": _qr_data_uri(verification_url),
             "background_image_url":  (CERTIFICATE_ASSETS/"certificate-background.png").as_uri(),
             "certificate_logo_url": (CERTIFICATE_ASSETS/"certificate-logo.png").as_uri(),
             "stamp_image_url": (CERTIFICATE_ASSETS/"certificate-stamp.png").as_uri(),

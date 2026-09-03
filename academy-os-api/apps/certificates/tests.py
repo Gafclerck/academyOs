@@ -193,6 +193,35 @@ class CertificatePdfGenerationTests(TestCase):
             content = f.read()
         self.assertGreater(len(content), 1000)
 
+    # Vérifie que le template reçoit l'URL de vérification et son QR code.
+    def test_generate_certificate_pdf_passes_verification_url_and_qr(self, mock_render):
+        from unittest.mock import patch as mock_patch
+        from django.conf import settings
+        from django.utils import timezone
+
+        captured = {}
+
+        def _fake_render(template_name, context=None, request=None):
+            captured.update(context or {})
+            return "<html>rendered</html>"
+
+        certificate = CertificateFactory(
+            status=Certificate.StatusCertificateEnum.SENT,
+        )
+        certificate.date_envoi = timezone.now()
+        certificate.save(update_fields=["date_envoi"])
+
+        from apps.certificates.services import generate_certificate_pdf
+        with mock_patch(
+            "apps.certificates.services.render_to_string", side_effect=_fake_render
+        ):
+            generate_certificate_pdf(certificate)
+
+        expected_url = f"{settings.FRONTEND_URL}/certificats/{certificate.id}"
+        self.assertEqual(captured["verification_url"], expected_url)
+        self.assertTrue(captured["qr_code_data_uri"].startswith("data:image/svg+xml"))
+        self.assertEqual(captured["certificate_id"], certificate.id)
+
 
 @patch("apps.certificates.services._render_pdf_bytes", return_value=FAKE_PDF_BYTES)
 class CertificateEmailTaskTests(AuthAPITestCase):
